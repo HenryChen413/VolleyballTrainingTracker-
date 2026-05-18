@@ -527,7 +527,9 @@ export default function DrillsPage() {
                             key={d.id}
                             className={cn(
                               "group relative flex items-center justify-between gap-2 pl-3 pr-2 py-2 rounded-md overflow-hidden transition-colors",
-                              active ? "bg-accent" : "hover:bg-accent/50",
+                              active
+                                ? "bg-accent"
+                                : canUpdate && "hover:bg-accent/50",
                             )}
                           >
                             <span
@@ -538,32 +540,25 @@ export default function DrillsPage() {
                               )}
                               aria-hidden
                             />
-                            <button
-                              type="button"
-                              onClick={() => startEdit(d)}
-                              className="flex-1 text-left min-w-0"
-                            >
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium truncate">
-                                  {d.name}
-                                </span>
-                                {isNewBadge && (
-                                  <Chip tone="primary" size="sm">
-                                    <Sparkles className="h-3 w-3" />新
-                                  </Chip>
-                                )}
-                                {!d.isActive && (
-                                  <Chip tone="neutral" size="sm">
-                                    已停用
-                                  </Chip>
-                                )}
+                            {canUpdate ? (
+                              <button
+                                type="button"
+                                onClick={() => startEdit(d)}
+                                className="flex-1 text-left min-w-0"
+                              >
+                                <DrillRowContent
+                                  drill={d}
+                                  isNewBadge={isNewBadge}
+                                />
+                              </button>
+                            ) : (
+                              <div className="flex-1 min-w-0">
+                                <DrillRowContent
+                                  drill={d}
+                                  isNewBadge={isNewBadge}
+                                />
                               </div>
-                              {d.description && (
-                                <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                                  {d.description}
-                                </p>
-                              )}
-                            </button>
+                            )}
                             <div className="flex items-center gap-1 shrink-0">
                               {canUpdate && (
                                 <span
@@ -776,6 +771,37 @@ function FilterChip({
         {count}
       </span>
     </button>
+  );
+}
+
+function DrillRowContent({
+  drill: d,
+  isNewBadge,
+}: {
+  drill: Drill;
+  isNewBadge: boolean;
+}) {
+  return (
+    <>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="font-medium truncate">{d.name}</span>
+        {isNewBadge && (
+          <Chip tone="primary" size="sm">
+            <Sparkles className="h-3 w-3" />新
+          </Chip>
+        )}
+        {!d.isActive && (
+          <Chip tone="neutral" size="sm">
+            已停用
+          </Chip>
+        )}
+      </div>
+      {d.description && (
+        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+          {d.description}
+        </p>
+      )}
+    </>
   );
 }
 

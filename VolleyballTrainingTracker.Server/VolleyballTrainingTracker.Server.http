@@ -1,0 +1,6 @@
+@VolleyballTrainingTracker.Server_HostAddress = http://localhost:5069
+
+GET {{VolleyballTrainingTracker.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

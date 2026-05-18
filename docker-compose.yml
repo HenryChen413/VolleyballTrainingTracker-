@@ -1,0 +1,78 @@
+# 全部機密請放在 .env（見 .env.example），切勿寫死於本檔。
+services:
+  postgres:
+    image: postgres:15
+    container_name: vbtt-postgres
+    environment:
+      POSTGRES_DB: VOLLEYBALLTRAININGTRACKER
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # 首次建立 volume 時自動套用 schema（schema-only，資料另行匯入）
+      - ./VolleyballTrainingTracker.Server/Data/Sql/pg_init.sql:/docker-entrypoint-initdb.d/pg_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d VOLLEYBALLTRAININGTRACKER"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    # 不對外開放資料庫埠；僅供 compose 內部網路存取。
+
+  # 一次性：建立系統角色 + 超級管理員 YUANHE。
+  db-seed:
+    build:
+      context: .
+      dockerfile: VolleyballTrainingTracker.Server/Dockerfile.linux
+    container_name: vbtt-db-seed
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=VOLLEYBALLTRAININGTRACKER;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+    entrypoint: /bin/sh
+    command: >
+      -c "dotnet VolleyballTrainingTracker.Server.dll seed-roles &&
+          dotnet VolleyballTrainingTracker.Server.dll seed-user YUANHE \"$${ADMIN_PASSWORD}\" Admin"
+    env_file:
+      - .env
+
+  server:
+    build:
+      context: .
+      dockerfile: VolleyballTrainingTracker.Server/Dockerfile.linux
+    container_name: vbtt-server
+    depends_on:
+      db-seed:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=VOLLEYBALLTRAININGTRACKER;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      Jwt__SecretKey: ${JWT_SECRET:?JWT_SECRET is required}
+      Jwt__Issuer: VolleyballTrainingTracker
+      Jwt__Audience: VolleyballTrainingTracker.Client
+      # 正式網域請改成你的對外網址
+      Cors__AllowedOrigins__0: ${PUBLIC_ORIGIN:-http://localhost:8080}
+    # 不對外開放 8080；只在 compose 內網讓 caddy 反向代理存取。
+    expose:
+      - "8080"
+
+  # 反向代理：終止 TLS、自動申請/續期 Let's Encrypt 憑證、轉發 X-Forwarded-*。
+  caddy:
+    image: caddy:2
+    container_name: vbtt-caddy
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:

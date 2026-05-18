@@ -1,0 +1,78 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet add *)",
+      "Bash(dotnet build *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(docker --version)",
+      "PowerShell(sqlcmd -S . -E -Q \"SELECT @@VERSION; SELECT SUSER_NAME\\(\\) AS [Login], CURRENT_USER AS [User];\")",
+      "Bash(ASPNETCORE_ENVIRONMENT=Development dotnet run --no-build --launch-profile https)",
+      "Bash(curl -k -s -o /dev/null -w \"%{http_code}\" https://localhost:7237/swagger/v1/swagger.json)",
+      "Bash(curl -k -s -X POST https://localhost:7237/api/Auth/login -H \"Content-Type: application/json\" -d '{\"userNameOrEmail\":\"YUANHE\",\"password\":\"a123\"}')",
+      "mcp__vexp__run_pipeline",
+      "PowerShell(dotnet build \"c:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\VolleyballTrainingTracker.Server\\\\VolleyballTrainingTracker.Server.csproj\" --nologo -clp:NoSummary 2>&1)",
+      "PowerShell($tmp = \"$env:TEMP\\\\vbtt-build-check\"; dotnet build \"c:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\VolleyballTrainingTracker.Server\\\\VolleyballTrainingTracker.Server.csproj\" -c Release --nologo -clp:NoSummary -o $tmp 2>&1 | Select-Object -Last 40)",
+      "PowerShell(Push-Location \"c:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\volleyballtrainingtracker.client\"; npx tsc -b 2>&1; \"EXIT=$LASTEXITCODE\"; Pop-Location)",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -i \"C:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\VolleyballTrainingTracker.Server\\\\Migrations\\\\2026-05-13_AddRolesPermissions.sql\" -b)",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -Q \"SELECT Id, Name, IsSystem FROM dbo.Roles; SELECT Id, UserName, RoleId FROM dbo.Users;\")",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -Q \"SELECT Id, Name FROM dbo.Roles;\" 2>&1)",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -Q \"SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Users' ORDER BY ORDINAL_POSITION;\" 2>&1)",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -i \"C:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\VolleyballTrainingTracker.Server\\\\Migrations\\\\2026-05-13_AddRolesPermissions.sql\" 2>&1)",
+      "Bash(sqlcmd -S . -d VolleyballTrainingTracker -i \"C:/Users/apple/Desktop/VolleyballTrainingTracker/VolleyballTrainingTracker.Server/Migrations/2026-05-13_AddRolesPermissions.sql\")",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -Q \"SELECT Id, Name FROM dbo.Roles; SELECT Id, UserName, RoleId FROM dbo.Users;\")",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -Q \"SELECT name FROM sys.tables ORDER BY name;\")",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -Q \"CREATE TABLE dbo.Roles \\(Id INT IDENTITY\\(1,1\\) NOT NULL PRIMARY KEY, Name NVARCHAR\\(32\\) NOT NULL, Description NVARCHAR\\(256\\) NULL, AllowedPages NVARCHAR\\(MAX\\) NOT NULL DEFAULT \\(N'[]'\\), Permissions NVARCHAR\\(MAX\\) NOT NULL DEFAULT \\(N'[]'\\), IsSystem BIT NOT NULL DEFAULT \\(0\\), CreatedAt DATETIME2\\(0\\) NOT NULL DEFAULT \\(SYSUTCDATETIME\\(\\)\\), UpdatedAt DATETIME2\\(0\\) NULL\\); CREATE UNIQUE INDEX UX_Roles_Name ON dbo.Roles\\(Name\\); PRINT 'Roles created';\")",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -i \"C:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\VolleyballTrainingTracker.Server\\\\Migrations\\\\_temp_run.sql\" -o \"C:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\VolleyballTrainingTracker.Server\\\\Migrations\\\\_temp_out.txt\")",
+      "Read(//c/Users/apple/Desktop/**)",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -Q \"SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='Users' ORDER BY ORDINAL_POSITION; SELECT Id,Name,IsSystem FROM dbo.Roles; SELECT Id,UserName,RoleId FROM dbo.Users;\" -o \"C:\\\\Users\\\\apple\\\\Desktop\\\\verify.txt\")",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -Q \"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='Users' ORDER BY ORDINAL_POSITION;\" -o \"C:\\\\Users\\\\apple\\\\Desktop\\\\verify.txt\")",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -Q \"SELECT Id, Name FROM dbo.Roles;\" -o \"C:\\\\Users\\\\apple\\\\Desktop\\\\verify.txt\")",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -Q \"INSERT INTO dbo.Roles\\(Name,Description,AllowedPages,Permissions,IsSystem\\) VALUES\\(N'Player',N'���',N'[]',N'[]',1\\); SELECT Id,Name FROM dbo.Roles;\" -o \"C:\\\\Users\\\\apple\\\\Desktop\\\\verify.txt\")",
+      "PowerShell(sqlcmd -S . -d VolleyballTrainingTracker -i \"C:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\VolleyballTrainingTracker.Server\\\\Migrations\\\\_seed_roles.sql\" -o \"C:\\\\Users\\\\apple\\\\Desktop\\\\verify.txt\")",
+      "Bash(Get-ChildItem \"c:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\volleyballtrainingtracker.client\\\\src\" -Recurse -Filter \"*.tsx\")",
+      "Bash(Select-Object FullName)",
+      "Bash(del \"c:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\volleyballtrainingtracker.client\\\\src\\\\pages\\\\Register.tsx\")",
+      "WebSearch",
+      "Bash(del \"VolleyballTrainingTracker.Server\\\\Controllers\\\\MatchLogsController.cs\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(npx vite *)",
+      "Bash(npx --no-install tsc --noEmit)",
+      "PowerShell(Write-Output \\(Get-Location\\).Path)",
+      "PowerShell(npx tsc --noEmit 2>&1)",
+      "PowerShell($out = npx tsc --noEmit 2>&1; Write-Output \"EXITCODE=$LASTEXITCODE\"; Write-Output \"LINES=$\\($out.Count\\)\"; $out | Select-Object -First 80)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(npx eslint *)",
+      "Bash(echo \"TSC=$?\")",
+      "Bash(echo \"DOTNET=$?\")",
+      "Bash(echo \"LINT=$?\")",
+      "Bash(echo \"exit=$?\")",
+      "Bash(rm -rf \"C:/Users/apple/AppData/Local/Temp/vtt_check\" \"C:/Users/apple/AppData/Local/Temp/vtt_build_check\")",
+      "Bash(dotnet run *)",
+      "WebFetch(domain:impeccable.style)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:news.ycombinator.com)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Grep|Glob|Regex",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/vexp-guard.sh",
+            "timeout": 3000
+          }
+        ]
+      }
+    ]
+  }
+}

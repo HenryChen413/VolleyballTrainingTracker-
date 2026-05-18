@@ -1,0 +1,37 @@
+# Multi-stage Linux build for the ASP.NET Core API + Vite client.
+# Used by docker-compose.yml (the original Dockerfile is Windows-only).
+
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl ca-certificates gnupg \
+ && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+ && apt-get install -y --no-install-recommends nodejs \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY VolleyballTrainingTracker.Server/VolleyballTrainingTracker.Server.csproj VolleyballTrainingTracker.Server/
+COPY volleyballtrainingtracker.client/volleyballtrainingtracker.client.esproj volleyballtrainingtracker.client/
+COPY volleyballtrainingtracker.client/package.json volleyballtrainingtracker.client/package-lock.json volleyballtrainingtracker.client/
+
+RUN dotnet restore VolleyballTrainingTracker.Server/VolleyballTrainingTracker.Server.csproj
+
+COPY volleyballtrainingtracker.client/ volleyballtrainingtracker.client/
+WORKDIR /src/volleyballtrainingtracker.client
+RUN npm ci && npm run build
+
+# Stage client dist into server's wwwroot so MapFallbackToFile + UseStaticFiles serve it.
+RUN mkdir -p /src/VolleyballTrainingTracker.Server/wwwroot \
+ && cp -r dist/* /src/VolleyballTrainingTracker.Server/wwwroot/
+
+WORKDIR /src
+COPY VolleyballTrainingTracker.Server/ VolleyballTrainingTracker.Server/
+RUN dotnet publish VolleyballTrainingTracker.Server/VolleyballTrainingTracker.Server.csproj \
+    -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY --from=build /app/publish .
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "VolleyballTrainingTracker.Server.dll"]

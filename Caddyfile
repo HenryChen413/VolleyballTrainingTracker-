@@ -1,0 +1,17 @@
+# 反向代理設定 —— 部署前請把 example.com 換成你的正式網域。
+#
+# Caddy 會自動：
+#   - 向 Let's Encrypt 申請並續期 HTTPS 憑證
+#   - 將 http 轉址到 https
+#   - 轉發 X-Forwarded-Proto / X-Forwarded-For 給後端
+#
+# 前提：網域 DNS A 記錄已指向本機公網 IP，且防火牆開放 80 / 443。
+
+example.com {
+    reverse_proxy server:8080
+}
+
+# 本機測試（無網域、無憑證）時，可改用下面這段、註解掉上面那段：
+# :80 {
+#     reverse_proxy server:8080
+# }

@@ -1,0 +1,28 @@
+# ---- 機密：絕不可進版控 ----
+.env
+*.env
+!.env.example
+
+# ---- .NET 編譯產物 ----
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.lscache
+
+# ---- Node / 前端 ----
+node_modules/
+dist/
+npm-debug.log*
+
+# ---- IDE / 系統 ----
+.vs/
+.vscode/
+*.suo
+.DS_Store
+Thumbs.db
+
+# ---- Caddy / 部署執行期資料 ----
+caddy-data/
+caddy-config/

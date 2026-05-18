@@ -259,6 +259,9 @@ app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+// 健康檢查端點：供 Render 等部署平台探活，不需驗證、不碰資料庫。
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+
 app.MapControllers();
 app.MapFallbackToFile("/index.html");
 

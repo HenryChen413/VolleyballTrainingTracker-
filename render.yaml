@@ -1,0 +1,21 @@
+# Render Blueprint — 後端 API 服務（分離式部署，前端另上 Vercel）。
+# 在 Render 點「New → Blueprint」選此 repo 即可套用；機密變數仍需手動填值。
+services:
+  - type: web
+    name: vbtt-api
+    runtime: docker
+    repo: https://github.com/HenryChen413/VolleyballTrainingTracker
+    branch: main
+    dockerfilePath: ./VolleyballTrainingTracker.Server/Dockerfile.api
+    dockerContext: .
+    plan: free
+    region: singapore
+    healthCheckPath: /health
+    envVars:
+      # 機密值（sync: false → 不寫進版控，需在 Render 後台手動填）
+      - key: ConnectionStrings__Default
+        sync: false   # Supabase 連線字串，格式：Host=...;Port=5432;Database=postgres;Username=...;Password=...
+      - key: Jwt__SecretKey
+        sync: false   # 至少 32 字元隨機字串，產生方式：openssl rand -base64 48
+      - key: Cors__AllowedOrigins__0
+        sync: false   # Vercel 前端網址，例如 https://vbtt.vercel.app

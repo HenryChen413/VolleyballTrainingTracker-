@@ -26,7 +26,10 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
-  <ItemGroup>
+  <!-- 前端專案參考：本機 Visual Studio 開發時會一起 build／啟動前端。
+       分離式部署（前端另上 Vercel）時後端不需 build 前端，
+       傳 -p:BuildClient=false 即可整段跳過，免裝 Node（見 Dockerfile.api）。 -->
+  <ItemGroup Condition="'$(BuildClient)' != 'false'">
     <ProjectReference Include="..\volleyballtrainingtracker.client\volleyballtrainingtracker.client.esproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>

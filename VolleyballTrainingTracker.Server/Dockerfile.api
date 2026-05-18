@@ -1,0 +1,25 @@
+# 後端專用映像（分離式部署：前端另由 Vercel 部署）。
+# 只 build ASP.NET Core API，不安裝 Node、不 build 前端，部署速度比 Dockerfile.linux 快很多。
+# Render 部署時 Dockerfile Path 指向本檔，Docker Build Context 設為專案根目錄。
+#
+# 關鍵：-p:BuildClient=false 讓 csproj 略過前端 esproj 專案參考（見該 csproj 的條件式 ItemGroup）。
+
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# 先複製 csproj 單獨還原以利 Docker layer 快取。
+COPY VolleyballTrainingTracker.Server/VolleyballTrainingTracker.Server.csproj VolleyballTrainingTracker.Server/
+RUN dotnet restore VolleyballTrainingTracker.Server/VolleyballTrainingTracker.Server.csproj -p:BuildClient=false
+
+# 複製後端原始碼並發佈（不含前端）。
+COPY VolleyballTrainingTracker.Server/ VolleyballTrainingTracker.Server/
+RUN dotnet publish VolleyballTrainingTracker.Server/VolleyballTrainingTracker.Server.csproj \
+    -c Release -o /app/publish --no-restore -p:UseAppHost=false -p:BuildClient=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY --from=build /app/publish .
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "VolleyballTrainingTracker.Server.dll"]

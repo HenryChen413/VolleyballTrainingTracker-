@@ -55,7 +55,17 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:news.ycombinator.com)",
       "Bash(git init *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(grep -E \"\\\\.env$|node_modules|/bin/|/obj/|/dist/|\\\\.user\")",
+      "Bash(git config *)",
+      "Bash(git branch *)",
+      "Bash(git commit -q -m 'Initial commit: Volleyball Training Tracker *)",
+      "Bash(dotnet --version)",
+      "Bash(dotnet publish *)",
+      "Bash(echo \"=== exit: $? ===\")",
+      "Read(//tmp/vbtt-publish-test/**)",
+      "Bash(rm -rf /tmp/vbtt-publish-test)",
+      "Bash(dotnet restore *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check"

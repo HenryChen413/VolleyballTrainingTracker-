@@ -1,6 +1,6 @@
 import * as React from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
-import { Card } from './card';
 import { Button } from './button';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +22,10 @@ const SIZE_CLASS: Record<NonNullable<DialogProps['size']>, string> = {
   xl: 'max-w-4xl',
 };
 
+/**
+ * Radix 版 Dialog：保留原本 props API（open / onClose / title…）。
+ * 焦點陷阱、捲動鎖定、Esc 關閉、進出場動畫皆由 Radix + tailwindcss-animate 處理。
+ */
 export function Dialog({
   open,
   onClose,
@@ -32,77 +36,71 @@ export function Dialog({
   size = 'md',
   closeOnBackdrop = true,
 }: DialogProps) {
-  const contentRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (!open) return;
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    const focusTimer = window.setTimeout(() => {
-      const first = contentRef.current?.querySelector<HTMLElement>(
-        'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])',
-      );
-      first?.focus();
-    }, 30);
-
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
-      window.clearTimeout(focusTimer);
-    };
-  }, [open, onClose]);
-
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-      onClick={closeOnBackdrop ? onClose : undefined}
-      role="dialog"
-      aria-modal="true"
+    <DialogPrimitive.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
     >
-      <Card
-        ref={contentRef}
-        className={cn(
-          'w-full overflow-hidden flex flex-col max-h-[calc(100vh-2rem)]',
-          SIZE_CLASS[size],
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {(title || description) && (
-          <div className="flex items-start justify-between gap-4 p-5 pb-4 border-b">
-            <div className="space-y-1">
-              {title && (
-                <h2 className="text-lg font-semibold leading-none tracking-tight">{title}</h2>
-              )}
-              {description && (
-                <p className="text-sm text-muted-foreground">{description}</p>
-              )}
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay
+          className={cn(
+            'fixed inset-0 z-50 bg-black/50 backdrop-blur-sm',
+            'data-[state=open]:animate-in data-[state=open]:fade-in-0',
+            'data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
+          )}
+        />
+        <DialogPrimitive.Content
+          onInteractOutside={(e) => {
+            if (!closeOnBackdrop) e.preventDefault();
+          }}
+          className={cn(
+            'fixed left-1/2 top-1/2 z-50 flex w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col',
+            'max-h-[calc(100vh-2rem)] overflow-hidden rounded-lg border bg-card text-card-foreground shadow-lift',
+            'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+            'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
+            SIZE_CLASS[size],
+          )}
+        >
+          {(title || description) && (
+            <div className="flex items-start justify-between gap-4 border-b p-5 pb-4">
+              <div className="space-y-1">
+                {title && (
+                  <DialogPrimitive.Title className="text-lg font-semibold leading-none tracking-tight">
+                    {title}
+                  </DialogPrimitive.Title>
+                )}
+                {description && (
+                  <DialogPrimitive.Description className="text-sm text-muted-foreground">
+                    {description}
+                  </DialogPrimitive.Description>
+                )}
+              </div>
+              <DialogPrimitive.Close asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="關閉"
+                  className="-mr-2 -mt-2 h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogPrimitive.Close>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              title="關閉"
-              className="-mr-2 -mt-2 h-8 w-8"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-        <div className="overflow-y-auto p-5">{children}</div>
-        {footer && (
-          <div className="flex items-center justify-end gap-2 px-5 py-3 border-t bg-muted/30">
-            {footer}
-          </div>
-        )}
-      </Card>
-    </div>
+          )}
+          {/* 無標題時仍提供無障礙標題（視覺隱藏） */}
+          {!title && (
+            <DialogPrimitive.Title className="sr-only">對話框</DialogPrimitive.Title>
+          )}
+          <div className="overflow-y-auto p-5">{children}</div>
+          {footer && (
+            <div className="flex items-center justify-end gap-2 border-t bg-muted/30 px-5 py-3">
+              {footer}
+            </div>
+          )}
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

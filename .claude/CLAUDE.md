@@ -1,3 +1,13 @@
+## 專案名稱與版權
+
+- 本系統正式名稱為「**高醫醫學女排‧排球訓練紀錄**」，所有對外顯示文字（瀏覽器標題、登入頁、側欄品牌名）一律使用此名稱。
+- 著作權屬「**陳源和**」所有；登入頁頁尾固定顯示版權聲明，未經授權請勿使用。
+- 相關檔案：`volleyballtrainingtracker.client/index.html`（title）、`src/pages/Login.tsx`（標題與頁尾版權）、`src/components/AppLayout.tsx`（側欄／頂欄品牌名，空間有限僅顯示「高醫醫學女排」）。
+
+## 溝通語言
+
+**一律使用繁體中文**回覆與說明，不要使用日文或其他語言。
+
 ## 工具使用規則
 
 **不使用 vexp**：不要啟動或呼叫任何 vexp 相關工具（run_pipeline、get_skeleton、index_status、expand_vexp_ref）。

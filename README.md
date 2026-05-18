@@ -1,6 +1,8 @@
-# Volleyball Training Tracker
+# 高醫醫學女排‧排球訓練紀錄
 
 ASP.NET Core 8 + React 19 (Vite + TS) + PostgreSQL 15 排球訓練紀錄系統。
+
+> 版權所有 — 本系統著作權屬陳源和所有，未經授權請勿使用。
 
 ## 本機開發
 

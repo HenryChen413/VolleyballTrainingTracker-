@@ -91,10 +91,17 @@ function SessionCard({
         expanded && 'ring-1 ring-primary/30',
       )}
     >
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => onToggle(session.id)}
-        className="flex w-full items-stretch gap-4 p-4 text-left"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle(session.id);
+          }
+        }}
+        className="flex w-full cursor-pointer items-stretch gap-4 p-4 text-left"
       >
         {/* 日期徽章 */}
         <div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-xl bg-primary/10 py-2 text-primary">
@@ -171,7 +178,7 @@ function SessionCard({
             </p>
           )}
         </div>
-      </button>
+      </div>
 
       {/* 展開：訓練項目分類 */}
       {expanded && (

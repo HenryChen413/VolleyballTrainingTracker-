@@ -183,10 +183,17 @@ export default function MatchLogsPage() {
                   open ? "ring-1 ring-primary/30 shadow-lift" : "hover:shadow-lift hover:-translate-y-px",
                 )}
               >
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => toggle(g.id)}
-                  className="w-full text-left flex flex-col sm:flex-row sm:items-stretch hover:bg-accent/30 transition-colors"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggle(g.id);
+                    }
+                  }}
+                  className="w-full cursor-pointer text-left flex flex-col sm:flex-row sm:items-stretch hover:bg-accent/30 transition-colors"
                 >
                   {/* 飽和日期條：MM/DD ↘ YYYY ↘ {AY}學年 */}
                   <div className="bg-navy text-navy-foreground px-4 py-3 sm:min-w-[120px] flex sm:flex-col items-center justify-center gap-2 sm:gap-0.5">
@@ -282,7 +289,7 @@ export default function MatchLogsPage() {
                       )}
                     </div>
                   </div>
-                </button>
+                </div>
 
                 {/* 展開區 */}
                 {open && (

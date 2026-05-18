@@ -6,6 +6,7 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
@@ -182,7 +183,7 @@ export default function AppLayout() {
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
                 <Volleyball className="h-5 w-5" />
               </span>
-              <span className="text-base">排球訓練</span>
+              <span className="text-base">高醫醫學女排</span>
             </Link>
           )}
           {collapsed && (
@@ -258,7 +259,7 @@ export default function AppLayout() {
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
                   <Volleyball className="h-4 w-4" />
                 </span>
-                <span>排球訓練</span>
+                <span>高醫醫學女排</span>
               </Link>
             </div>
 
@@ -324,9 +325,14 @@ export default function AppLayout() {
 
         {/* === 主要內容區 === */}
         <main className="flex-1 px-4 lg:px-6 py-5 pb-24 md:pb-5 max-w-[1400px] w-full mx-auto">
-          <div key={location.pathname} className="page-enter">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.24, ease: "easeOut" }}
+          >
             <Outlet />
-          </div>
+          </motion.div>
         </main>
 
         {/* === 行動 Bottom Tab Bar === */}

@@ -79,6 +79,8 @@
   * { @apply border-border; }
   html { color-scheme: light; }
   html.dark { color-scheme: dark; }
+  /* 防止任何元素撐出橫向卷軸，導致手機自動縮小整頁 */
+  html, body { overflow-x: hidden; }
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
@@ -108,13 +110,4 @@
     animation: shimmer 1.6s infinite;
   }
   @keyframes shimmer { 100% { transform: translateX(100%); } }
-
-  /* page transition */
-  .page-enter {
-    animation: pageFadeIn 220ms ease-out;
-  }
-  @keyframes pageFadeIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
 }

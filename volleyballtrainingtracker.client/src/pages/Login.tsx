@@ -67,7 +67,7 @@ export default function LoginPage() {
           <div className="h-14 w-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lift mb-3">
             <Volleyball className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">排球訓練紀錄</h1>
+          <h1 className="text-2xl font-bold tracking-tight">高醫醫學女排‧排球訓練紀錄</h1>
           <p className="text-sm text-muted-foreground mt-1">球隊管理 · 訓練追蹤 · 戰績統計</p>
         </div>
 
@@ -114,9 +114,10 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          © {new Date().getFullYear()} VolleyballTrainingTracker
-        </p>
+        <div className="text-center text-xs text-muted-foreground mt-6 space-y-1">
+          <p>© {new Date().getFullYear()} 高醫醫學女排‧排球訓練紀錄</p>
+          <p>版權所有 — 本網站著作權屬陳源和所有，未經授權請勿使用</p>
+        </div>
       </div>
     </div>
   );

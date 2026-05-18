@@ -29,6 +29,7 @@ import { Chip } from "@/components/ui/chip";
 import { Select } from "@/components/ui/select";
 import { SkeletonCard, Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { cn } from "@/lib/utils";
 import {
   statsApi,
@@ -295,7 +296,13 @@ function StatCard({
                 compact ? "text-xl" : "text-3xl",
               )}
             >
-              <span className="font-numeric">{value}</span>
+              <span className="font-numeric">
+                {typeof value === "number" ? (
+                  <AnimatedNumber value={value} />
+                ) : (
+                  value
+                )}
+              </span>
               {suffix && (
                 <span className="text-sm font-normal text-muted-foreground ml-1">
                   {suffix}
@@ -613,7 +620,7 @@ function DistributionRadar({
   return (
     <div className="space-y-4">
       <div style={{ width: "100%", height: 320 }}>
-        <ResponsiveContainer>
+        <ResponsiveContainer initialDimension={{ width: 300, height: 320 }}>
           <RadarChart data={chartData} outerRadius="75%">
             <PolarGrid stroke="hsl(var(--border))" />
             <PolarAngleAxis

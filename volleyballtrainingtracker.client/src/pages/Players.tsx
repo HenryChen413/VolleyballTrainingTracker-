@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   Plus,
   Pencil,
@@ -35,6 +36,7 @@ import { Select } from "@/components/ui/select";
 import { Chip } from "@/components/ui/chip";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { PERM, useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 
@@ -662,7 +664,7 @@ function StatCard({
       <div className="min-w-0">
         <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
         <p className="text-xl font-bold font-numeric leading-tight">
-          {value}
+          {typeof value === "number" ? <AnimatedNumber value={value} /> : value}
           {suffix && (
             <span className="text-xs font-normal text-muted-foreground ml-0.5">
               {suffix}
@@ -835,7 +837,12 @@ function PlayerSection({
 
       {/* Content */}
       {!collapsed && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
+          initial="hidden"
+          animate="show"
+          variants={{ show: { transition: { staggerChildren: 0.035 } } }}
+        >
           {list.map((p) => (
             <PlayerCard
               key={p.id}
@@ -848,7 +855,7 @@ function PlayerSection({
               onCardKey={onCardKey}
             />
           ))}
-        </div>
+        </motion.div>
       )}
     </section>
   );
@@ -883,10 +890,11 @@ function PlayerCard({
   const hasStats = p.heightCm != null || p.grade != null || hand != null;
 
   return (
-    <div
+    <motion.div
       data-pcard
       tabIndex={0}
       role="button"
+      variants={{ hidden: { opacity: 0 }, show: { opacity: 1 } }}
       aria-label={`${p.name}${p.nickname ? ` ${p.nickname}` : ""}，背號 ${
         p.jerseyNo ?? "未指定"
       }`}
@@ -1026,7 +1034,7 @@ function PlayerCard({
           {PLAYER_STATUS_LABEL[p.isActive]}
         </span>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -1076,7 +1084,7 @@ function CompareBar({
   onOpen: () => void;
 }) {
   return (
-    <div className="fixed left-1/2 -translate-x-1/2 bottom-4 md:bottom-6 z-30 max-w-[calc(100vw-1rem)] w-auto animate-slide-up">
+    <div className="fixed left-1/2 -translate-x-1/2 bottom-[calc(env(safe-area-inset-bottom)+5rem)] lg:bottom-6 z-40 max-w-[calc(100vw-1rem)] w-auto animate-slide-up">
       <div className="rounded-xl border bg-card shadow-lift px-3 py-2 flex items-center gap-3">
         <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
           <Scale className="h-3.5 w-3.5" />

@@ -1,6 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  ArrowDown,
+  ArrowUp,
+  ChevronsUpDown,
   Eye,
   EyeOff,
   Mail,
@@ -38,6 +41,8 @@ import { cn } from '@/lib/utils';
 // ── 型別 ────────────────────────────────────────────────────────────────
 type StatusFilter = 'all' | 'active' | 'inactive';
 type ChipTone = 'neutral' | 'primary' | 'navy' | 'success' | 'destructive' | 'warning' | 'info';
+type SortKey = 'user' | 'email' | 'role' | 'status';
+type SortDir = 'asc' | 'desc';
 
 interface FilterState {
   query: string;
@@ -218,6 +223,16 @@ export default function AdminUsersPage() {
   const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: () => rolesApi.list() });
 
   const [filters, setFilters] = useState<FilterState>(emptyFilter);
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({
+    key: 'user',
+    dir: 'asc',
+  });
+  const toggleSort = (key: SortKey) =>
+    setSort((s) =>
+      s.key === key
+        ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'asc' },
+    );
   const [editorOpen, setEditorOpen] = useState(false);
   const [draft, setDraft] = useState<DraftState>(emptyDraft);
   const [showPwd, setShowPwd] = useState(false);
@@ -248,6 +263,28 @@ export default function AdminUsersPage() {
       return true;
     });
   }, [users, filters]);
+
+  // 排序（依使用者點擊的欄位）
+  const sortedUsers = useMemo(() => {
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    const cmp = (a: UserListItem, b: UserListItem): number => {
+      switch (sort.key) {
+        case 'email':
+          return (a.email ?? '').localeCompare(b.email ?? '', 'zh-Hant');
+        case 'role':
+          return a.roleName.localeCompare(b.roleName, 'zh-Hant');
+        case 'status':
+          return Number(a.isActive) - Number(b.isActive);
+        case 'user':
+        default:
+          return (a.displayName || a.userName).localeCompare(
+            b.displayName || b.userName,
+            'zh-Hant',
+          );
+      }
+    };
+    return [...filteredUsers].sort((a, b) => cmp(a, b) * dir);
+  }, [filteredUsers, sort]);
 
   // 編輯流程
   const startCreate = () => {
@@ -601,15 +638,15 @@ export default function AdminUsersPage() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur text-left">
                   <tr className="border-b">
-                    <th className="px-4 py-3 font-medium text-muted-foreground">使用者</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Email</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">角色</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">狀態</th>
+                    <SortableTh label="使用者" sortKey="user" sort={sort} onSort={toggleSort} />
+                    <SortableTh label="Email" sortKey="email" sort={sort} onSort={toggleSort} />
+                    <SortableTh label="角色" sortKey="role" sort={sort} onSort={toggleSort} />
+                    <SortableTh label="狀態" sortKey="status" sort={sort} onSort={toggleSort} />
                     <th className="px-4 py-3 font-medium text-muted-foreground text-right">操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((u) => (
+                  {sortedUsers.map((u) => (
                     <UserRow
                       key={u.id}
                       user={u}
@@ -630,7 +667,7 @@ export default function AdminUsersPage() {
 
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
-            {filteredUsers.map((u) => (
+            {sortedUsers.map((u) => (
               <UserMobileCard
                 key={u.id}
                 user={u}
@@ -681,6 +718,45 @@ export default function AdminUsersPage() {
         />
       </Dialog>
     </div>
+  );
+}
+
+// ── 子元件：可排序表頭 ──────────────────────────────────────────────────
+function SortableTh({
+  label,
+  sortKey,
+  sort,
+  onSort,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: { key: SortKey; dir: SortDir };
+  onSort: (key: SortKey) => void;
+}) {
+  const active = sort.key === sortKey;
+  return (
+    <th className="px-4 py-3 font-medium text-muted-foreground">
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={cn(
+          'inline-flex items-center gap-1 transition-colors hover:text-foreground',
+          active && 'text-foreground',
+        )}
+        aria-label={`依${label}排序`}
+      >
+        {label}
+        {active ? (
+          sort.dir === 'asc' ? (
+            <ArrowUp className="h-3.5 w-3.5" />
+          ) : (
+            <ArrowDown className="h-3.5 w-3.5" />
+          )
+        ) : (
+          <ChevronsUpDown className="h-3.5 w-3.5 opacity-40" />
+        )}
+      </button>
+    </th>
   );
 }
 

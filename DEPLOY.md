@@ -16,7 +16,7 @@ GitHub repo
 本機已 `git init` 並完成首次 commit。建立 GitHub repo 後：
 
 ```powershell
-git remote add origin https://github.com/HenryChen413/VolleyballTrainingTracker.git
+git remote add origin https://github.com/HenryChen413/VolleyballTrainingTracker-.git
 git push -u origin main
 ```
 

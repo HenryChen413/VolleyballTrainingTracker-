@@ -4,7 +4,7 @@ services:
   - type: web
     name: vbtt-api
     runtime: docker
-    repo: https://github.com/HenryChen413/VolleyballTrainingTracker
+    repo: https://github.com/HenryChen413/VolleyballTrainingTracker-
     branch: main
     dockerfilePath: ./VolleyballTrainingTracker.Server/Dockerfile.api
     dockerContext: .

@@ -46,6 +46,21 @@ npm run dev
 本機開發不需任何環境變數：連線字串與 JWT 金鑰已在 `appsettings.Development.json`，
 前端 `VITE_API_URL` 留空時自動走 Vite dev proxy。
 
+## 測試與品質
+
+| 範圍 | 指令 | 工具 |
+|------|------|------|
+| 前端單元測試 | `cd volleyballtrainingtracker.client && npm run test` | Vitest + Testing Library |
+| 前端測試（watch） | `npm run test:watch` | Vitest |
+| 前端覆蓋率 | `npm run test:coverage` | Vitest（v8） |
+| 前端無障礙 | 隨 `npm run test` 一併執行（`*.a11y.test.tsx`） | vitest-axe / axe-core |
+| 後端單元測試 | `dotnet test VolleyballTrainingTracker.Server.Tests` | xUnit |
+
+- CI：每次推送與 PR 會由 GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）執行前後端的 lint／test／build。
+- 程式碼風格由根目錄 `.editorconfig` 統一；後端已啟用 .NET 分析器（`AnalysisLevel=latest-recommended`）。
+- 可觀測性：後端以 Serilog 輸出結構化日誌，並整合 OpenTelemetry 追蹤／指標；
+  設定環境變數 `OTEL_EXPORTER_OTLP_ENDPOINT` 後即會把資料匯出到 OTLP collector。
+
 ## 部署
 
 完整雲端部署步驟（Vercel ＋ Render ＋ Supabase）請見 **[DEPLOY.md](DEPLOY.md)**。

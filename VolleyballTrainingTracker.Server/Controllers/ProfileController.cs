@@ -18,12 +18,10 @@ namespace VolleyballTrainingTracker.Server.Controllers;
 public class ProfileController : ControllerBase
 {
     private readonly AppDbContext _db;
-    private readonly JwtTokenService _jwt;
 
-    public ProfileController(AppDbContext db, JwtTokenService jwt)
+    public ProfileController(AppDbContext db)
     {
         _db = db;
-        _jwt = jwt;
     }
 
     [HttpGet]

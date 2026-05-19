@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { fileURLToPath, URL } from 'node:url';
 
 import { defineConfig } from 'vite';
@@ -68,4 +69,18 @@ export default defineConfig(({ command }) => ({
         },
     },
     server: command === 'serve' ? createDevServerConfig() : undefined,
+    test: {
+        environment: 'jsdom',
+        globals: true,
+        setupFiles: ['./src/test/setup.ts'],
+        css: false,
+        // 只跑 src 內的測試；排除 node_modules 與反向匯出的 Schema 目錄
+        include: ['src/**/*.{test,spec}.{ts,tsx}'],
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'html'],
+            include: ['src/**/*.{ts,tsx}'],
+            exclude: ['src/**/*.{test,spec}.{ts,tsx}', 'src/test/**', 'src/main.tsx'],
+        },
+    },
 }));

@@ -1,0 +1,61 @@
+# EditorConfig — 統一前後端的編碼風格
+# https://editorconfig.org
+root = true
+
+# ---- 全專案共通 ----
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+# ---- 前端：TypeScript / JavaScript / 樣式 ----
+[*.{ts,tsx,js,jsx,mjs,cjs,css}]
+indent_size = 2
+
+# ---- 設定檔 ----
+[*.{json,yml,yaml}]
+indent_size = 2
+
+[*.md]
+indent_size = 2
+trim_trailing_whitespace = false
+
+# ---- 後端：C# ----
+[*.cs]
+indent_size = 4
+
+# using 指示詞：System.* 置頂、依字母排序、放在 namespace 外
+dotnet_sort_system_directives_first = true
+csharp_using_directive_placement = outside_namespace:warning
+
+# 慣用語法
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_prefer_braces = true:suggestion
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+dotnet_style_prefer_conditional_expression_over_assignment = true:suggestion
+dotnet_style_null_propagation = true:warning
+dotnet_style_coalesce_expression = true:warning
+
+# 程式碼品質：未使用的私有成員視為警告
+dotnet_diagnostic.IDE0051.severity = warning
+dotnet_diagnostic.IDE0052.severity = warning
+
+# CA1305（依使用者地區設定格式化）：本系統為單一地區（繁中）內部工具，
+# 不需要文化中立格式化，關閉此規則以免產生大量低價值警告。
+dotnet_diagnostic.CA1305.severity = none
+
+# 命名規範：private 欄位以 _camelCase 命名
+dotnet_naming_rule.private_fields_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore.style = underscore_prefix
+dotnet_naming_rule.private_fields_underscore.severity = suggestion
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_prefix.capitalization = camel_case
+dotnet_naming_style.underscore_prefix.required_prefix = _
+
+# ---- 反向匯出的 Schema 不套用風格檢查 ----
+[volleyballtrainingtracker.client/Schema/**]
+generated_code = true

@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# 同一分支的新推送會取消尚在執行的舊流程
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: 前端（lint / test / build）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: volleyballtrainingtracker.client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安裝 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: volleyballtrainingtracker.client/package-lock.json
+
+      - name: 安裝相依套件
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: 單元測試
+        run: npm run test
+
+      - name: 正式建置
+        run: npm run build
+
+  backend:
+    name: 後端（build / test）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安裝 .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # 只建置／測試後端專案，-p:BuildClient=false 跳過前端 SPA 連帶建置
+      - name: 還原相依套件
+        run: dotnet restore VolleyballTrainingTracker.Server.Tests/VolleyballTrainingTracker.Server.Tests.csproj
+
+      - name: 建置
+        run: dotnet build VolleyballTrainingTracker.Server.Tests/VolleyballTrainingTracker.Server.Tests.csproj --configuration Release --no-restore -p:BuildClient=false
+
+      - name: 單元測試
+        run: dotnet test VolleyballTrainingTracker.Server.Tests/VolleyballTrainingTracker.Server.Tests.csproj --configuration Release --no-build --verbosity normal

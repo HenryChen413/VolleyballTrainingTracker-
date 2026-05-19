@@ -76,9 +76,9 @@ public class AppDbContext : DbContext
         return await base.SaveChangesAsync(cancellationToken);
     }
 
-    protected override void OnModelCreating(ModelBuilder b)
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        b.Entity<Role>(e =>
+        modelBuilder.Entity<Role>(e =>
         {
             e.ToTable("Roles");
             e.Property(x => x.Name).HasMaxLength(32).IsRequired();
@@ -88,7 +88,7 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.Name).IsUnique();
         });
 
-        b.Entity<User>(e =>
+        modelBuilder.Entity<User>(e =>
         {
             e.ToTable("Users");
             e.Property(x => x.UserName).HasMaxLength(64).IsRequired();
@@ -99,7 +99,7 @@ public class AppDbContext : DbContext
             e.HasOne(x => x.Role).WithMany(r => r.Users).HasForeignKey(x => x.RoleId);
         });
 
-        b.Entity<Player>(e =>
+        modelBuilder.Entity<Player>(e =>
         {
             e.ToTable("Players");
             e.Property(x => x.Name).HasMaxLength(64).IsRequired();
@@ -113,7 +113,7 @@ public class AppDbContext : DbContext
             e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
         });
 
-        b.Entity<Drill>(e =>
+        modelBuilder.Entity<Drill>(e =>
         {
             e.ToTable("Drills");
             e.Property(x => x.Name).HasMaxLength(64).IsRequired();
@@ -123,7 +123,7 @@ public class AppDbContext : DbContext
             e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
         });
 
-        b.Entity<TrainingSession>(e =>
+        modelBuilder.Entity<TrainingSession>(e =>
         {
             e.ToTable("TrainingSessions");
             e.Property(x => x.SessionDate).HasColumnType("date");
@@ -135,7 +135,7 @@ public class AppDbContext : DbContext
             e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
         });
 
-        b.Entity<SessionDrill>(e =>
+        modelBuilder.Entity<SessionDrill>(e =>
         {
             e.ToTable("SessionDrills");
             e.HasKey(x => new { x.SessionId, x.DrillId });
@@ -143,7 +143,7 @@ public class AppDbContext : DbContext
             e.HasOne(x => x.Drill).WithMany(d => d.SessionDrills).HasForeignKey(x => x.DrillId).OnDelete(DeleteBehavior.Restrict);
         });
 
-        b.Entity<MatchEvent>(e =>
+        modelBuilder.Entity<MatchEvent>(e =>
         {
             e.ToTable("MatchEvents");
             e.Property(x => x.MatchType).HasMaxLength(16);
@@ -157,7 +157,7 @@ public class AppDbContext : DbContext
             e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
         });
 
-        b.Entity<MatchEventPlayer>(e =>
+        modelBuilder.Entity<MatchEventPlayer>(e =>
         {
             e.ToTable("MatchEventPlayers");
             e.HasKey(x => new { x.MatchEventId, x.PlayerId });
@@ -168,7 +168,7 @@ public class AppDbContext : DbContext
             e.HasOne(x => x.Player).WithMany().HasForeignKey(x => x.PlayerId).OnDelete(DeleteBehavior.Cascade);
         });
 
-        b.Entity<MatchLog>(e =>
+        modelBuilder.Entity<MatchLog>(e =>
         {
             e.ToTable("MatchLogs");
             e.Property(x => x.Opponent).HasMaxLength(128).IsRequired();
@@ -178,7 +178,7 @@ public class AppDbContext : DbContext
             e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
         });
 
-        b.Entity<AuditDelete>(e =>
+        modelBuilder.Entity<AuditDelete>(e =>
         {
             e.ToTable("AuditDeletes");
             e.Property(x => x.TableName).HasMaxLength(64).IsRequired();

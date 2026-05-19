@@ -67,7 +67,7 @@ public class SchemaExporter
 
     // ---------------- SQL loaders ----------------
 
-    private async Task<List<TableInfo>> LoadTablesAsync(System.Data.Common.DbConnection conn)
+    private static async Task<List<TableInfo>> LoadTablesAsync(System.Data.Common.DbConnection conn)
     {
         // PostgreSQL: information_schema 查詢
         const string colSql = @"
@@ -279,7 +279,7 @@ ORDER BY tc.table_name, tc.constraint_name;";
 
     // ---------------- DTOs ----------------
 
-    private class TableInfo
+    private sealed class TableInfo
     {
         public string Schema { get; set; } = "dbo";
         public string Name { get; set; } = "";
@@ -288,7 +288,7 @@ ORDER BY tc.table_name, tc.constraint_name;";
         public List<ForeignKeyInfo> ForeignKeys { get; } = new();
     }
 
-    private class ColumnInfo
+    private sealed class ColumnInfo
     {
         public string Name { get; set; } = "";
         public int OrdinalPosition { get; set; }
@@ -301,7 +301,7 @@ ORDER BY tc.table_name, tc.constraint_name;";
         public bool IsIdentity { get; set; }
     }
 
-    private class ForeignKeyInfo
+    private sealed class ForeignKeyInfo
     {
         public string ConstraintName { get; set; } = "";
         public string Column { get; set; } = "";

@@ -8,12 +8,17 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using VolleyballTrainingTracker.Server.Auth;
 using VolleyballTrainingTracker.Server.Data;
 using VolleyballTrainingTracker.Server.Entities;
+using VolleyballTrainingTracker.Server.Observability;
 using VolleyballTrainingTracker.Server.Tools;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ----- 可觀測性（Serilog 結構化日誌 + OpenTelemetry 追蹤／指標）-----
+builder.AddObservability();
 
 // ----- DB -----
 builder.Services.AddHttpContextAccessor();
@@ -228,6 +233,9 @@ if (args.Length > 0)
 }
 
 app.UseForwardedHeaders();
+
+// HTTP 請求結構化日誌：每個請求一行，含方法、路徑、狀態碼與耗時。
+app.UseSerilogRequestLogging();
 
 // 安全性 HTTP 標頭：防點擊劫持、MIME 嗅探、控制 referrer。
 var isDev = app.Environment.IsDevelopment();

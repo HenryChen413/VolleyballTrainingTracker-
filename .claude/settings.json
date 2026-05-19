@@ -89,7 +89,16 @@
       "Bash(\"/c/Program Files/PostgreSQL/15/bin/pg_dump.exe\" -h localhost -p 5432 -U postgres -d VOLLEYBALLTRAININGTRACKER --data-only --column-inserts --on-conflict-do-nothing --no-owner --no-privileges --encoding=UTF8 -f \"c:/Users/apple/Desktop/VolleyballTrainingTracker/data_export.sql\")",
       "Bash(git commit -m '@ *)",
       "Bash(git commit *)",
-      "PowerShell(npm run build --prefix volleyballtrainingtracker.client)"
+      "PowerShell(npm run build --prefix volleyballtrainingtracker.client)",
+      "Bash(git log *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('tailwind:', \\(p.devDependencies&&p.devDependencies.tailwindcss\\)||\\(p.dependencies&&p.dependencies.tailwindcss\\)\\)\")",
+      "Bash(echo \"---EXIT:$?---\")",
+      "PowerShell(Test-Path \"$env:USERPROFILE\\\\.vscode\\\\extensions\"; Get-ChildItem \"$env:USERPROFILE\\\\.vscode\\\\extensions\" -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name)",
+      "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.vscode\\\\extensions\\\\codeium.codeium-1.48.2\" -Recurse -File | Select-Object @{n='Rel';e={$_.FullName.Replace\\(\"$env:USERPROFILE\\\\.vscode\\\\extensions\\\\codeium.codeium-1.48.2\\\\\",''\\)}}, Length | Sort-Object Rel)",
+      "PowerShell($p=\"$env:USERPROFILE\\\\.vscode\\\\extensions\\\\codeium.codeium-1.48.2\"; Write-Output \\(\"Exists: \" + \\(Test-Path $p\\)\\); if\\(Test-Path $p\\){ \\(Get-ChildItem $p -Force | Measure-Object\\).Count; Get-ChildItem $p -Force | Format-Table Name,Mode,Length -AutoSize | Out-String })",
+      "PowerShell($d=\"$env:USERPROFILE\\\\.vscode\\\\extensions\\\\codeium.codeium-1.48.2\\\\dist\"; Get-ChildItem $d -Force | Format-Table Name,Length -AutoSize | Out-String)",
+      "Bash(grep -E '^\\(400|500|600|700|800\\)\\\\.css$')",
+      "Bash(openssl rand *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check"

@@ -127,7 +127,12 @@ export default function DrillEditPage() {
         )}
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <form onSubmit={handleSubmit(onSubmit)}>
+          {/* 送出/刪除進行中時，整個表單欄位與按鈕一律鎖定 */}
+          <fieldset
+            disabled={isSubmitting || busy}
+            className="space-y-5 min-w-0 border-0 p-0 m-0"
+          >
           <div className="space-y-2">
             <Label htmlFor="name">名稱 *</Label>
             <Input id="name" maxLength={64} {...register("name")} />
@@ -253,6 +258,7 @@ export default function DrillEditPage() {
               你沒有{isNew ? "新增" : "修改"}項目的權限
             </p>
           )}
+          </fieldset>
         </form>
       </CardContent>
     </Card>

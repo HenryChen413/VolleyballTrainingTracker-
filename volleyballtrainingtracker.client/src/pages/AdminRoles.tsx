@@ -454,7 +454,7 @@ export default function AdminRolesPage() {
                   <Input
                     id="roleName"
                     value={draft.name}
-                    disabled={isSystem}
+                    disabled={isSystem || busy}
                     onChange={(e) =>
                       setDraft({ ...draft, name: e.target.value })
                     }
@@ -466,6 +466,7 @@ export default function AdminRolesPage() {
                   <Input
                     id="roleDesc"
                     value={draft.description ?? ""}
+                    disabled={busy}
                     onChange={(e) =>
                       setDraft({ ...draft, description: e.target.value })
                     }

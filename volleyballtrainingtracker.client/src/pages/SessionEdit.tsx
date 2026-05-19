@@ -110,7 +110,12 @@ export default function SessionEditPage() {
           )}
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)}>
+            {/* 送出/刪除進行中時，整個表單欄位與按鈕一律鎖定 */}
+            <fieldset
+              disabled={isSubmitting || busy}
+              className="space-y-6 min-w-0 border-0 p-0 m-0"
+            >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>日期 *</Label>
@@ -189,6 +194,7 @@ export default function SessionEditPage() {
                 </Button>
               )}
             </div>
+            </fieldset>
           </form>
         </CardContent>
       </Card>

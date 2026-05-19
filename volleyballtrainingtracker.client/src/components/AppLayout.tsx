@@ -161,7 +161,7 @@ export default function AppLayout() {
   }, [clear, navigate]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex">
+    <div className="min-h-screen bg-background text-foreground flex overflow-x-clip">
       {/* === 桌面 Sidebar (lg+) === */}
       <aside
         className={cn(
@@ -241,10 +241,11 @@ export default function AppLayout() {
         <header className="sticky top-0 z-20 h-14 border-b bg-background/80 backdrop-blur-md">
           <div className="h-full flex items-center justify-between gap-2 px-4 lg:px-6">
             {/* 行動裝置：漢堡 + Logo */}
-            <div className="flex items-center gap-2 lg:hidden">
+            <div className="flex items-center gap-2 lg:hidden min-w-0">
               <Button
                 variant="ghost"
                 size="icon"
+                className="shrink-0"
                 onClick={() => setMobileOpen((v) => !v)}
                 aria-expanded={mobileOpen}
                 title={mobileOpen ? "關閉選單" : "開啟選單"}
@@ -255,11 +256,14 @@ export default function AppLayout() {
                   <Menu className="h-5 w-5" />
                 )}
               </Button>
-              <Link to="/" className="flex items-center gap-2 font-bold">
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <Link
+                to="/"
+                className="flex items-center gap-2 font-bold min-w-0"
+              >
+                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
                   <Volleyball className="h-4 w-4" />
                 </span>
-                <span>高醫醫學女排</span>
+                <span className="truncate">高醫醫學女排</span>
               </Link>
             </div>
 
@@ -269,7 +273,7 @@ export default function AppLayout() {
             </div>
 
             {/* Right: user + theme + logout */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <ThemeToggle />
               {user && (
                 <span className="text-sm text-muted-foreground hidden xl:inline px-2">

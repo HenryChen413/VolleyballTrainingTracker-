@@ -94,7 +94,12 @@ export default function ProfilePage() {
             <CardDescription>修改 Email 與顯示名稱</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={profileForm.handleSubmit(onSaveProfile)} className="space-y-4">
+            <form onSubmit={profileForm.handleSubmit(onSaveProfile)}>
+              {/* 儲存進行中時鎖定整個表單 */}
+              <fieldset
+                disabled={profileForm.formState.isSubmitting}
+                className="space-y-4 min-w-0 border-0 p-0 m-0"
+              >
               <div className="space-y-2">
                 <Label>帳號</Label>
                 <Input value={user?.userName ?? ''} disabled />
@@ -114,6 +119,7 @@ export default function ProfilePage() {
               <Button type="submit" disabled={profileForm.formState.isSubmitting}>
                 {profileForm.formState.isSubmitting ? '儲存中…' : '儲存'}
               </Button>
+              </fieldset>
             </form>
           </CardContent>
         </Card>
@@ -124,7 +130,12 @@ export default function ProfilePage() {
             <CardDescription>需提供目前密碼以驗證身分</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={pwdForm.handleSubmit(onChangePwd)} className="space-y-4">
+            <form onSubmit={pwdForm.handleSubmit(onChangePwd)}>
+              {/* 更新進行中時鎖定整個表單 */}
+              <fieldset
+                disabled={pwdForm.formState.isSubmitting}
+                className="space-y-4 min-w-0 border-0 p-0 m-0"
+              >
               <div className="space-y-2">
                 <Label htmlFor="currentPassword">目前密碼</Label>
                 <Input
@@ -164,6 +175,7 @@ export default function ProfilePage() {
               <Button type="submit" disabled={pwdForm.formState.isSubmitting}>
                 {pwdForm.formState.isSubmitting ? '更新中…' : '更新密碼'}
               </Button>
+              </fieldset>
             </form>
           </CardContent>
         </Card>

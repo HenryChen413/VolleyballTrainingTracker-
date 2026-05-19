@@ -54,7 +54,7 @@
 - 已實作範例：`Drills.tsx`（左側清單 / 右側編輯區）
 
 
-## vexp — Context-Aware AI Coding <!-- vexp v2.0.16 -->
+## vexp — Context-Aware AI Coding <!-- vexp v2.0.17 -->
 
 ### MANDATORY: use vexp pipeline — do NOT grep or glob the codebase
 For every task — bug fixes, features, refactors, debugging:

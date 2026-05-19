@@ -1,8 +1,8 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { Volleyball, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,11 +22,29 @@ type FormValues = z.infer<typeof schema>;
 export default function LoginPage() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const isAuthed = useAuthStore((s) => s.isAuthenticated());
   const [error, setError] = useState<string | null>(null);
 
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
   });
+
+  // 手機 bfcache（上一頁／下一頁快取）：從瀏覽紀錄返回登入頁時，
+  // 頁面可能直接還原舊快照而不重跑 React。若此時已登入，強制導回儀表板。
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted && useAuthStore.getState().isAuthenticated()) {
+        window.location.replace('/');
+      }
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, []);
+
+  // 已登入就不該停在登入頁 —— 自動導回儀表板，登出後才會再看到登入畫面。
+  if (isAuthed) {
+    return <Navigate to="/" replace />;
+  }
 
   const onSubmit = async (values: FormValues) => {
     setError(null);
@@ -83,6 +101,7 @@ export default function LoginPage() {
                 <Input
                   id="userName"
                   autoComplete="username"
+                  disabled={isSubmitting}
                   className="font-mono uppercase tracking-wider"
                   {...register('userName')}
                   onChange={(e) => {
@@ -98,7 +117,13 @@ export default function LoginPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">密碼</Label>
-                <Input id="password" type="password" autoComplete="current-password" {...register('password')} />
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  disabled={isSubmitting}
+                  {...register('password')}
+                />
                 {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
               </div>
               {error && (

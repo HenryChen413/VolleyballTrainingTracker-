@@ -79,10 +79,15 @@
   * { @apply border-border; }
   html { color-scheme: light; }
   html.dark { color-scheme: dark; }
-  /* 防止任何元素撐出橫向卷軸，導致手機自動縮小整頁 */
-  html, body { overflow-x: hidden; }
+  /* 防止任何元素撐出橫向卷軸，導致手機（iOS Safari）整頁變寬被切邊 */
+  html, body {
+    overflow-x: clip;
+    max-width: 100%;
+  }
   body {
     @apply bg-background text-foreground antialiased;
+    position: relative;
+    width: 100%;
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
   }
 

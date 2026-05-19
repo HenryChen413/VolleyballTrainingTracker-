@@ -627,7 +627,11 @@ function MatchEventForm({
   }, [selectedPlayers]);
 
   return (
-    <div className="space-y-6">
+    // 送出/刪除進行中時，整個畫面欄位與按鈕一律鎖定
+    <fieldset
+      disabled={isSubmitting}
+      className="space-y-6 min-w-0 border-0 p-0 m-0"
+    >
       {/* 頁首 */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
@@ -887,7 +891,7 @@ function MatchEventForm({
           </Button>
         </div>
       )}
-    </div>
+    </fieldset>
   );
 }
 

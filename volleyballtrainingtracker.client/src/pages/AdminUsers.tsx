@@ -711,6 +711,7 @@ export default function AdminUsersPage() {
           draft={draft}
           setDraft={setDraft}
           roles={roles}
+          busy={busy}
           showPwd={showPwd}
           setShowPwd={setShowPwd}
           changePwd={changePwd}
@@ -992,6 +993,8 @@ interface EditorFormProps {
   draft: DraftState;
   setDraft: React.Dispatch<React.SetStateAction<DraftState>>;
   roles: Role[] | undefined;
+  /** 有 mutation 進行中：鎖定整個表單 */
+  busy: boolean;
   showPwd: boolean;
   setShowPwd: React.Dispatch<React.SetStateAction<boolean>>;
   changePwd: boolean;
@@ -1002,6 +1005,7 @@ function EditorForm({
   draft,
   setDraft,
   roles,
+  busy,
   showPwd,
   setShowPwd,
   changePwd,
@@ -1019,7 +1023,8 @@ function EditorForm({
     !isEdit && draft.userName.toUpperCase() === SUPER_ADMIN_USERNAME;
 
   return (
-    <div className="space-y-5">
+    // 儲存進行中時鎖定整個編輯表單
+    <fieldset disabled={busy} className="space-y-5 min-w-0 border-0 p-0 m-0">
       {editingSuperAdmin && (
         <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-sm">
           <Shield className="h-4 w-4 mt-0.5 text-warning shrink-0" />
@@ -1202,6 +1207,6 @@ function EditorForm({
           <p className="text-xs text-muted-foreground">點「變更密碼」可重設此使用者密碼</p>
         )}
       </section>
-    </div>
+    </fieldset>
   );
 }

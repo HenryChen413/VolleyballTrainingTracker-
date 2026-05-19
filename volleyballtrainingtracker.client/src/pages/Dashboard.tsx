@@ -91,13 +91,13 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">儀表板</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             球隊整體狀態與近期動態
           </p>
         </div>
-        <Chip tone="primary" size="lg" className="font-display">
+        <Chip tone="primary" size="lg" className="font-display shrink-0">
           <Calendar className="h-3.5 w-3.5" />
           {yearLabel}
         </Chip>

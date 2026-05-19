@@ -230,6 +230,7 @@ if (args.Length > 0)
 app.UseForwardedHeaders();
 
 // 安全性 HTTP 標頭：防點擊劫持、MIME 嗅探、控制 referrer。
+var isDev = app.Environment.IsDevelopment();
 app.Use(async (ctx, next) =>
 {
     var h = ctx.Response.Headers;
@@ -237,6 +238,10 @@ app.Use(async (ctx, next) =>
     h["X-Frame-Options"] = "DENY";
     h["Referrer-Policy"] = "no-referrer";
     h["X-XSS-Protection"] = "0";
+    // 此服務只回傳 JSON API，不需載入任何外部資源；用最嚴格的 CSP。
+    // 開發環境略過，避免擋掉 Swagger UI（會載入內嵌 script/style）。
+    if (!isDev)
+        h["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'";
     await next();
 });
 

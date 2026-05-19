@@ -222,7 +222,12 @@ export default function PlayerEditPage() {
         )}
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)}>
+          {/* 送出/刪除進行中時，整個表單欄位與按鈕一律鎖定 */}
+          <fieldset
+            disabled={isSubmitting || busy}
+            className="space-y-4 min-w-0 border-0 p-0 m-0"
+          >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">姓名 *</Label>
@@ -364,6 +369,7 @@ export default function PlayerEditPage() {
               )}
             </div>
           </div>
+          </fieldset>
         </form>
       </CardContent>
     </Card>

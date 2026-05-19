@@ -63,6 +63,7 @@ export const PERM = {
 
 export const PAGE = {
   Dashboard: 'dashboard',
+  Calendar: 'calendar',
   Players: 'players',
   Sessions: 'sessions',
   MatchLogs: 'match-logs',

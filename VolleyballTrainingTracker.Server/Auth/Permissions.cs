@@ -31,6 +31,7 @@ public static class Permissions
 public static class Pages
 {
     public const string Dashboard = "dashboard";
+    public const string Calendar = "calendar";
     public const string Players = "players";
     public const string Sessions = "sessions";
     public const string MatchLogs = "match-logs";
@@ -41,6 +42,6 @@ public static class Pages
 
     public static readonly string[] All =
     {
-        Dashboard, Players, Sessions, MatchLogs, Drills, AdminRoles, AdminUsers, Profile,
+        Dashboard, Calendar, Players, Sessions, MatchLogs, Drills, AdminRoles, AdminUsers, Profile,
     };
 }

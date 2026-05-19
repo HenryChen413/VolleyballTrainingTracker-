@@ -5,6 +5,7 @@ import AppLayout from '@/components/AppLayout';
 import { Toaster } from '@/components/Toaster';
 import LoginPage from '@/pages/Login';
 import DashboardPage from '@/pages/Dashboard';
+import CalendarPage from '@/pages/Calendar';
 import PlayersPage from '@/pages/Players';
 import PlayerEditPage from '@/pages/PlayerEdit';
 import SessionsPage from '@/pages/Sessions';
@@ -36,6 +37,9 @@ export default function App() {
 
               <Route element={<ProtectedRoute requirePage={PAGE.Dashboard} />}>
                 <Route path="/" element={<DashboardPage />} />
+              </Route>
+              <Route element={<ProtectedRoute requirePage={PAGE.Calendar} />}>
+                <Route path="/calendar" element={<CalendarPage />} />
               </Route>
               <Route element={<ProtectedRoute requirePage={PAGE.Players} />}>
                 <Route path="/players" element={<PlayersPage />} />

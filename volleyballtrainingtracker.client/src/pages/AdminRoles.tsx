@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
+  CalendarDays,
   Dumbbell,
   LayoutDashboard,
   ListChecks,
@@ -41,6 +42,7 @@ interface PageMeta {
 
 const PAGE_META: PageMeta[] = [
   { key: PAGE.Dashboard,   label: "儀表板",       icon: LayoutDashboard },
+  { key: PAGE.Calendar,    label: "行事曆",       icon: CalendarDays },
   { key: PAGE.Players,     label: "選手",         icon: UsersIcon },
   { key: PAGE.Sessions,    label: "訓練紀錄",     icon: Dumbbell },
   { key: PAGE.MatchLogs,   label: "比賽紀錄",     icon: Volleyball },

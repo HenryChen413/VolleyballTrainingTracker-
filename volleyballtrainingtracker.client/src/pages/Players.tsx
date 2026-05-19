@@ -39,6 +39,7 @@ import EmptyState from "@/components/EmptyState";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { PERM, useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
+import { exportCsv, datedFilename } from "@/lib/exportCsv";
 
 // ── 位置代碼 / 顯示 / tone ──────────────────────────────────────────────
 const POSITION_TONE: Record<string, "primary" | "info" | "navy" | "warning" | "success"> = {
@@ -230,9 +231,9 @@ export default function PlayersPage() {
   };
 
   // CSV 匯出（依目前篩選結果，按 現役/畢業/退隊 排序）
-  const exportCsv = () => {
+  const handleExport = () => {
     const ordered = [...activeList, ...graduatedList, ...leftList];
-    const rows: (string | number)[][] = [
+    exportCsv(datedFilename("players"), [
       ["背號", "姓名", "暱稱", "位置", "身高(cm)", "系級", "慣用手", "狀態"],
       ...ordered.map((p) => [
         p.jerseyNo ?? "",
@@ -244,27 +245,7 @@ export default function PlayersPage() {
         handLabel(p.dominantHand) ?? "",
         PLAYER_STATUS_LABEL[p.isActive],
       ]),
-    ];
-    const csv = rows
-      .map((r) =>
-        r
-          .map((x) => {
-            const s = String(x ?? "");
-            return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-          })
-          .join(","),
-      )
-      .join("\n");
-    // BOM 讓 Excel 正確判讀 UTF-8
-    const blob = new Blob(["﻿" + csv], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `players_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    ]);
   };
 
   const comparePlayers = useMemo(
@@ -321,7 +302,7 @@ export default function PlayersPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={exportCsv}
+            onClick={handleExport}
             disabled={filtered.length === 0}
             title="匯出目前篩選結果為 CSV"
           >

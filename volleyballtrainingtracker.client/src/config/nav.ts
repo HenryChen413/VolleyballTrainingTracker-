@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import {
+  CalendarDays,
   LayoutDashboard,
   Settings,
   Shield,
@@ -25,6 +26,13 @@ export const ALL_NAV: NavItem[] = [
     page: PAGE.Dashboard,
     end: true,
     icon: LayoutDashboard,
+    group: "main",
+  },
+  {
+    to: "/calendar",
+    label: "行事曆",
+    page: PAGE.Calendar,
+    icon: CalendarDays,
     group: "main",
   },
   {

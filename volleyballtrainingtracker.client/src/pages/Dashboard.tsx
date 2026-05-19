@@ -18,6 +18,7 @@ import {
   MapPin,
   Calendar,
   BookOpen,
+  Cake,
 } from "lucide-react";
 import {
   Card,
@@ -43,6 +44,7 @@ import {
   type MatchSummary,
   type RecentEvent,
 } from "@/api/stats";
+import { playersApi, type Player } from "@/api/players";
 
 const YT_CHANNEL_URL = "https://youtube.com/channel/UCvONl3xCT8XLwoozldtsCcQ";
 
@@ -179,6 +181,9 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {/* 本月壽星 */}
+      <BirthdayCard />
+
       {/* 訓練分布 */}
       <Card>
         <CardHeader>
@@ -250,6 +255,114 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ============== 本月壽星 ============== */
+
+interface BirthdayStar {
+  player: Player;
+  monthNum: number;
+  dayNum: number;
+  age: number;
+  isToday: boolean;
+}
+
+function BirthdayCard() {
+  const { data: players, isLoading } = useQuery({
+    queryKey: ["players", "birthdayActive"],
+    queryFn: () => playersApi.list(true),
+  });
+
+  const now = new Date();
+  const curMonth = String(now.getMonth() + 1).padStart(2, "0");
+  const curDay = String(now.getDate()).padStart(2, "0");
+  const curYear = now.getFullYear();
+
+  const stars: BirthdayStar[] = (players ?? [])
+    .filter((p) => !!p.birthDate && p.birthDate.slice(5, 7) === curMonth)
+    .map((p) => {
+      const month = p.birthDate!.slice(5, 7);
+      const day = p.birthDate!.slice(8, 10);
+      const year = Number(p.birthDate!.slice(0, 4));
+      return {
+        player: p,
+        monthNum: Number(month),
+        dayNum: Number(day),
+        age: curYear - year,
+        isToday: month === curMonth && day === curDay,
+      };
+    })
+    .sort((a, b) => a.dayNum - b.dayNum);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Cake className="h-5 w-5 text-primary" />
+          本月壽星
+        </CardTitle>
+        <CardDescription>
+          {Number(curMonth)} 月過生日的現役選手
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        ) : stars.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {stars.map((s) => (
+              <BirthdayRow key={s.player.id} star={s} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="本月沒有壽星" icon={Cake} compact />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function BirthdayRow({ star }: { star: BirthdayStar }) {
+  const { player, monthNum, dayNum, age, isToday } = star;
+  const displayName = player.nickname?.trim() || player.name;
+  return (
+    <div
+      className={cn(
+        "rounded-lg border bg-card p-3 transition-all hover:shadow-soft",
+        isToday ? "border-primary bg-primary/5" : "hover:border-primary/40",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <span className="font-medium truncate">
+          {isToday && <span className="mr-1">🎂</span>}
+          {displayName}
+        </span>
+        {player.jerseyNo != null && (
+          <Chip tone="neutral" size="sm" className="shrink-0">
+            #{player.jerseyNo}
+          </Chip>
+        )}
+      </div>
+      <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+        <Calendar className="h-3 w-3" />
+        <span className="font-numeric">
+          {monthNum} 月 {dayNum} 日
+        </span>
+        <span>·</span>
+        <span>
+          滿{" "}
+          <span className="font-numeric text-foreground font-medium">
+            {age}
+          </span>{" "}
+          歲
+        </span>
       </div>
     </div>
   );

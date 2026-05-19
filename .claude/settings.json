@@ -34,7 +34,20 @@
       "WebFetch(domain:news.ycombinator.com)",
       "Bash(git rm *)",
       "Bash(FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force --tree-filter 'sh /c/Users/apple/AppData/Local/Temp/scrub-secrets.sh' --tag-name-filter cat -- --all)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(npm --version)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('vitest',p.devDependencies.vitest\\); console.log\\('vite',p.devDependencies.vite\\); console.log\\('jsdom',p.devDependencies.jsdom\\)\")",
+      "Bash(npx vitest *)",
+      "Bash(dotnet sln *)",
+      "Bash(dotnet test *)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const p=JSON.parse\\(d\\);console.log\\(JSON.stringify\\(p.exports,null,1\\)\\)}\\)\")",
+      "Bash(cat extend-expect.d.ts)",
+      "Bash(cat axe-matchers.d.ts)",
+      "Bash(cat matchers.d.ts)",
+      "Bash(git checkout *)",
+      "Bash(git restore *)",
+      "Bash(git merge *)",
+      "WebFetch(domain:api.github.com)"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

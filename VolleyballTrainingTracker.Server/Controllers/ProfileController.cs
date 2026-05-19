@@ -71,6 +71,52 @@ public class ProfileController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// 取得目前登入者綁定的選手檔案與出賽紀錄（唯讀）。
+    /// 未綁定選手者回傳 404，前端據此略過顯示。
+    /// </summary>
+    [HttpGet("player")]
+    public async Task<ActionResult<MyPlayerInfo>> GetPlayer()
+    {
+        var id = GetUserId();
+        if (id is null) return Unauthorized();
+
+        var player = await _db.Players.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.UserId == id);
+        if (player == null) return NotFound(new { message = "尚未綁定選手資料" });
+
+        var appearances = await _db.MatchEventPlayers.AsNoTracking()
+            .Where(mep => mep.PlayerId == player.Id)
+            .Select(mep => new MyMatchAppearance
+            {
+                MatchEventId = mep.MatchEventId,
+                MatchDate = mep.MatchEvent!.MatchDate,
+                MatchType = mep.MatchEvent.MatchType,
+                MatchName = mep.MatchEvent.MatchName,
+                OurSquad = mep.OurSquad,
+            })
+            .OrderByDescending(a => a.MatchDate)
+            .ToListAsync();
+
+        return Ok(new MyPlayerInfo
+        {
+            Id = player.Id,
+            Name = player.Name,
+            Nickname = player.Nickname,
+            JerseyNo = player.JerseyNo,
+            Position = player.Position,
+            HeightCm = player.HeightCm,
+            WeightKg = player.WeightKg,
+            DominantHand = player.DominantHand,
+            Grade = player.Grade,
+            IsActive = player.IsActive,
+            JoinedAt = player.JoinedAt,
+            MatchAppearanceCount = appearances.Count,
+            OfficialAppearanceCount = appearances.Count(a => a.MatchType == "Official"),
+            Appearances = appearances,
+        });
+    }
+
     private int? GetUserId()
     {
         var v = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");

@@ -296,7 +296,7 @@ static async Task SeedRolesAsync(AppDbContext db)
     });
     var coachPages = JsonSerializer.Serialize(new[]
     {
-        Pages.Dashboard, Pages.Players, Pages.Sessions, Pages.Drills, Pages.Profile,
+        Pages.Dashboard, Pages.Calendar, Pages.Players, Pages.Sessions, Pages.Drills, Pages.Profile,
     });
     var playerPerms = JsonSerializer.Serialize(Array.Empty<string>());
     var playerPages = coachPages; // 跟 Coach 同步主功能可看

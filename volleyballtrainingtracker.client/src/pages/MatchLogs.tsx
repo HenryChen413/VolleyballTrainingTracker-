@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   Plus, ChevronRight, ChevronDown, Video, Pencil, Trophy,
-  MapPin, Users, Search, StickyNote, X,
+  MapPin, Users, Search, StickyNote, X, Download,
 } from "lucide-react";
 import {
   matchEventsApi,
@@ -21,6 +21,7 @@ import { RosterChip } from "@/components/RosterChip";
 import { groupByPrimaryPosition } from "@/lib/positions";
 import { PERM, useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
+import { exportCsv, datedFilename } from "@/lib/exportCsv";
 
 type ResultKey = "W" | "L" | "D";
 const RESULT_LABEL: Record<ResultKey, string> = { W: "勝", L: "敗", D: "平" };
@@ -103,6 +104,41 @@ export default function MatchLogsPage() {
     setYearFilter("all"); setTypeFilter("all"); setSearch("");
   };
 
+  // CSV 匯出：依目前篩選結果，每筆對戰一列；無對戰的賽事仍輸出一列
+  const handleExport = () => {
+    const header = [
+      "日期", "學年", "類型", "賽事名稱", "地點", "名次",
+      "對手", "我方分隊", "局1我", "局1敵", "局2我", "局2敵",
+      "局3我", "局3敵", "我方總分", "對方總分", "結果",
+    ];
+    const resultLabel = (r: string | null) =>
+      r === "W" ? "勝" : r === "L" ? "敗" : r === "D" ? "平" : "";
+    const rows = filtered.flatMap((e) => {
+      const base = [
+        e.matchDate.slice(0, 10),
+        e.academicYear ?? "",
+        MATCH_TYPE_LABEL[e.matchType ?? ""] ?? e.matchType ?? "",
+        e.matchName ?? "",
+        e.location ?? "",
+        e.ranking ?? "",
+      ];
+      if (e.matches.length === 0) {
+        return [[...base, ...Array(11).fill("")]];
+      }
+      return e.matches.map((m) => [
+        ...base,
+        m.opponent,
+        m.ourSquad ?? "",
+        m.set1Our ?? "", m.set1Opp ?? "",
+        m.set2Our ?? "", m.set2Opp ?? "",
+        m.set3Our ?? "", m.set3Opp ?? "",
+        m.ourScore ?? "", m.opponentScore ?? "",
+        resultLabel(m.result),
+      ]);
+    });
+    exportCsv(datedFilename("match-logs"), [header, ...rows]);
+  };
+
   return (
     <div className="space-y-5">
       {/* 頁首 */}
@@ -113,11 +149,22 @@ export default function MatchLogsPage() {
             檢視每一場賽事的對戰結果、出賽名單與比分細節
           </p>
         </div>
-        {canCreate && (
-          <Button onClick={() => navigate("/match-logs/new")}>
-            <Plus className="h-4 w-4 mr-1" /> 新增比賽
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={filtered.length === 0}
+            title="匯出目前篩選結果為 CSV"
+          >
+            <Download className="h-4 w-4 mr-1" /> 匯出
           </Button>
-        )}
+          {canCreate && (
+            <Button onClick={() => navigate("/match-logs/new")}>
+              <Plus className="h-4 w-4 mr-1" /> 新增比賽
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* 篩選列 */}

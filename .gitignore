@@ -3,6 +3,15 @@
 *.env
 !.env.example
 
+# 本機開發設定（含本機 DB 密碼），改用 .example 範本進版控
+VolleyballTrainingTracker.Server/appsettings.Development.json
+
+# Claude Code 本機專用設定（可含機器專屬路徑 / 機密）
+.claude/settings.local.json
+
+# ---- 資料庫備份工具（含密碼 / 備份檔）----
+docs/db-backup/
+
 # ---- .NET 編譯產物 ----
 bin/
 obj/

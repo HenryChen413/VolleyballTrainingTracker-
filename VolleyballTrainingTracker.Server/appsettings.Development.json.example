@@ -1,0 +1,18 @@
+{
+  // 範本檔：複製為同目錄下的 appsettings.Development.json 並填入本機開發值。
+  // appsettings.Development.json 已被 .gitignore 忽略，不會進版控。
+  // 以下值僅供本機開發使用，連的是本機資料庫，不具生產風險。
+  // 生產環境（Production）不會載入此檔，機密一律由環境變數注入。
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "Default": "Host=localhost;Port=5432;Database=VOLLEYBALLTRAININGTRACKER;Username=postgres;Password=<你的本機DB密碼>"
+  },
+  "Jwt": {
+    "SecretKey": "<本機開發用任意 32 字元以上字串>"
+  }
+}

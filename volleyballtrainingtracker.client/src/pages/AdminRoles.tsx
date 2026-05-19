@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
@@ -123,13 +123,13 @@ export default function AdminRolesPage() {
     });
   };
 
-  // 第一次載入時自動選第一個角色
-  useEffect(() => {
-    if (roles && roles.length > 0 && editing === null && draft.name === "") {
-      startEdit(roles[0]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roles]);
+  // 第一次載入完成時自動選第一個角色（於 render 階段一次性執行，
+  // 用旗標確保只跑一次，避免在 effect 內 setState）
+  const [didAutoSelect, setDidAutoSelect] = useState(false);
+  if (!didAutoSelect && roles && roles.length > 0) {
+    setDidAutoSelect(true);
+    startEdit(roles[0]);
+  }
 
   // 排序：系統角色置頂，按 SYSTEM_ROLE_ORDER；自訂角色依 id
   const sortedRoles = useMemo(() => {

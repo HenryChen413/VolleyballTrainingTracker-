@@ -66,9 +66,15 @@ export default function SessionEditPage() {
         location: data.location,
         notes: data.notes,
       });
-      setDrillIds(data.drills.map((d) => d.drillId));
     }
   }, [data, reset]);
+
+  // 於 render 階段同步已選 drillIds（取代 effect 內 setState，避免連鎖渲染）
+  const [prevData, setPrevData] = useState<typeof data>(undefined);
+  if (data && data !== prevData) {
+    setPrevData(data);
+    setDrillIds(data.drills.map((d) => d.drillId));
+  }
 
   const onSubmit = async (v: Outputs) => {
     const payload: SessionUpsert = {

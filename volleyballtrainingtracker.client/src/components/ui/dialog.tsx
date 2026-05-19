@@ -52,6 +52,9 @@ export function Dialog({
           )}
         />
         <DialogPrimitive.Content
+          // 無 description 時明確關閉 aria-describedby，避免 Radix 對不存在的
+          // 描述元素發出警告；有 description 時不傳此 prop，交由 Radix 自動連結。
+          {...(description ? {} : { 'aria-describedby': undefined })}
           onInteractOutside={(e) => {
             if (!closeOnBackdrop) e.preventDefault();
           }}

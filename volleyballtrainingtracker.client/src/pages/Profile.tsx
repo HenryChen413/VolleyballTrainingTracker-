@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { profileApi } from '@/api/profile';
@@ -138,9 +139,8 @@ export default function ProfilePage() {
               >
               <div className="space-y-2">
                 <Label htmlFor="currentPassword">目前密碼</Label>
-                <Input
+                <PasswordInput
                   id="currentPassword"
-                  type="password"
                   autoComplete="current-password"
                   {...pwdForm.register('currentPassword')}
                 />
@@ -150,9 +150,8 @@ export default function ProfilePage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="newPassword">新密碼</Label>
-                <Input
+                <PasswordInput
                   id="newPassword"
-                  type="password"
                   autoComplete="new-password"
                   {...pwdForm.register('newPassword')}
                 />
@@ -162,9 +161,8 @@ export default function ProfilePage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">確認新密碼</Label>
-                <Input
+                <PasswordInput
                   id="confirmPassword"
-                  type="password"
                   autoComplete="new-password"
                   {...pwdForm.register('confirmPassword')}
                 />

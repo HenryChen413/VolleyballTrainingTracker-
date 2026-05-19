@@ -10,14 +10,9 @@ import { motion } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
-  LayoutDashboard,
   LogOut,
   Menu,
-  Settings,
-  Shield,
-  Trophy,
   User as UserIcon,
-  Users,
   Volleyball,
   X,
 } from "lucide-react";
@@ -26,72 +21,11 @@ import ThemeToggle from "@/components/ThemeToggle";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import BottomTabBar from "@/components/BottomTabBar";
 import { PAGE, useAuthStore } from "@/stores/authStore";
+import { ALL_NAV, type NavItem } from "@/config/nav";
+import { cn } from "@/lib/utils";
 
 /** 閒置自動登出時間（毫秒）*/
 const IDLE_LOGOUT_MS = 5 * 60 * 1000;
-import { cn } from "@/lib/utils";
-
-interface NavItem {
-  to: string;
-  label: string;
-  page: string;
-  end?: boolean;
-  icon: React.ComponentType<{ className?: string }>;
-  group?: "main" | "admin";
-}
-
-export const ALL_NAV: NavItem[] = [
-  {
-    to: "/",
-    label: "儀表板",
-    page: PAGE.Dashboard,
-    end: true,
-    icon: LayoutDashboard,
-    group: "main",
-  },
-  {
-    to: "/players",
-    label: "選手",
-    page: PAGE.Players,
-    icon: Users,
-    group: "main",
-  },
-  {
-    to: "/sessions",
-    label: "訓練紀錄",
-    page: PAGE.Sessions,
-    icon: Volleyball,
-    group: "main",
-  },
-  {
-    to: "/match-logs",
-    label: "比賽紀錄",
-    page: PAGE.MatchLogs,
-    icon: Trophy,
-    group: "main",
-  },
-  {
-    to: "/drills",
-    label: "訓練項目",
-    page: PAGE.Drills,
-    icon: Settings,
-    group: "main",
-  },
-  {
-    to: "/admin/users",
-    label: "使用者",
-    page: PAGE.AdminUsers,
-    icon: Shield,
-    group: "admin",
-  },
-  {
-    to: "/admin/roles",
-    label: "角色",
-    page: PAGE.AdminRoles,
-    icon: Shield,
-    group: "admin",
-  },
-];
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -114,11 +48,18 @@ export default function AppLayout() {
     localStorage.setItem("vbtt-sidebar-collapsed", collapsed ? "1" : "0");
   }, [collapsed]);
 
-  // 切換頁面：關閉行動選單並捲回頂部
+  // 切換頁面：捲回頂部（DOM 屬外部系統，於 effect 內處理）
   useEffect(() => {
-    setMobileOpen(false);
     window.scrollTo({ top: 0 });
   }, [location.pathname]);
+
+  // 切換頁面時關閉行動選單：於 render 階段比對前次路徑，
+  // 避免在 effect 內 setState 造成連鎖渲染。
+  const [prevPath, setPrevPath] = useState(location.pathname);
+  if (location.pathname !== prevPath) {
+    setPrevPath(location.pathname);
+    setMobileOpen(false);
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -258,6 +199,7 @@ export default function AppLayout() {
               </Button>
               <Link
                 to="/"
+                onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-2 font-bold min-w-0"
               >
                 <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">

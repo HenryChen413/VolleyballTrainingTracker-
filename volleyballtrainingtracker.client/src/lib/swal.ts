@@ -1,5 +1,5 @@
 import Swal from 'sweetalert2';
-import { toast } from '@/components/Toaster';
+import { toast } from '@/lib/toast';
 
 /**
  * 一般操作回饋改走輕量 Toast；破壞性／需要明確確認的對話框仍走 SweetAlert。

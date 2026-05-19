@@ -4,8 +4,6 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronsUpDown,
-  Eye,
-  EyeOff,
   Mail,
   Pencil,
   Plus,
@@ -21,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -235,7 +234,6 @@ export default function AdminUsersPage() {
     );
   const [editorOpen, setEditorOpen] = useState(false);
   const [draft, setDraft] = useState<DraftState>(emptyDraft);
-  const [showPwd, setShowPwd] = useState(false);
   const [changePwd, setChangePwd] = useState(false);
   const [highlightId, setHighlightId] = useState<number | null>(null);
   const rowRefs = useRef<Record<number, HTMLElement | null>>({});
@@ -292,7 +290,6 @@ export default function AdminUsersPage() {
       ...emptyDraft,
       roleId: roles?.find((r) => r.name === 'Player')?.id ?? roles?.[0]?.id ?? null,
     });
-    setShowPwd(false);
     setChangePwd(true);
     setEditorOpen(true);
   };
@@ -307,7 +304,6 @@ export default function AdminUsersPage() {
       isActive: u.isActive,
       originalRoleId: u.roleId,
     });
-    setShowPwd(false);
     setChangePwd(false);
     setEditorOpen(true);
   };
@@ -712,8 +708,6 @@ export default function AdminUsersPage() {
           setDraft={setDraft}
           roles={roles}
           busy={busy}
-          showPwd={showPwd}
-          setShowPwd={setShowPwd}
           changePwd={changePwd}
           setChangePwd={setChangePwd}
         />
@@ -995,8 +989,6 @@ interface EditorFormProps {
   roles: Role[] | undefined;
   /** 有 mutation 進行中：鎖定整個表單 */
   busy: boolean;
-  showPwd: boolean;
-  setShowPwd: React.Dispatch<React.SetStateAction<boolean>>;
   changePwd: boolean;
   setChangePwd: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -1006,8 +998,6 @@ function EditorForm({
   setDraft,
   roles,
   busy,
-  showPwd,
-  setShowPwd,
   changePwd,
   setChangePwd,
 }: EditorFormProps) {
@@ -1180,25 +1170,13 @@ function EditorForm({
             <Label htmlFor="d-password">
               {isEdit ? '新密碼' : '密碼'} <span className="text-destructive">*</span>
             </Label>
-            <div className="relative">
-              <Input
-                id="d-password"
-                type={showPwd ? 'text' : 'password'}
-                value={draft.password}
-                onChange={(e) => setDraft((d) => ({ ...d, password: e.target.value }))}
-                placeholder="至少 6 個字"
-                className="pr-10"
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPwd((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
-                title={showPwd ? '隱藏密碼' : '顯示密碼'}
-              >
-                {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
+            <PasswordInput
+              id="d-password"
+              value={draft.password}
+              onChange={(e) => setDraft((d) => ({ ...d, password: e.target.value }))}
+              placeholder="至少 6 個字"
+              autoComplete="new-password"
+            />
             <PasswordStrength password={draft.password} />
           </div>
         )}

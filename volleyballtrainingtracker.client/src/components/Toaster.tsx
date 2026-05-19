@@ -1,48 +1,7 @@
-import { create } from 'zustand';
 import { useEffect } from 'react';
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-export type ToastTone = 'success' | 'error' | 'warning' | 'info';
-
-interface ToastItem {
-  id: number;
-  tone: ToastTone;
-  title: string;
-  description?: string;
-  duration: number;
-}
-
-interface ToastState {
-  items: ToastItem[];
-  push: (t: Omit<ToastItem, 'id' | 'duration'> & { duration?: number }) => number;
-  dismiss: (id: number) => void;
-}
-
-let nextId = 1;
-
-const useToastStore = create<ToastState>((set) => ({
-  items: [],
-  push: (t) => {
-    const id = nextId++;
-    const duration = t.duration ?? 3200;
-    set((s) => ({ items: [...s.items, { id, duration, ...t }] }));
-    return id;
-  },
-  dismiss: (id) => set((s) => ({ items: s.items.filter((x) => x.id !== id) })),
-}));
-
-export const toast = {
-  success: (title: string, description?: string) =>
-    useToastStore.getState().push({ tone: 'success', title, description }),
-  error: (title: string, description?: string) =>
-    useToastStore.getState().push({ tone: 'error', title, description, duration: 5000 }),
-  warning: (title: string, description?: string) =>
-    useToastStore.getState().push({ tone: 'warning', title, description }),
-  info: (title: string, description?: string) =>
-    useToastStore.getState().push({ tone: 'info', title, description }),
-  dismiss: (id: number) => useToastStore.getState().dismiss(id),
-};
+import { useToastStore, type ToastItem, type ToastTone } from '@/lib/toast';
 
 const ICONS: Record<ToastTone, React.ComponentType<{ className?: string }>> = {
   success: CheckCircle2,

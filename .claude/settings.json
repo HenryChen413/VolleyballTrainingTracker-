@@ -32,7 +32,9 @@
       "WebSearch",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:news.ycombinator.com)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force --tree-filter 'sh /c/Users/apple/AppData/Local/Temp/scrub-secrets.sh' --tag-name-filter cat -- --all)",
+      "Bash(git stash *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

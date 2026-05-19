@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
-import { ALL_NAV } from '@/components/AppLayout';
+import { ALL_NAV } from '@/config/nav';
 import { cn } from '@/lib/utils';
 
 const EDIT_LABELS: Record<string, string> = {

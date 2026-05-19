@@ -76,7 +76,7 @@ function SessionCard({
     queryFn: () => sessionsApi.get(session.id),
   });
 
-  const drills = data?.drills ?? [];
+  const drills = useMemo(() => data?.drills ?? [], [data]);
   const groups = useMemo(() => groupByCategory(drills), [drills]);
 
   const d = new Date(`${session.sessionDate.slice(0, 10)}T00:00:00`);

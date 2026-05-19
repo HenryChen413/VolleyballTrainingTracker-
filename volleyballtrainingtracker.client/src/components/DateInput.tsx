@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 
 export function DateInput({
@@ -16,14 +16,17 @@ export function DateInput({
   const dayRef = useRef<HTMLInputElement>(null);
   const nativeRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  // 於 render 階段同步外部 value（取代 effect 內 setState，避免連鎖渲染）
+  const [prevValue, setPrevValue] = useState<string | null | undefined>(undefined);
+  if (value !== prevValue) {
+    setPrevValue(value);
     if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
       const [py, pm, pd] = value.split('-');
       setY(py); setM(pm); setD(pd);
     } else if (!value) {
       setY(''); setM(''); setD('');
     }
-  }, [value]);
+  }
 
   const emit = (ny: string, nm: string, nd: string) => {
     const mm = parseInt(nm, 10);

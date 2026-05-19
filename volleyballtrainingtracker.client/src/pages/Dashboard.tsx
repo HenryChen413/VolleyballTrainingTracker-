@@ -17,6 +17,7 @@ import {
   TrendingUp,
   MapPin,
   Calendar,
+  BookOpen,
 } from "lucide-react";
 import {
   Card,
@@ -26,7 +27,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
+import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import UserGuideDialog from "@/components/UserGuideDialog";
 import { SkeletonCard, Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
@@ -66,6 +69,7 @@ const MATCH_TYPE_TONE: Record<string, "info" | "warning"> = {
 
 export default function DashboardPage() {
   const [distMonths, setDistMonths] = useState(6);
+  const [guideOpen, setGuideOpen] = useState(false);
   const { data: overview, isLoading: lo } = useQuery({
     queryKey: ["stats", "overview"],
     queryFn: () => statsApi.overview(),
@@ -97,11 +101,23 @@ export default function DashboardPage() {
             球隊整體狀態與近期動態
           </p>
         </div>
-        <Chip tone="primary" size="lg" className="font-display shrink-0">
-          <Calendar className="h-3.5 w-3.5" />
-          {yearLabel}
-        </Chip>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setGuideOpen(true)}
+          >
+            <BookOpen className="h-4 w-4 mr-1.5" />
+            使用說明
+          </Button>
+          <Chip tone="primary" size="lg" className="font-display">
+            <Calendar className="h-3.5 w-3.5" />
+            {yearLabel}
+          </Chip>
+        </div>
       </div>
+
+      <UserGuideDialog open={guideOpen} onClose={() => setGuideOpen(false)} />
 
       {/* YouTube banner */}
       <Card className="surface-soft border-primary/20 overflow-hidden">

@@ -47,7 +47,18 @@
       "Bash(git checkout *)",
       "Bash(git restore *)",
       "Bash(git merge *)",
-      "WebFetch(domain:api.github.com)"
+      "WebFetch(domain:api.github.com)",
+      "Bash(PGPASSWORD=a123 psql -h localhost -p 5433 -U postgres -d VOLLEYBALLTRAININGTRACKER -f \"/c/Users/apple/Desktop/VolleyballTrainingTracker/VolleyballTrainingTracker.Server/Data/Sql/2026-05-20_AddMatchLogDate.sql\")",
+      "PowerShell($env:PGPASSWORD = 'a123'; & 'C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe' -h localhost -p 5433 -U postgres -d VOLLEYBALLTRAININGTRACKER -f 'c:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\VolleyballTrainingTracker.Server\\\\Data\\\\Sql\\\\2026-05-20_AddMatchLogDate.sql')",
+      "PowerShell($env:PGPASSWORD = 'a123'; & 'C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe' -h localhost -p 5433 -U postgres -d VOLLEYBALLTRAININGTRACKER -f 'c:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\VolleyballTrainingTracker.Server\\\\Data\\\\Sql\\\\2026-05-20_AddMatchLogSets.sql')",
+      "PowerShell(npx --prefix volleyballtrainingtracker.client tsc -p volleyballtrainingtracker.client/tsconfig.app.json --noEmit 2>&1)",
+      "Bash(node_modules/.bin/tsc -b --noEmit)",
+      "Bash(./node_modules/.bin/tsc -b)",
+      "PowerShell($env:PGPASSWORD = 'a123'; & psql -h localhost -p 5433 -U postgres -d VOLLEYBALLTRAININGTRACKER -v ON_ERROR_STOP=1 -f 'VolleyballTrainingTracker.Server/Data/Sql/2026-05-20_AddPlayerStudentId.sql')",
+      "PowerShell(Get-ChildItem 'C:\\\\Program Files\\\\PostgreSQL' -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName 'bin\\\\psql.exe' } | Where-Object { Test-Path $_ })",
+      "PowerShell($env:PGPASSWORD = 'a123'; & 'C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe' -h localhost -p 5433 -U postgres -d VOLLEYBALLTRAININGTRACKER -v ON_ERROR_STOP=1 -f 'VolleyballTrainingTracker.Server/Data/Sql/2026-05-20_AddPlayerStudentId.sql')",
+      "Bash(ls \"C:/Users/apple/.claude/projects/c--Users-apple-Desktop-VolleyballTrainingTracker/memory/\")",
+      "Read(//c/Users/apple/.claude/projects/c--Users-apple-Desktop-VolleyballTrainingTracker/memory/**)"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

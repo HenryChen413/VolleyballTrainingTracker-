@@ -101,6 +101,7 @@ public class ProfileController : ControllerBase
         return Ok(new MyPlayerInfo
         {
             Id = player.Id,
+            StudentId = player.StudentId,
             Name = player.Name,
             Nickname = player.Nickname,
             JerseyNo = player.JerseyNo,

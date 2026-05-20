@@ -6,6 +6,7 @@ public class PlayerDto
 {
     public int Id { get; set; }
     public int? UserId { get; set; }
+    public string? StudentId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Nickname { get; set; }
     public int? JerseyNo { get; set; }
@@ -25,6 +26,9 @@ public class PlayerDto
 public class PlayerUpsertRequest
 {
     public int? UserId { get; set; }
+
+    [StringLength(32)]
+    public string? StudentId { get; set; }
 
     [Required, StringLength(64)]
     public string Name { get; set; } = string.Empty;

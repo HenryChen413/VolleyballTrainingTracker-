@@ -65,6 +65,20 @@ public class MatchLogItemDto
     public int? OurScore { get; set; }
     public int? OpponentScore { get; set; }
     public string? Result { get; set; }
+
+    /// <summary>該筆對戰的實際日期（僅 MatchType=Official 時可填，跨日賽事用）。</summary>
+    public DateTime? MatchDate { get; set; }
+
+    /// <summary>友誼賽動態局分；Official 模式為空陣列。</summary>
+    public List<MatchLogSetDto> Sets { get; set; } = new();
+}
+
+public class MatchLogSetDto
+{
+    public int Id { get; set; }
+    public short SetIndex { get; set; }
+    public int OurScore { get; set; }
+    public int OpponentScore { get; set; }
 }
 
 public class MatchEventUpsertRequest
@@ -139,11 +153,32 @@ public class MatchLogUpsertRequest
     [Range(0, 99)]
     public int? Set3Opp { get; set; }
 
-    [Range(0, 9)]
+    /// <summary>
+    /// 比賽：局數比（BO3 → 0~2）；友誼賽：局勝數，由前端從 Sets 算出，上限放寬到 99。
+    /// </summary>
+    [Range(0, 99)]
     public int? OurScore { get; set; }
-    [Range(0, 9)]
+    [Range(0, 99)]
     public int? OpponentScore { get; set; }
 
     [StringLength(8)]
     public string? Result { get; set; }
+
+    /// <summary>該筆對戰的實際日期；後端在 MatchType ≠ Official 時會強制清為 null。</summary>
+    public DateTime? MatchDate { get; set; }
+
+    /// <summary>友誼賽局分明細；Official 模式後端會強制清空此欄位。</summary>
+    public List<MatchLogSetUpsertRequest> Sets { get; set; } = new();
+}
+
+public class MatchLogSetUpsertRequest
+{
+    [Range(1, 99)]
+    public short SetIndex { get; set; }
+
+    [Range(0, 99)]
+    public int OurScore { get; set; }
+
+    [Range(0, 99)]
+    public int OpponentScore { get; set; }
 }

@@ -15,6 +15,7 @@ public class MatchLog
     public int? OurScore { get; set; }
     public int? OpponentScore { get; set; }
     public string? Result { get; set; }
+    public DateTime? MatchDate { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public int? CreatedByUserId { get; set; }
@@ -22,4 +23,5 @@ public class MatchLog
 
     public MatchEvent? MatchEvent { get; set; }
     public User? UpdatedByUser { get; set; }
+    public ICollection<MatchLogSet> Sets { get; set; } = new List<MatchLogSet>();
 }

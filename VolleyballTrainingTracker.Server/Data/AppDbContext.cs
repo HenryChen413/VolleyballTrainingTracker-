@@ -25,6 +25,7 @@ public class AppDbContext : DbContext
     public DbSet<MatchEvent> MatchEvents => Set<MatchEvent>();
     public DbSet<MatchEventPlayer> MatchEventPlayers => Set<MatchEventPlayer>();
     public DbSet<MatchLog> MatchLogs => Set<MatchLog>();
+    public DbSet<MatchLogSet> MatchLogSets => Set<MatchLogSet>();
     public DbSet<AuditDelete> AuditDeletes => Set<AuditDelete>();
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -102,6 +103,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Player>(e =>
         {
             e.ToTable("Players");
+            e.Property(x => x.StudentId).HasMaxLength(32);
             e.Property(x => x.Name).HasMaxLength(64).IsRequired();
             e.Property(x => x.Nickname).HasMaxLength(32);
             e.Property(x => x.Position).HasMaxLength(16);
@@ -109,6 +111,11 @@ public class AppDbContext : DbContext
             e.Property(x => x.Notes).HasMaxLength(512);
             e.Property(x => x.JoinedAt).HasColumnType("date");
             e.Property(x => x.BirthDate).HasColumnType("date");
+            // 學號唯一（NULL 不參與唯一），對應 SQL 端的 partial unique index
+            e.HasIndex(x => x.StudentId)
+                .IsUnique()
+                .HasFilter("\"StudentId\" IS NOT NULL")
+                .HasDatabaseName("UX_Players_StudentId");
             e.HasOne(x => x.User).WithMany(u => u.Players).HasForeignKey(x => x.UserId);
             e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
         });
@@ -174,8 +181,16 @@ public class AppDbContext : DbContext
             e.Property(x => x.Opponent).HasMaxLength(128).IsRequired();
             e.Property(x => x.OurSquad).HasMaxLength(16);
             e.Property(x => x.Result).HasMaxLength(8);
+            e.Property(x => x.MatchDate).HasColumnType("date");
             e.HasOne(x => x.MatchEvent).WithMany(m => m.Matches).HasForeignKey(x => x.MatchEventId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<MatchLogSet>(e =>
+        {
+            e.ToTable("MatchLogSets");
+            e.HasIndex(x => new { x.MatchLogId, x.SetIndex }).IsUnique();
+            e.HasOne(x => x.MatchLog).WithMany(m => m.Sets).HasForeignKey(x => x.MatchLogId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<AuditDelete>(e =>

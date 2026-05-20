@@ -20,6 +20,7 @@ import {
   type MatchEventUpsert,
   type MatchLogItem,
   type MatchLogUpsert,
+  type MatchLogSetInput,
 } from "@/api/matchLogs";
 import { playersApi, type Player } from "@/api/players";
 import { PERM, useAuthStore } from "@/stores/authStore";
@@ -66,6 +67,11 @@ function intStr(n: number | null | undefined): string {
 }
 
 // ── 類型 ──────────────────────────────────────────────────────────────
+interface FriendlySet {
+  ourScore: string;
+  oppScore: string;
+}
+
 interface GameRow {
   id?: number;
   opponent: string;
@@ -78,6 +84,15 @@ interface GameRow {
   set3Opp: string;
   matchScore: string;
   result: string;
+  matchDate: string;
+  sets: FriendlySet[];
+  /** Friendly：sets 為空時可手動輸入「局數 W:L」 */
+  manualWins: string;
+  manualLosses: string;
+}
+
+function emptySet(): FriendlySet {
+  return { ourScore: "", oppScore: "" };
 }
 
 function emptyRow(): GameRow {
@@ -89,6 +104,10 @@ function emptyRow(): GameRow {
     set3Our: "", set3Opp: "",
     matchScore: "",
     result: "",
+    matchDate: "",
+    sets: [],
+    manualWins: "",
+    manualLosses: "",
   };
 }
 
@@ -97,6 +116,9 @@ function itemToRow(m: MatchLogItem): GameRow {
     m.ourScore != null && m.opponentScore != null
       ? `${m.ourScore}:${m.opponentScore}`
       : "";
+  // 若該對戰已有 sets 子表，UI 將以 sets tally 為準，manual 欄位留空；
+  // 沒有 sets 但有 ourScore/opponentScore，視為「手動局數」模式回填
+  const hasSets = m.sets.length > 0;
   return {
     id: m.id,
     opponent: m.opponent,
@@ -106,7 +128,24 @@ function itemToRow(m: MatchLogItem): GameRow {
     set3Our: intStr(m.set3Our), set3Opp: intStr(m.set3Opp),
     matchScore: ms,
     result: m.result ?? "",
+    matchDate: m.matchDate ? m.matchDate.slice(0, 10) : "",
+    sets: m.sets.map((s) => ({ ourScore: intStr(s.ourScore), oppScore: intStr(s.opponentScore) })),
+    manualWins: hasSets ? "" : intStr(m.ourScore),
+    manualLosses: hasSets ? "" : intStr(m.opponentScore),
   };
+}
+
+/** 由 sets 計算「贏的局數 / 輸的局數」（有平分的局不計） */
+function tallySets(sets: FriendlySet[]): { wins: number; losses: number } {
+  let wins = 0, losses = 0;
+  for (const s of sets) {
+    const a = toInt(s.ourScore);
+    const b = toInt(s.oppScore);
+    if (a == null || b == null) continue;
+    if (a > b) wins++;
+    else if (b > a) losses++;
+  }
+  return { wins, losses };
 }
 
 // ── 局分輸入（含 +/- stepper）────────────────────────────────────────
@@ -159,16 +198,27 @@ function SetScoreInput({
 
 // ── 對戰卡片（取代原表格列）────────────────────────────────────────
 function MatchRowCard({
-  idx, row, splitMode, canRemove,
+  idx, row, splitMode, canRemove, showDate, eventStartDate, friendlyMode,
   onChange, onRemove,
 }: {
   idx: number;
   row: GameRow;
   splitMode: boolean;
   canRemove: boolean;
+  showDate: boolean;
+  eventStartDate: string;
+  friendlyMode: boolean;
   onChange: (patch: Partial<GameRow>) => void;
   onRemove: () => void;
 }) {
+  // Friendly：動態局列管理
+  const updateSet = (i: number, patch: Partial<FriendlySet>) => {
+    const next = row.sets.map((s, idx2) => (idx2 === i ? { ...s, ...patch } : s));
+    onChange({ sets: next });
+  };
+  const addSet = () => onChange({ sets: [...row.sets, emptySet()] });
+  const removeSet = (i: number) => onChange({ sets: row.sets.filter((_, idx2) => idx2 !== i) });
+  const friendlyTally = friendlyMode ? tallySets(row.sets) : null;
   return (
     <div className="rounded-xl border border-border bg-card p-3 space-y-3 shadow-soft hover:shadow-lift transition-shadow">
       {/* 標頭：我方 / 對手 */}
@@ -209,53 +259,173 @@ function MatchRowCard({
         </Button>
       </div>
 
-      {/* 局分 grid */}
-      <div className="rounded-lg bg-muted/30 p-2.5 space-y-1.5">
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-numeric">局分</div>
-        <div className="grid grid-cols-3 gap-1.5">
-          {[1, 2, 3].map((n) => {
-            const ourKey = `set${n}Our` as keyof GameRow;
-            const oppKey = `set${n}Opp` as keyof GameRow;
-            return (
-              <div key={n} className="space-y-1">
-                <div className="text-center text-[10px] text-muted-foreground font-numeric">
-                  局 {n}
-                </div>
-                <div className="flex flex-col items-center gap-1">
+      {/* 局分區：Official 固定 3 局；Friendly 動態 N 局 */}
+      {friendlyMode ? (
+        <div className="rounded-lg bg-muted/30 p-2.5 space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-numeric">
+              局分（友誼賽動態）
+            </span>
+            {/* 局數 W:L：sets 為空時可手動輸入；有 sets 時改顯示自動計算結果且唯讀 */}
+            {row.sets.length > 0 && friendlyTally ? (
+              <span
+                className="inline-flex items-center gap-1 text-[11px] font-numeric tabular-nums text-muted-foreground"
+                title="由各局自動計算"
+              >
+                <span>局數</span>
+                <span className="text-success font-semibold">{friendlyTally.wins}</span>
+                <span>:</span>
+                <span className="text-destructive font-semibold">{friendlyTally.losses}</span>
+                <span className="text-muted-foreground/60 text-[10px] ml-0.5">（自動）</span>
+              </span>
+            ) : (
+              <div className="flex items-center gap-1 text-[11px]">
+                <span className="text-muted-foreground">局數</span>
+                <input
+                  type="number" min={0} max={99}
+                  value={row.manualWins}
+                  onChange={(e) => onChange({ manualWins: e.target.value })}
+                  placeholder="0"
+                  className="w-10 h-7 text-center text-xs font-numeric tabular-nums rounded-md border border-input bg-background text-success font-semibold focus:outline-none focus:ring-1 focus:ring-ring"
+                  aria-label="我方局勝數"
+                />
+                <span className="text-muted-foreground">:</span>
+                <input
+                  type="number" min={0} max={99}
+                  value={row.manualLosses}
+                  onChange={(e) => onChange({ manualLosses: e.target.value })}
+                  placeholder="0"
+                  className="w-10 h-7 text-center text-xs font-numeric tabular-nums rounded-md border border-input bg-background text-destructive font-semibold focus:outline-none focus:ring-1 focus:ring-ring"
+                  aria-label="對方局勝數"
+                />
+              </div>
+            )}
+          </div>
+          {row.sets.length === 0 && (
+            <p className="text-[10px] text-muted-foreground/70">
+              不想記每局？直接填上方局數即可；想記細節則點下方新增。
+            </p>
+          )}
+          {row.sets.length > 0 && (
+            <div className="space-y-1.5">
+              {row.sets.map((s, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground font-numeric w-8 shrink-0">局{i + 1}</span>
                   <SetScoreInput
-                    value={row[ourKey] as string}
-                    onChange={(v) => onChange({ [ourKey]: v } as Partial<GameRow>)}
+                    value={s.ourScore}
+                    onChange={(v) => updateSet(i, { ourScore: v })}
                     placeholder="我"
                     accent="our"
                   />
+                  <span className="text-muted-foreground text-xs">:</span>
                   <SetScoreInput
-                    value={row[oppKey] as string}
-                    onChange={(v) => onChange({ [oppKey]: v } as Partial<GameRow>)}
+                    value={s.oppScore}
+                    onChange={(v) => updateSet(i, { oppScore: v })}
                     placeholder="對"
                     accent="opp"
                   />
+                  <button
+                    type="button"
+                    onClick={() => removeSet(i)}
+                    className="ml-auto h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    aria-label="移除此局"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 比分 + 結果 */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] text-muted-foreground">比分</span>
-          <Select
-            value={row.matchScore}
-            onChange={(e) => onChange({ matchScore: e.target.value })}
-            className="h-8 w-auto px-2 font-numeric"
+              ))}
+            </div>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addSet}
+            className="w-full h-7 text-[11px]"
           >
-            <option value="">-</option>
-            {MATCH_SCORES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </Select>
+            <Plus className="h-3 w-3 mr-1" /> 新增一局
+          </Button>
         </div>
+      ) : (
+        <div className="rounded-lg bg-muted/30 p-2.5 space-y-1.5">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-numeric">局分</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap">或直接選大比分</span>
+              <Select
+                value={row.matchScore}
+                onChange={(e) => onChange({ matchScore: e.target.value })}
+                className="h-7 w-auto pl-2 pr-7 py-0 text-xs font-numeric min-w-[64px]"
+                aria-label="大比分"
+              >
+                <option value="">-</option>
+                {MATCH_SCORES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {[1, 2, 3].map((n) => {
+              const ourKey = `set${n}Our` as keyof GameRow;
+              const oppKey = `set${n}Opp` as keyof GameRow;
+              return (
+                <div key={n} className="space-y-1">
+                  <div className="text-center text-[10px] text-muted-foreground font-numeric">
+                    局 {n}
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <SetScoreInput
+                      value={row[ourKey] as string}
+                      onChange={(v) => onChange({ [ourKey]: v } as Partial<GameRow>)}
+                      placeholder="我"
+                      accent="our"
+                    />
+                    <SetScoreInput
+                      value={row[oppKey] as string}
+                      onChange={(v) => onChange({ [oppKey]: v } as Partial<GameRow>)}
+                      placeholder="對"
+                      accent="opp"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 對戰日期（僅 Official 顯示） */}
+      {showDate && (
+        <div className="flex items-center gap-2 flex-wrap text-[11px]">
+          <CalendarDays className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="text-muted-foreground">對戰日</span>
+          <input
+            type="date"
+            value={row.matchDate}
+            onChange={(e) => onChange({ matchDate: e.target.value })}
+            className="h-7 px-1.5 rounded-md border border-input bg-background text-xs font-numeric tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          {row.matchDate ? (
+            <button
+              type="button"
+              onClick={() => onChange({ matchDate: "" })}
+              className="text-muted-foreground hover:text-foreground underline"
+            >
+              清除
+            </button>
+          ) : (
+            eventStartDate && (
+              <span className="text-muted-foreground/70 font-numeric tabular-nums">
+                同起始日 {eventStartDate.slice(5, 7)}/{eventStartDate.slice(8, 10)}
+              </span>
+            )
+          )}
+        </div>
+      )}
+
+      {/* 結果（Official 比分 Select 已上移；Friendly 局數 chip 在局分區內顯示） */}
+      <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-1 ml-auto">
           {RESULTS.map((r) => {
             const active = row.result === r.value;
@@ -495,7 +665,13 @@ function MatchEventForm({
   };
 
   const addRow = () =>
-    setRows((prev) => [...prev, { ...emptyRow(), ourSquad: splitMode ? "A" : "" }]);
+    setRows((prev) => [
+      ...prev,
+      {
+        ...emptyRow(),
+        ourSquad: splitMode ? "A" : "",
+      },
+    ]);
   const removeRow = (idx: number) => setRows((prev) => prev.filter((_, i) => i !== idx));
 
   const togglePlayer = (id: number) =>
@@ -541,17 +717,63 @@ function MatchEventForm({
   };
 
   const buildMatchPayload = (row: GameRow): MatchLogUpsert => {
-    const [ourScore, opponentScore] = parseMatchScore(row.matchScore);
     const squad = row.ourSquad.trim();
+    // 對戰日期僅在 Official 時才送出；其餘種類後端也會強制清空，雙重保險
+    const md = matchType === "Official" && row.matchDate ? `${row.matchDate}T00:00:00` : null;
+    const baseSquad = splitMode ? (squad || "A") : null;
+
+    if (matchType === "Friendly") {
+      // Friendly：用 sets 子表；OurScore/OpponentScore = 局勝數
+      const sets: MatchLogSetInput[] = row.sets
+        .map((s, i) => {
+          const a = toInt(s.ourScore);
+          const b = toInt(s.oppScore);
+          if (a == null || b == null) return null;
+          return { setIndex: i + 1, ourScore: a, opponentScore: b };
+        })
+        .filter((s): s is MatchLogSetInput => s !== null);
+      // sets 有資料 → 用 tally；sets 空白 → 用 manualWins/Losses
+      let wins: number | null;
+      let losses: number | null;
+      if (row.sets.length > 0) {
+        const t = tallySets(row.sets);
+        wins = t.wins;
+        losses = t.losses;
+      } else {
+        wins = toInt(row.manualWins);
+        losses = toInt(row.manualLosses);
+      }
+      const autoResult =
+        wins != null && losses != null
+          ? (wins > losses ? "W" : losses > wins ? "L" : wins > 0 ? "D" : null)
+          : null;
+      return {
+        id: row.id,
+        opponent: row.opponent.trim(),
+        ourSquad: baseSquad,
+        set1Our: null, set1Opp: null,
+        set2Our: null, set2Opp: null,
+        set3Our: null, set3Opp: null,
+        ourScore: wins, opponentScore: losses,
+        result: row.result || autoResult,
+        matchDate: null,
+        sets,
+      };
+    }
+
+    // Official / 未指定種類：沿用 Set1/2/3 + matchScore
+    const [ourScore, opponentScore] = parseMatchScore(row.matchScore);
     return {
       id: row.id,
       opponent: row.opponent.trim(),
-      ourSquad: splitMode ? (squad || "A") : null,
+      ourSquad: baseSquad,
       set1Our: toInt(row.set1Our), set1Opp: toInt(row.set1Opp),
       set2Our: toInt(row.set2Our), set2Opp: toInt(row.set2Opp),
       set3Our: toInt(row.set3Our), set3Opp: toInt(row.set3Opp),
       ourScore, opponentScore,
       result: row.result || null,
+      matchDate: md,
+      sets: [],
     };
   };
 
@@ -574,7 +796,7 @@ function MatchEventForm({
   });
 
   const onSubmit = async () => {
-    if (!matchDate) { showError("請填寫比賽日期"); return; }
+    if (!matchDate) { showError("請填寫賽事起始日"); return; }
     const validRows = rows.filter((r) => r.opponent.trim());
     setIsSubmitting(true);
     try {
@@ -684,13 +906,48 @@ function MatchEventForm({
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1">
-                  <CalendarDays className="h-3 w-3" /> 比賽日期 *
+                  <CalendarDays className="h-3 w-3" /> 賽事起始日 *
                 </Label>
                 <DateInput value={matchDate} onChange={(v) => setMatchDate(v ?? "")} />
+                {matchType === "Official" && (
+                  <p className="text-[11px] text-muted-foreground">
+                    跨日賽事可於各筆對戰另填實際日期；空白即視為本日。
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">種類</Label>
-                <Select value={matchType} onChange={(e) => setMatchType(e.target.value)} className="h-9">
+                <Select
+                  value={matchType}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setMatchType(next);
+                    setRows((prev) =>
+                      prev.map((r) => {
+                        const patch: Partial<GameRow> = {};
+                        // 離開 Official → 清空各筆對戰日期（僅 Official 允許跨日）
+                        if (next !== "Official" && r.matchDate) patch.matchDate = "";
+                        // 切到 Friendly → 清空固定局分 / matchScore（局數改由 sets 或 manual 輸入）
+                        if (next === "Friendly") {
+                          patch.set1Our = ""; patch.set1Opp = "";
+                          patch.set2Our = ""; patch.set2Opp = "";
+                          patch.set3Our = ""; patch.set3Opp = "";
+                          patch.matchScore = "";
+                        }
+                        // 離開 Friendly → 清空動態局列與手動局數
+                        if (next !== "Friendly") {
+                          if (r.sets.length > 0) patch.sets = [];
+                          if (r.manualWins || r.manualLosses) {
+                            patch.manualWins = "";
+                            patch.manualLosses = "";
+                          }
+                        }
+                        return Object.keys(patch).length > 0 ? { ...r, ...patch } : r;
+                      }),
+                    );
+                  }}
+                  className="h-9"
+                >
                   <option value="">-</option>
                   {MATCH_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>{t.label}</option>
@@ -827,6 +1084,9 @@ function MatchEventForm({
                     row={row}
                     splitMode={splitMode}
                     canRemove={rows.length > 1}
+                    showDate={matchType === "Official"}
+                    eventStartDate={matchDate}
+                    friendlyMode={matchType === "Friendly"}
                     onChange={(patch) => updateRow(idx, patch)}
                     onRemove={() => removeRow(idx)}
                   />

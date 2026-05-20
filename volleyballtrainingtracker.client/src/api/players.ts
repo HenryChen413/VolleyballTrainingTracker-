@@ -17,6 +17,7 @@ export const PLAYER_STATUS_LABEL: Record<PlayerStatus, string> = {
 export interface Player {
   id: number;
   userId: number | null;
+  studentId: string | null;
   name: string;
   nickname: string | null;
   jerseyNo: number | null;
@@ -35,6 +36,7 @@ export interface Player {
 
 export interface PlayerUpsert {
   userId?: number | null;
+  studentId?: string | null;
   name: string;
   nickname?: string | null;
   jerseyNo?: number | null;

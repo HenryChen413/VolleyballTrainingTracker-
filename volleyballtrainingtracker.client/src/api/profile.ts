@@ -21,6 +21,7 @@ export interface MyMatchAppearance {
 
 export interface MyPlayerInfo {
   id: number;
+  studentId: string | null;
   name: string;
   nickname: string | null;
   jerseyNo: number | null;

@@ -63,6 +63,16 @@ public class MatchEventsController : ControllerBase
                         OurScore = m.OurScore,
                         OpponentScore = m.OpponentScore,
                         Result = m.Result,
+                        MatchDate = m.MatchDate,
+                        Sets = m.Sets
+                            .OrderBy(s => s.SetIndex)
+                            .Select(s => new MatchLogSetDto
+                            {
+                                Id = s.Id,
+                                SetIndex = s.SetIndex,
+                                OurScore = s.OurScore,
+                                OpponentScore = s.OpponentScore,
+                            }).ToList(),
                     }).ToList(),
             })
             .ToListAsync();
@@ -74,7 +84,7 @@ public class MatchEventsController : ControllerBase
     {
         var e = await _db.MatchEvents
             .Include(x => x.UpdatedByUser)
-            .Include(x => x.Matches)
+            .Include(x => x.Matches).ThenInclude(m => m.Sets)
             .Include(x => x.Players)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return NotFound();
@@ -124,6 +134,16 @@ public class MatchEventsController : ControllerBase
                     OurScore = m.OurScore,
                     OpponentScore = m.OpponentScore,
                     Result = m.Result,
+                    MatchDate = m.MatchDate,
+                    Sets = m.Sets
+                        .OrderBy(s => s.SetIndex)
+                        .Select(s => new MatchLogSetDto
+                        {
+                            Id = s.Id,
+                            SetIndex = s.SetIndex,
+                            OurScore = s.OurScore,
+                            OpponentScore = s.OpponentScore,
+                        }).ToList(),
                 }).ToList(),
         });
     }
@@ -141,7 +161,7 @@ public class MatchEventsController : ControllerBase
         foreach (var m in req.Matches)
         {
             var ml = new MatchLog();
-            MapLog(m, ml, req.SquadCount);
+            MapLog(m, ml, req.SquadCount, req.MatchType);
             e.Matches.Add(ml);
         }
 
@@ -182,7 +202,7 @@ public class MatchEventsController : ControllerBase
             return BadRequest(new { message = "影片連結必須是 http:// 或 https:// 開頭" });
 
         var e = await _db.MatchEvents
-            .Include(x => x.Matches)
+            .Include(x => x.Matches).ThenInclude(m => m.Sets)
             .Include(x => x.Players)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return NotFound();
@@ -200,12 +220,12 @@ public class MatchEventsController : ControllerBase
             if (inc.Id.HasValue)
             {
                 var existing = e.Matches.FirstOrDefault(x => x.Id == inc.Id.Value);
-                if (existing != null) MapLog(inc, existing, req.SquadCount);
+                if (existing != null) MapLog(inc, existing, req.SquadCount, req.MatchType);
             }
             else
             {
                 var ml = new MatchLog();
-                MapLog(inc, ml, req.SquadCount);
+                MapLog(inc, ml, req.SquadCount, req.MatchType);
                 e.Matches.Add(ml);
             }
         }
@@ -287,19 +307,71 @@ public class MatchEventsController : ControllerBase
         e.SquadCount = req.SquadCount < 1 ? 1 : req.SquadCount;
     }
 
-    private static void MapLog(MatchLogUpsertRequest req, MatchLog m, int squadCount)
+    private static void MapLog(MatchLogUpsertRequest req, MatchLog m, int squadCount, string? matchType)
     {
         m.Opponent = req.Opponent;
         m.OurSquad = squadCount <= 1 ? null : NormalizeSquad(req.OurSquad, squadCount);
-        m.Set1Our = req.Set1Our;
-        m.Set1Opp = req.Set1Opp;
-        m.Set2Our = req.Set2Our;
-        m.Set2Opp = req.Set2Opp;
-        m.Set3Our = req.Set3Our;
-        m.Set3Opp = req.Set3Opp;
         m.OurScore = req.OurScore;
         m.OpponentScore = req.OpponentScore;
         m.Result = req.Result;
+        // 對戰日期僅限「比賽（Official）」可記錄；其他種類強制清空，避免前端誤傳
+        m.MatchDate = matchType == "Official" ? req.MatchDate?.Date : null;
+
+        if (matchType == "Friendly")
+        {
+            // Friendly：局分走 MatchLogSets 子表，固定欄位清空
+            m.Set1Our = null; m.Set1Opp = null;
+            m.Set2Our = null; m.Set2Opp = null;
+            m.Set3Our = null; m.Set3Opp = null;
+            SyncSets(req.Sets, m);
+        }
+        else
+        {
+            // Official / 未指定：用固定 Set1/2/3 欄位，子表清空
+            m.Set1Our = req.Set1Our;
+            m.Set1Opp = req.Set1Opp;
+            m.Set2Our = req.Set2Our;
+            m.Set2Opp = req.Set2Opp;
+            m.Set3Our = req.Set3Our;
+            m.Set3Opp = req.Set3Opp;
+            m.Sets.Clear();
+        }
+    }
+
+    /// <summary>
+    /// 同步 MatchLog.Sets：依 SetIndex 比對，dedupe（同 index 後者勝出）、
+    /// 移除 payload 沒列出的、更新既有的、新增缺少的。
+    /// </summary>
+    private static void SyncSets(List<MatchLogSetUpsertRequest> incoming, MatchLog m)
+    {
+        var deduped = incoming
+            .GroupBy(s => s.SetIndex)
+            .Select(g => g.Last())
+            .ToDictionary(s => s.SetIndex);
+
+        // 移除既有但不在 payload 的局
+        var toRemove = m.Sets.Where(s => !deduped.ContainsKey(s.SetIndex)).ToList();
+        foreach (var r in toRemove) m.Sets.Remove(r);
+
+        // 更新既有 + 新增缺少
+        foreach (var kv in deduped)
+        {
+            var existing = m.Sets.FirstOrDefault(s => s.SetIndex == kv.Key);
+            if (existing != null)
+            {
+                existing.OurScore = kv.Value.OurScore;
+                existing.OpponentScore = kv.Value.OpponentScore;
+            }
+            else
+            {
+                m.Sets.Add(new MatchLogSet
+                {
+                    SetIndex = kv.Key,
+                    OurScore = kv.Value.OurScore,
+                    OpponentScore = kv.Value.OpponentScore,
+                });
+            }
+        }
     }
 
     /// <summary>空值視為合法；有值時必須是 http/https 絕對網址，擋下 javascript: 等危險 scheme。</summary>

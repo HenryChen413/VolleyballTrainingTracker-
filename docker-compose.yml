@@ -1,7 +1,7 @@
 # 全部機密請放在 .env（見 .env.example），切勿寫死於本檔。
 services:
   postgres:
-    image: postgres:15
+    image: postgres:17
     container_name: vbtt-postgres
     environment:
       POSTGRES_DB: VOLLEYBALLTRAININGTRACKER

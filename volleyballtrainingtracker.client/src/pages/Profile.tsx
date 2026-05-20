@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
-import { Ruler, Scale, Hand, GraduationCap, CalendarDays, Trophy } from 'lucide-react';
+import { Ruler, Scale, Hand, GraduationCap, CalendarDays, Trophy, IdCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -208,6 +208,8 @@ function MyPlayerCard({ player }: { player: MyPlayerInfo }) {
     : [];
   const hand = handLabel(player.dominantHand);
   const stats: { icon: typeof Ruler; label: string; value: string }[] = [];
+  if (player.studentId)
+    stats.push({ icon: IdCard, label: '學號', value: player.studentId });
   if (player.heightCm != null)
     stats.push({ icon: Ruler, label: '身高', value: `${player.heightCm} cm` });
   if (player.weightKg != null)

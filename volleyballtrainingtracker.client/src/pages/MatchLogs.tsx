@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   Plus, ChevronRight, ChevronDown, Video, Pencil, Trophy,
-  MapPin, Users, Search, StickyNote, X, Download,
+  MapPin, Users, Search, StickyNote, X, Download, CalendarDays,
 } from "lucide-react";
 import {
   matchEventsApi,
@@ -107,15 +107,30 @@ export default function MatchLogsPage() {
   // CSV 匯出：依目前篩選結果，每筆對戰一列；無對戰的賽事仍輸出一列
   const handleExport = () => {
     const header = [
-      "日期", "學年", "類型", "賽事名稱", "地點", "名次",
+      "起始日", "對戰日期", "學年", "類型", "賽事名稱", "地點", "名次",
       "對手", "我方分隊", "局1我", "局1敵", "局2我", "局2敵",
-      "局3我", "局3敵", "我方總分", "對方總分", "結果",
+      "局3我", "局3敵", "我方總分", "對方總分", "結果", "局分明細",
     ];
     const resultLabel = (r: string | null) =>
       r === "W" ? "勝" : r === "L" ? "敗" : r === "D" ? "平" : "";
+    // Friendly：sets 串接為「25-23, 22-25, 27-25」；Official：把 Set1/2/3 合成同樣格式方便閱讀
+    const setsDetail = (m: MatchLogItem): string => {
+      if (m.sets && m.sets.length > 0) {
+        return m.sets.map((s) => `${s.ourScore}-${s.opponentScore}`).join(", ");
+      }
+      const pairs: string[] = [];
+      const push = (a: number | null, b: number | null) => {
+        if (a != null || b != null) pairs.push(`${a ?? "-"}-${b ?? "-"}`);
+      };
+      push(m.set1Our, m.set1Opp);
+      push(m.set2Our, m.set2Opp);
+      push(m.set3Our, m.set3Opp);
+      return pairs.join(", ");
+    };
     const rows = filtered.flatMap((e) => {
+      const startDate = e.matchDate.slice(0, 10);
       const base = [
-        e.matchDate.slice(0, 10),
+        startDate,
         e.academicYear ?? "",
         MATCH_TYPE_LABEL[e.matchType ?? ""] ?? e.matchType ?? "",
         e.matchName ?? "",
@@ -123,10 +138,13 @@ export default function MatchLogsPage() {
         e.ranking ?? "",
       ];
       if (e.matches.length === 0) {
-        return [[...base, ...Array(11).fill("")]];
+        // 沒有對戰：對戰日期欄留空，後續 12 個欄位也留空
+        return [[base[0], "", ...base.slice(1), ...Array(12).fill("")]];
       }
       return e.matches.map((m) => [
-        ...base,
+        startDate,
+        m.matchDate ? m.matchDate.slice(0, 10) : "",
+        ...base.slice(1),
         m.opponent,
         m.ourSquad ?? "",
         m.set1Our ?? "", m.set1Opp ?? "",
@@ -134,6 +152,7 @@ export default function MatchLogsPage() {
         m.set3Our ?? "", m.set3Opp ?? "",
         m.ourScore ?? "", m.opponentScore ?? "",
         resultLabel(m.result),
+        setsDetail(m),
       ]);
     });
     exportCsv(datedFilename("match-logs"), [header, ...rows]);
@@ -242,7 +261,7 @@ export default function MatchLogsPage() {
                   }}
                   className="w-full cursor-pointer text-left flex flex-col sm:flex-row sm:items-stretch hover:bg-accent/30 transition-colors"
                 >
-                  {/* 飽和日期條：MM/DD ↘ YYYY ↘ {AY}學年 */}
+                  {/* 飽和日期條：賽事起始日 MM/DD ↘ YYYY ↘ {AY}學年 */}
                   <div className="bg-navy text-navy-foreground px-4 py-3 sm:min-w-[120px] flex sm:flex-col items-center justify-center gap-2 sm:gap-0.5">
                     <div className="text-2xl font-bold leading-tight font-display tabular-nums">
                       {g.matchDate.slice(5, 7)}/{g.matchDate.slice(8, 10)}
@@ -341,9 +360,6 @@ export default function MatchLogsPage() {
                 {/* 展開區 */}
                 {open && (
                   <div className="border-t bg-muted/30 px-4 py-4 animate-slide-up space-y-5">
-                    {g.players.length > 0 && (
-                      <RosterSection players={g.players} squadCount={g.squadCount} />
-                    )}
                     <div>
                       <div className="flex items-center gap-2 mb-3">
                         <Trophy className="h-4 w-4 text-muted-foreground" />
@@ -360,6 +376,9 @@ export default function MatchLogsPage() {
                         </div>
                       )}
                     </div>
+                    {g.players.length > 0 && (
+                      <RosterSection players={g.players} squadCount={g.squadCount} />
+                    )}
                   </div>
                 )}
               </Card>
@@ -540,12 +559,19 @@ function ToggleChip({
 
 // ── 比分對決卡 ─────────────────────────────────────────────────────────
 function MatchScoreCard({ item, isSplit }: { item: MatchLogItem; isSplit: boolean }) {
+  // 對戰自帶日期就顯示；無值（友誼賽 / 未填）才隱藏
+  const ownDate = item.matchDate ? item.matchDate.slice(0, 10) : null;
   const r = item.result as ResultKey | null;
-  const sets = [
-    [item.set1Our, item.set1Opp],
-    [item.set2Our, item.set2Opp],
-    [item.set3Our, item.set3Opp],
-  ].filter(([a, b]) => a != null || b != null);
+  // 局分來源：友誼賽用子表 sets；無 sets（Official / 舊資料）退回 Set1/2/3
+  const hasFriendlySets = item.sets && item.sets.length > 0;
+  const sets: [number | null, number | null][] = hasFriendlySets
+    ? item.sets.map((s) => [s.ourScore, s.opponentScore])
+    : ([
+        [item.set1Our, item.set1Opp],
+        [item.set2Our, item.set2Opp],
+        [item.set3Our, item.set3Opp],
+      ].filter(([a, b]) => a != null || b != null) as [number | null, number | null][]);
+  const scoreLabel = hasFriendlySets ? "局數" : null;
 
   // 分隊模式：邊框 / 背景依 A·B 著色；單隊模式則依勝負
   const containerCls = isSplit
@@ -573,9 +599,22 @@ function MatchScoreCard({ item, isSplit }: { item: MatchLogItem; isSplit: boolea
         containerCls,
       )}
     >
-      <div className="flex items-center justify-between gap-2 mb-1.5">
-        <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-numeric">vs</span>
-        <div className="flex items-center gap-1">
+      {/* 頂部 meta 列：日期（左） + 分隊/結果（右）— 仿 ESPN 樣式 */}
+      <div className="flex items-center justify-between gap-2 pb-1.5 mb-2 border-b border-border/50">
+        <div className="flex items-center gap-1 min-w-0">
+          {ownDate ? (
+            <span
+              className="inline-flex items-center gap-1 text-[11px] font-numeric tabular-nums text-muted-foreground"
+              title={ownDate}
+            >
+              <CalendarDays className="h-3 w-3 shrink-0" />
+              {ownDate.slice(5, 7)}/{ownDate.slice(8, 10)}
+            </span>
+          ) : (
+            <span className="text-[10px] text-muted-foreground/50">—</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
           {isSplit && item.ourSquad && (
             <Chip tone={item.ourSquad === "B" ? "info" : "primary"} size="sm">
               {item.ourSquad}
@@ -585,11 +624,20 @@ function MatchScoreCard({ item, isSplit }: { item: MatchLogItem; isSplit: boolea
         </div>
       </div>
 
-      <div className="font-semibold text-sm truncate mb-2" title={item.opponent}>
-        {item.opponent || "—"}
+      {/* 對戰行：vs 前綴 + 對手隊名 */}
+      <div className="flex items-baseline gap-1.5 mb-2 min-w-0">
+        <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-numeric shrink-0">vs</span>
+        <span className="font-semibold text-sm truncate" title={item.opponent}>
+          {item.opponent || "—"}
+        </span>
       </div>
 
       <div className="flex items-baseline justify-center gap-2 font-numeric mb-2">
+        {scoreLabel && (
+          <span className="text-[10px] uppercase tracking-widest text-muted-foreground self-center mr-0.5">
+            {scoreLabel}
+          </span>
+        )}
         <span className={cn("text-3xl font-bold font-display tabular-nums leading-none", ourScoreCls)}>
           {item.ourScore ?? "-"}
         </span>
@@ -600,11 +648,20 @@ function MatchScoreCard({ item, isSplit }: { item: MatchLogItem; isSplit: boolea
       </div>
 
       {sets.length > 0 && (
-        <div className={cn("grid gap-1 text-center text-[11px] font-numeric tabular-nums",
-          sets.length === 1 && "grid-cols-1",
-          sets.length === 2 && "grid-cols-2",
-          sets.length === 3 && "grid-cols-3",
-        )}>
+        // Friendly N 局：自動 wrap；Official 至多 3 局：照原本格線
+        <div
+          className={cn(
+            "gap-1 text-center text-[11px] font-numeric tabular-nums",
+            hasFriendlySets
+              ? "grid grid-cols-3 sm:grid-cols-4"
+              : cn(
+                  "grid",
+                  sets.length === 1 && "grid-cols-1",
+                  sets.length === 2 && "grid-cols-2",
+                  sets.length === 3 && "grid-cols-3",
+                ),
+          )}
+        >
           {sets.map(([a, b], i) => {
             const aN = a ?? null;
             const bN = b ?? null;

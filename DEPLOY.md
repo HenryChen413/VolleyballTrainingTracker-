@@ -6,7 +6,7 @@
 GitHub repo
    ├─ Vercel        ← 前端（volleyballtrainingtracker.client）
    └─ Render        ← 後端 API（Dockerfile.api）
-         └─ Supabase ← PostgreSQL 15
+         └─ Supabase ← PostgreSQL 17
 ```
 
 ---

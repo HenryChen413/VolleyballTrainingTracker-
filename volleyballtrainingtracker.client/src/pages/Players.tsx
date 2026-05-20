@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Trophy,
   CircleSlash,
+  IdCard,
 } from "lucide-react";
 import {
   playersApi,
@@ -157,7 +158,7 @@ export default function PlayersPage() {
     const q = query.trim().toLowerCase();
     return (data ?? []).filter((p) => {
       if (q) {
-        const hay = `${p.name} ${p.nickname ?? ""} ${p.jerseyNo ?? ""}`.toLowerCase();
+        const hay = `${p.name} ${p.nickname ?? ""} ${p.jerseyNo ?? ""} ${p.studentId ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       if (filterPos && !positionsOf(p).includes(filterPos)) return false;
@@ -234,9 +235,10 @@ export default function PlayersPage() {
   const handleExport = () => {
     const ordered = [...activeList, ...graduatedList, ...leftList];
     exportCsv(datedFilename("players"), [
-      ["背號", "姓名", "暱稱", "位置", "身高(cm)", "系級", "慣用手", "狀態"],
+      ["背號", "學號", "姓名", "暱稱", "位置", "身高(cm)", "系級", "慣用手", "狀態"],
       ...ordered.map((p) => [
         p.jerseyNo ?? "",
+        p.studentId ?? "",
         p.name,
         p.nickname ?? "",
         p.position ?? "",
@@ -330,7 +332,7 @@ export default function PlayersPage() {
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜尋姓名 / 暱稱 / 背號…"
+              placeholder="搜尋姓名 / 暱稱 / 背號 / 學號…"
               className="pl-8 pr-8 h-9"
               aria-label="搜尋選手"
             />
@@ -868,7 +870,7 @@ function PlayerCard({
   const primaryPos = positions[0];
   const dupJersey = isActive && p.jerseyNo != null && dupNos.has(p.jerseyNo);
   const hand = handLabel(p.dominantHand);
-  const hasStats = p.heightCm != null || p.grade != null || hand != null;
+  const hasStats = p.heightCm != null || p.grade != null || hand != null || !!p.studentId;
 
   return (
     <motion.div
@@ -952,6 +954,15 @@ function PlayerCard({
 
         {hasStats && (
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
+            {p.studentId && (
+              <span
+                className="inline-flex items-center gap-0.5 font-numeric"
+                title={`學號 ${p.studentId}`}
+              >
+                <IdCard className="h-3 w-3" />
+                {p.studentId}
+              </span>
+            )}
             {p.heightCm != null && (
               <span className="inline-flex items-center gap-0.5 font-numeric">
                 <Ruler className="h-3 w-3" />
@@ -1141,6 +1152,15 @@ function CompareModal({
           )}
         </div>
       ),
+    },
+    {
+      label: "學號",
+      render: (p) =>
+        p.studentId ? (
+          <span className="font-numeric">{p.studentId}</span>
+        ) : (
+          <span className="text-muted-foreground/50">—</span>
+        ),
     },
     {
       label: "位置",

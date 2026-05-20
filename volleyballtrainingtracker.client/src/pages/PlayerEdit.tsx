@@ -36,6 +36,10 @@ const STATUS_OPTIONS = [
 
 const schema = z.object({
   name: z.string().min(1, "必填").max(64),
+  studentId: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : typeof v === "string" ? v.trim() : v),
+    z.string().max(32, "學號最多 32 字").nullable(),
+  ).optional(),
   nickname: z.preprocess(
     (v) => (typeof v === "string" && v.trim() === "" ? null : v),
     z.string().max(32, "暱稱最多 32 字").nullable(),
@@ -145,6 +149,7 @@ export default function PlayerEditPage() {
     defaultValues: {
       isActive: PLAYER_STATUS.Active,
       name: "",
+      studentId: "",
       nickname: "",
       positions: [],
       dominantHand: "",
@@ -163,6 +168,7 @@ export default function PlayerEditPage() {
     if (data) {
       reset({
         name: data.name,
+        studentId: data.studentId ?? "",
         nickname: data.nickname ?? "",
         jerseyNo: data.jerseyNo,
         positions: data.position
@@ -184,6 +190,7 @@ export default function PlayerEditPage() {
   const onSubmit = async (v: Outputs) => {
     const payload: PlayerUpsert = {
       name: v.name,
+      studentId: v.studentId?.trim() ? v.studentId.trim() : null,
       nickname: v.nickname?.trim() ? v.nickname.trim() : null,
       jerseyNo: v.jerseyNo ?? null,
       position: v.positions.length > 0 ? v.positions.join(",") : null,
@@ -235,6 +242,17 @@ export default function PlayerEditPage() {
               {errors.name && (
                 <p className="text-sm text-destructive">
                   {errors.name.message}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="studentId">
+                學號 <span className="text-xs text-muted-foreground font-normal">（選填，需唯一）</span>
+              </Label>
+              <Input id="studentId" placeholder="例：1131234567" autoComplete="off" {...register("studentId")} />
+              {errors.studentId && (
+                <p className="text-sm text-destructive">
+                  {errors.studentId.message}
                 </p>
               )}
             </div>

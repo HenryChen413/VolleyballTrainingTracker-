@@ -1,18 +1,24 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Clock, MapPin, Video, Trophy, Users, StickyNote } from "lucide-react";
+import { Clock, MapPin, Video, Trophy, Users, StickyNote, CalendarDays } from "lucide-react";
 import { sessionsApi, type SessionListItem, type SessionDrill } from "@/api/sessions";
-import { type MatchEventListItem } from "@/api/matchLogs";
+import { type MatchEventListItem, type MatchLogItem } from "@/api/matchLogs";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // 行事曆點選後要顯示的事件（唯讀）
+// 比賽帶入「該日對戰」的子清單與當日日期 — 跨日賽事在不同格各自顯示其對戰
 export type CalendarEvent =
   | { kind: "session"; session: SessionListItem }
-  | { kind: "match"; match: MatchEventListItem };
+  | {
+      kind: "match";
+      match: MatchEventListItem;
+      dayMatches: MatchLogItem[];
+      date: string;
+    };
 
 const WEEKDAYS = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
 
@@ -160,9 +166,15 @@ export default function CalendarEventDialog({ event, onClose }: {
               </Chip>
             )}
           </div>
-          <p className="text-sm text-muted-foreground">{formatDate(event.match.matchDate)}</p>
+          <p className="text-sm text-muted-foreground">{formatDate(event.date)}</p>
 
           <div className="space-y-2">
+            {/* 多日賽事提示：當日 ≠ 起始日時，補顯示起始日做為脈絡 */}
+            {event.date !== event.match.matchDate.slice(0, 10) && (
+              <InfoRow icon={CalendarDays}>
+                <span className="text-muted-foreground">起始日 {formatDate(event.match.matchDate)}</span>
+              </InfoRow>
+            )}
             {event.match.location && <InfoRow icon={MapPin}>{event.match.location}</InfoRow>}
             {event.match.ranking && (
               <InfoRow icon={Trophy}>
@@ -191,12 +203,12 @@ export default function CalendarEventDialog({ event, onClose }: {
           </div>
 
           <div>
-            <h3 className="mb-2 text-sm font-semibold">對戰結果</h3>
-            {event.match.matches.length === 0 ? (
-              <p className="text-sm text-muted-foreground">尚未填寫對戰</p>
+            <h3 className="mb-2 text-sm font-semibold">當日對戰</h3>
+            {event.dayMatches.length === 0 ? (
+              <p className="text-sm text-muted-foreground">當日尚未填寫對戰</p>
             ) : (
               <ul className="divide-y rounded-md border">
-                {event.match.matches.map((m) => (
+                {event.dayMatches.map((m) => (
                   <li key={m.id} className="flex items-center justify-between gap-3 px-3 py-2">
                     <div className="flex min-w-0 items-center gap-2">
                       {m.ourSquad && <Chip tone="outline" size="sm">{m.ourSquad}</Chip>}

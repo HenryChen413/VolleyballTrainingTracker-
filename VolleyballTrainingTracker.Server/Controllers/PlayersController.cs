@@ -36,9 +36,14 @@ public class PlayersController : ControllerBase
     [RequirePermission(Permissions.PlayersEdit)]
     public async Task<ActionResult<PlayerDto>> Create([FromBody] PlayerUpsertRequest req)
     {
+        var studentId = NormalizeStudentId(req.StudentId);
+        if (studentId != null && await _db.Players.AnyAsync(x => x.StudentId == studentId))
+            return Conflict(new { message = $"學號 {studentId} 已被使用" });
+
         var p = new Player
         {
             UserId = req.UserId,
+            StudentId = studentId,
             Name = req.Name,
             Nickname = req.Nickname,
             JerseyNo = req.JerseyNo,
@@ -63,7 +68,13 @@ public class PlayersController : ControllerBase
     {
         var p = await _db.Players.FindAsync(id);
         if (p == null) return NotFound();
+
+        var studentId = NormalizeStudentId(req.StudentId);
+        if (studentId != null && await _db.Players.AnyAsync(x => x.StudentId == studentId && x.Id != id))
+            return Conflict(new { message = $"學號 {studentId} 已被使用" });
+
         p.UserId = req.UserId;
+        p.StudentId = studentId;
         p.Name = req.Name;
         p.Nickname = req.Nickname;
         p.JerseyNo = req.JerseyNo;
@@ -78,6 +89,13 @@ public class PlayersController : ControllerBase
         p.Notes = req.Notes;
         await _db.SaveChangesAsync();
         return Ok(ToDto(p));
+    }
+
+    private static string? NormalizeStudentId(string? raw)
+    {
+        if (raw == null) return null;
+        var trimmed = raw.Trim();
+        return trimmed.Length == 0 ? null : trimmed;
     }
 
     [HttpDelete("{id:int}")]
@@ -106,6 +124,7 @@ public class PlayersController : ControllerBase
     {
         Id = p.Id,
         UserId = p.UserId,
+        StudentId = p.StudentId,
         Name = p.Name,
         Nickname = p.Nickname,
         JerseyNo = p.JerseyNo,

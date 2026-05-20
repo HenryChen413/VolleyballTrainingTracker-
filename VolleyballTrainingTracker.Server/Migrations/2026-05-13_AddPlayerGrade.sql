@@ -1,1 +1,0 @@
-ALTER TABLE Players ADD Grade INT NULL;

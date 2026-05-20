@@ -4,6 +4,7 @@ public class Player
 {
     public int Id { get; set; }
     public int? UserId { get; set; }
+    public string? StudentId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Nickname { get; set; }
     public int? JerseyNo { get; set; }

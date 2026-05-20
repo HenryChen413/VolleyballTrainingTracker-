@@ -1,6 +1,19 @@
 import { api } from './client';
 
 // ── 子層：每筆對戰 ─────────────────────────────────────────────────────
+export interface MatchLogSetItem {
+  id: number;
+  setIndex: number;
+  ourScore: number;
+  opponentScore: number;
+}
+
+export interface MatchLogSetInput {
+  setIndex: number;
+  ourScore: number;
+  opponentScore: number;
+}
+
 export interface MatchLogItem {
   id: number;
   opponent: string;
@@ -14,6 +27,8 @@ export interface MatchLogItem {
   ourScore: number | null;
   opponentScore: number | null;
   result: string | null;
+  matchDate: string | null;
+  sets: MatchLogSetItem[];
 }
 
 export interface MatchLogUpsert {
@@ -29,6 +44,8 @@ export interface MatchLogUpsert {
   ourScore?: number | null;
   opponentScore?: number | null;
   result?: string | null;
+  matchDate?: string | null;
+  sets?: MatchLogSetInput[];
 }
 
 // ── 父層：一場賽事 ─────────────────────────────────────────────────────

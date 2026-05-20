@@ -1,6 +1,6 @@
 # 高醫醫學女排‧排球訓練紀錄
 
-ASP.NET Core 8 + React 19（Vite + TS）+ PostgreSQL 15 的排球訓練紀錄系統。
+ASP.NET Core 8 + React 19（Vite + TS）+ PostgreSQL 17 的排球訓練紀錄系統。
 
 > 版權所有 — 本系統著作權屬陳源和所有，未經授權請勿使用。
 
@@ -10,7 +10,7 @@ ASP.NET Core 8 + React 19（Vite + TS）+ PostgreSQL 15 的排球訓練紀錄系
 |----|------|
 | 前端 | React 19、Vite、TypeScript、Tailwind CSS、shadcn/ui、zustand、recharts、axios |
 | 後端 | ASP.NET Core 8 Web API、EF Core 8、JWT 驗證 |
-| 資料庫 | PostgreSQL 15（`Npgsql.EntityFrameworkCore.PostgreSQL`） |
+| 資料庫 | PostgreSQL 17（`Npgsql.EntityFrameworkCore.PostgreSQL`） |
 | 部署 | 前端 Vercel ＋ 後端 Render ＋ 資料庫 Supabase（見 [DEPLOY.md](DEPLOY.md)） |
 
 ## 本機開發
@@ -105,13 +105,11 @@ volleyballtrainingtracker.client/   # React 19 + Vite + TS
     stores/authStore.ts
   Schema/              ★ 由 SchemaExporter 產生（勿手改）
 
-VolleyballTrainingTracker.DataMigration/   # 一次性 MSSQL→PG 搬移工具（已執行完畢，保留備用）
 docs/操作手冊.md                            # 使用者操作手冊
 ```
 
 ## 資料庫
 
-資料庫為 **PostgreSQL 15**（2026-05-18 由 MSSQL 遷移完成）。結構來源為
-`VolleyballTrainingTracker.Server/Data/Sql/pg_init.sql`。舊的 `001~003_*.sql`
-與 `Migrations/*.sql` 為 MSSQL 語法，僅作歷史紀錄，勿再套用。詳見
-[.claude/CLAUDE.md](.claude/CLAUDE.md)。
+資料庫為 **PostgreSQL 17**。結構來源為
+`VolleyballTrainingTracker.Server/Data/Sql/pg_init.sql`，後續 schema 變更以
+`Data/Sql/YYYY-MM-DD_*.sql` 增量腳本累加。詳見 [.claude/CLAUDE.md](.claude/CLAUDE.md)。

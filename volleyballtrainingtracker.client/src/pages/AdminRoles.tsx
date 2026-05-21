@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Lock,
+  MessageSquare,
   Plus,
   Search,
   Shield,
@@ -49,6 +50,7 @@ const PAGE_META: PageMeta[] = [
   { key: PAGE.MatchLogs,   label: "比賽紀錄",     icon: Volleyball },
   { key: PAGE.Drills,      label: "訓練項目",     icon: ListChecks },
   { key: PAGE.Crying,      label: "哭哭榜",       icon: Droplets },
+  { key: PAGE.Board,       label: "留言板",       icon: MessageSquare },
   { key: PAGE.AdminUsers,  label: "使用者管理",   icon: UserCog },
   { key: PAGE.AdminRoles,  label: "角色管理",     icon: ShieldCheck },
   { key: PAGE.Profile,     label: "我的帳號",     icon: User },
@@ -80,8 +82,9 @@ const SPECIAL_PERMS: PermMeta[] = [
     tone: "destructive",
     relatedPage: PAGE.Players,
   },
-  { key: PERM.UsersManage, label: "使用者管理", icon: UserCog,     desc: "新增、修改、停用使用者", relatedPage: PAGE.AdminUsers },
-  { key: PERM.RolesManage, label: "角色管理",   icon: ShieldCheck, desc: "管理本頁的角色設定",     relatedPage: PAGE.AdminRoles },
+  { key: PERM.UsersManage, label: "使用者管理", icon: UserCog,       desc: "新增、修改、停用使用者", relatedPage: PAGE.AdminUsers },
+  { key: PERM.RolesManage, label: "角色管理",   icon: ShieldCheck,   desc: "管理本頁的角色設定",     relatedPage: PAGE.AdminRoles },
+  { key: PERM.BoardManage, label: "留言板管理", icon: MessageSquare, desc: "刪除任何人的貼文／回覆、置頂貼文", relatedPage: PAGE.Board },
 ];
 
 const ALL_PERMS: PermMeta[] = [...EDIT_PERMS, ...SPECIAL_PERMS];

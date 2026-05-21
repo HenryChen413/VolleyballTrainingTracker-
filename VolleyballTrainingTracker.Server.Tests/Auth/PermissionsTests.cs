@@ -18,6 +18,7 @@ public class PermissionsTests
         Assert.Contains(Permissions.MatchLogsEdit, Permissions.All);
         Assert.Contains(Permissions.UsersManage, Permissions.All);
         Assert.Contains(Permissions.RolesManage, Permissions.All);
+        Assert.Contains(Permissions.BoardManage, Permissions.All);
     }
 
     [Fact]
@@ -34,6 +35,7 @@ public class PermissionsTests
         Assert.Contains(Pages.Sessions, Pages.All);
         Assert.Contains(Pages.MatchLogs, Pages.All);
         Assert.Contains(Pages.Drills, Pages.All);
+        Assert.Contains(Pages.Board, Pages.All);
         Assert.Contains(Pages.AdminRoles, Pages.All);
         Assert.Contains(Pages.AdminUsers, Pages.All);
         Assert.Contains(Pages.Profile, Pages.All);

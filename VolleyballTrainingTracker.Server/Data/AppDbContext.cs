@@ -29,6 +29,9 @@ public class AppDbContext : DbContext
     public DbSet<AuditDelete> AuditDeletes => Set<AuditDelete>();
     public DbSet<CryingLog> CryingLogs => Set<CryingLog>();
     public DbSet<CryingLogCulprit> CryingLogCulprits => Set<CryingLogCulprit>();
+    public DbSet<BoardPost> BoardPosts => Set<BoardPost>();
+    public DbSet<BoardComment> BoardComments => Set<BoardComment>();
+    public DbSet<BoardReaction> BoardReactions => Set<BoardReaction>();
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -240,6 +243,39 @@ public class AppDbContext : DbContext
                 .IsUnique()
                 .HasFilter("\"ExternalName\" IS NOT NULL")
                 .HasDatabaseName("UX_CryingLogCulprits_LogExternal");
+        });
+
+        modelBuilder.Entity<BoardPost>(e =>
+        {
+            e.ToTable("BoardPosts");
+            e.Property(x => x.Content).HasMaxLength(2000).IsRequired();
+            e.HasOne(x => x.CreatedByUser).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
+            // 置頂優先、再依建立時間倒序 —— 對應清單預設排序
+            e.HasIndex(x => new { x.IsPinned, x.CreatedAt }).HasDatabaseName("IX_BoardPosts_Pinned_Created");
+        });
+
+        modelBuilder.Entity<BoardComment>(e =>
+        {
+            e.ToTable("BoardComments");
+            e.Property(x => x.Content).HasMaxLength(1000).IsRequired();
+            e.HasOne(x => x.Post).WithMany(p => p.Comments).HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.CreatedByUser).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(x => x.PostId).HasDatabaseName("IX_BoardComments_Post");
+        });
+
+        modelBuilder.Entity<BoardReaction>(e =>
+        {
+            e.ToTable("BoardReactions");
+            e.Property(x => x.Emoji).HasMaxLength(16).IsRequired();
+            e.HasOne(x => x.Post).WithMany(p => p.Reactions).HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.PostId).HasDatabaseName("IX_BoardReactions_Post");
+            // 每人每貼每種 emoji 僅一筆，天然防重複按讚
+            e.HasIndex(x => new { x.PostId, x.UserId, x.Emoji })
+                .IsUnique()
+                .HasDatabaseName("UX_BoardReactions_Post_User_Emoji");
         });
     }
 

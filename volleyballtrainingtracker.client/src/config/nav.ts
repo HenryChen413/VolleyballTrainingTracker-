@@ -3,6 +3,7 @@ import {
   CalendarDays,
   Droplets,
   LayoutDashboard,
+  MessageSquare,
   Settings,
   Shield,
   Trophy,
@@ -69,6 +70,13 @@ export const ALL_NAV: NavItem[] = [
     label: "哭哭榜",
     page: PAGE.Crying,
     icon: Droplets,
+    group: "main",
+  },
+  {
+    to: "/board",
+    label: "留言板",
+    page: PAGE.Board,
+    icon: MessageSquare,
     group: "main",
   },
   {

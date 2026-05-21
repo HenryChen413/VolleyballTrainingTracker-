@@ -17,11 +17,16 @@ public static class Permissions
     public const string UsersManage   = "users.manage";
     public const string RolesManage   = "roles.manage";
 
+    // 留言板：一般動作（發文/回覆/按讚/刪自己的）只需 Pages.Board；
+    // 此權限額外授予「刪除任何人的貼文/回覆、置頂」的管理能力。
+    public const string BoardManage   = "board.manage";
+
     public static readonly string[] All =
     {
         PlayersEdit, PlayersPurge,
         SessionsEdit, DrillsEdit, MatchLogsEdit,
         UsersManage, RolesManage,
+        BoardManage,
     };
 }
 
@@ -37,12 +42,13 @@ public static class Pages
     public const string MatchLogs = "match-logs";
     public const string Drills = "drills";
     public const string Crying = "crying";
+    public const string Board = "board";
     public const string AdminRoles = "admin-roles";
     public const string AdminUsers = "admin-users";
     public const string Profile = "profile";
 
     public static readonly string[] All =
     {
-        Dashboard, Calendar, Players, Sessions, MatchLogs, Drills, Crying, AdminRoles, AdminUsers, Profile,
+        Dashboard, Calendar, Players, Sessions, MatchLogs, Drills, Crying, Board, AdminRoles, AdminUsers, Profile,
     };
 }

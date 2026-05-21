@@ -15,6 +15,7 @@ import MatchLogEditPage from '@/pages/MatchLogEdit';
 import DrillsPage from '@/pages/Drills';
 import DrillEditPage from '@/pages/DrillEdit';
 import CryingLogsPage from '@/pages/CryingLogs';
+import BoardPage from '@/pages/Board';
 import ProfilePage from '@/pages/Profile';
 import AdminRolesPage from '@/pages/AdminRoles';
 import AdminUsersPage from '@/pages/AdminUsers';
@@ -60,6 +61,9 @@ export default function App() {
               </Route>
               <Route element={<ProtectedRoute requirePage={PAGE.Crying} />}>
                 <Route path="/crying" element={<CryingLogsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute requirePage={PAGE.Board} />}>
+                <Route path="/board" element={<BoardPage />} />
               </Route>
               <Route element={<ProtectedRoute requirePage={PAGE.Profile} />}>
                 <Route path="/profile" element={<ProfilePage />} />

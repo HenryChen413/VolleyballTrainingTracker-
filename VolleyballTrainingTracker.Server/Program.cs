@@ -308,6 +308,15 @@ static async Task SeedRolesAsync(AppDbContext db)
     await UpsertRoleAsync(db, "Player",      "選手（不可刪）",        playerPerms,  playerPages,  isSystem: true);
     await UpsertRoleAsync(db, "Captain",     "隊長（不可刪）",        captainPerms, captainPages, isSystem: true);
     await UpsertRoleAsync(db, "ViceCaptain", "副隊長（不可刪）",      captainPerms, captainPages, isSystem: true);
+
+    // Admin 角色定義為「萬能」：每次 seed 都同步補齊最新的 Permissions.All / Pages.All，
+    // 避免新增頁面或權限後既有的 Admin 還停留在舊清單。其他系統角色維持「不覆蓋」。
+    var admin = await db.Roles.FirstOrDefaultAsync(r => r.Name == "Admin");
+    if (admin != null)
+    {
+        admin.Permissions = allPerms;
+        admin.AllowedPages = allPages;
+    }
     await db.SaveChangesAsync();
     Console.WriteLine("[seed-roles] System roles ready: Admin, Coach, Player, Captain, ViceCaptain");
 }

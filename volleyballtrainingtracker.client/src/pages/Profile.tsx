@@ -43,7 +43,7 @@ export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
 
-  // 綁定的選手檔案（未綁定時後端回 404，data 維持 undefined 不顯示此卡）
+  // 綁定的選手檔案（未綁定時後端回 200＋null，data 為 null 不顯示此卡，Console 不跳 404）
   const { data: player } = useQuery({
     queryKey: ['profile', 'player'],
     queryFn: () => profileApi.getPlayer(),

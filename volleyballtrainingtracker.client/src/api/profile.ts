@@ -42,6 +42,7 @@ export const profileApi = {
   update: (payload: ProfileUpdate) => api.put<AuthUser>('/Profile', payload).then((r) => r.data),
   changePassword: (payload: ChangePassword) =>
     api.put('/Profile/password', payload).then((r) => r.data),
-  /** 取得目前登入者綁定的選手檔案；未綁定時後端回 404。 */
-  getPlayer: () => api.get<MyPlayerInfo>('/Profile/player').then((r) => r.data),
+  /** 取得目前登入者綁定的選手檔案；未綁定時後端回 200＋null（不會跳 404）。 */
+  getPlayer: () =>
+    api.get<MyPlayerInfo | null>('/Profile/player').then((r) => r.data ?? null),
 };

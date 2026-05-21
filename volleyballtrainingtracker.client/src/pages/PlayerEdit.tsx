@@ -2,14 +2,22 @@ import { useEffect } from "react";
 import { useForm, useController } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { playersApi, PLAYER_STATUS, type PlayerStatus, type PlayerUpsert } from "@/api/players";
+import {
+  playersApi,
+  PLAYER_STATUS,
+  MEMBER_TYPE,
+  MEMBER_TYPE_LABEL,
+  type PlayerStatus,
+  type MemberType,
+  type PlayerUpsert,
+} from "@/api/players";
 import { PERM, useAuthStore } from "@/stores/authStore";
 import { confirmAction, showError, showSuccess } from "@/lib/swal";
 import { useBusy } from "@/lib/useBusy";
@@ -31,7 +39,13 @@ const HANDS = [
 const STATUS_OPTIONS = [
   { value: String(PLAYER_STATUS.Active), label: "現役" },
   { value: String(PLAYER_STATUS.Graduated), label: "畢業" },
-  { value: String(PLAYER_STATUS.Left), label: "退隊" },
+  { value: String(PLAYER_STATUS.Left), label: "離隊" },
+];
+
+const MEMBER_TYPE_OPTIONS = [
+  { value: String(MEMBER_TYPE.Player), label: "選手" },
+  { value: String(MEMBER_TYPE.Coach), label: "教練" },
+  { value: String(MEMBER_TYPE.Manager), label: "球經" },
 ];
 
 const schema = z.object({
@@ -57,13 +71,36 @@ const schema = z.object({
     .number()
     .int()
     .refine((v): v is PlayerStatus => v === 0 || v === 1 || v === 2, {
-      message: "狀態必須為現役/畢業/退隊",
+      message: "狀態必須為現役/畢業/離隊",
+    }),
+  memberType: z.coerce
+    .number()
+    .int()
+    .refine((v): v is MemberType => v === 0 || v === 1 || v === 2, {
+      message: "身份必須為選手/教練/球經",
     }),
   notes: z.string().max(512).nullable().optional(),
 });
 
 type Inputs = z.input<typeof schema>;
 type Outputs = z.output<typeof schema>;
+
+function parseMemberTypeParam(raw: string | null): MemberType {
+  if (raw === "coach") return MEMBER_TYPE.Coach;
+  if (raw === "manager") return MEMBER_TYPE.Manager;
+  return MEMBER_TYPE.Player;
+}
+
+function memberTypeToUrl(t: MemberType): string {
+  if (t === MEMBER_TYPE.Coach) return "coach";
+  if (t === MEMBER_TYPE.Manager) return "manager";
+  return "player";
+}
+
+function listPath(t: MemberType): string {
+  // 選手是預設 Tab，省略參數讓 URL 乾淨
+  return t === MEMBER_TYPE.Player ? "/players" : `/players?tab=${memberTypeToUrl(t)}`;
+}
 
 function ToggleChips({
   options,
@@ -125,6 +162,7 @@ export default function PlayerEditPage() {
   const isNew = !id || id === "new";
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
   const canEdit = useAuthStore((s) => s.can(PERM.PlayersEdit));
   const canPurgePerm = useAuthStore((s) => s.can(PERM.PlayersPurge));
   const canSave = canEdit;
@@ -138,6 +176,10 @@ export default function PlayerEditPage() {
     enabled: !isNew,
   });
 
+  const defaultMemberType: MemberType = isNew
+    ? parseMemberTypeParam(searchParams.get("type"))
+    : MEMBER_TYPE.Player;
+
   const {
     register,
     handleSubmit,
@@ -148,6 +190,7 @@ export default function PlayerEditPage() {
     resolver: zodResolver(schema),
     defaultValues: {
       isActive: PLAYER_STATUS.Active,
+      memberType: defaultMemberType,
       name: "",
       studentId: "",
       nickname: "",
@@ -163,6 +206,15 @@ export default function PlayerEditPage() {
   const { field: handField } = useController({ name: "dominantHand", control });
   const { field: birthDateField } = useController({ name: "birthDate", control });
   const { field: statusField } = useController({ name: "isActive", control });
+  const { field: memberTypeField } = useController({ name: "memberType", control });
+
+  const memberTypeValue = Number(memberTypeField.value ?? defaultMemberType) as MemberType;
+  const isPlayerType = memberTypeValue === MEMBER_TYPE.Player;
+  const isCoachType = memberTypeValue === MEMBER_TYPE.Coach;
+  // 教練不需要學號與系級；選手與球經需要
+  const showStudentId = !isCoachType;
+  const showGrade = !isCoachType;
+  const memberLabel = MEMBER_TYPE_LABEL[memberTypeValue] ?? "人員";
 
   useEffect(() => {
     if (data) {
@@ -182,23 +234,27 @@ export default function PlayerEditPage() {
         birthDate: data.birthDate?.slice(0, 10) ?? null,
         grade: data.grade ?? null,
         isActive: data.isActive,
+        memberType: data.memberType ?? MEMBER_TYPE.Player,
         notes: data.notes,
       });
     }
   }, [data, reset]);
 
   const onSubmit = async (v: Outputs) => {
+    const treatAsPlayer = v.memberType === MEMBER_TYPE.Player;
+    const treatAsCoach = v.memberType === MEMBER_TYPE.Coach;
     const payload: PlayerUpsert = {
       name: v.name,
-      studentId: v.studentId?.trim() ? v.studentId.trim() : null,
+      studentId: treatAsCoach ? null : (v.studentId?.trim() ? v.studentId.trim() : null),
       nickname: v.nickname?.trim() ? v.nickname.trim() : null,
-      jerseyNo: v.jerseyNo ?? null,
-      position: v.positions.length > 0 ? v.positions.join(",") : null,
-      heightCm: v.heightCm ?? null,
-      dominantHand: v.dominantHand || null,
+      jerseyNo: treatAsPlayer ? (v.jerseyNo ?? null) : null,
+      position: treatAsPlayer && v.positions.length > 0 ? v.positions.join(",") : null,
+      heightCm: treatAsPlayer ? (v.heightCm ?? null) : null,
+      dominantHand: treatAsPlayer ? (v.dominantHand || null) : null,
       birthDate: v.birthDate ? `${v.birthDate}T00:00:00` : null,
-      grade: v.grade ?? null,
+      grade: treatAsCoach ? null : (v.grade ?? null),
       isActive: v.isActive,
+      memberType: v.memberType,
       notes: v.notes || null,
     };
     try {
@@ -206,7 +262,8 @@ export default function PlayerEditPage() {
       else await playersApi.update(Number(id), payload);
       await qc.invalidateQueries({ queryKey: ["players"] });
       await showSuccess("儲存成功");
-      navigate("/players");
+      // 用「剛存的身份」回到對應 Tab，若使用者把選手改成教練則跳到教練 Tab
+      navigate(listPath(v.memberType));
     } catch (e: unknown) {
       const m = (e as { response?: { data?: { message?: string } } })?.response
         ?.data?.message;
@@ -217,7 +274,9 @@ export default function PlayerEditPage() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>{isNew ? "新增選手" : "編輯選手"}</CardTitle>
+        <CardTitle>
+          {isNew ? `新增人員 · ${memberLabel}` : `編輯人員 · ${memberLabel}`}
+        </CardTitle>
         {!isNew && data?.updatedAt && (
           <p className="text-xs text-muted-foreground mt-1">
             最後更新：{data.updatedByName ?? "—"} 於{" "}
@@ -230,11 +289,26 @@ export default function PlayerEditPage() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)}>
-          {/* 送出/刪除進行中時，整個表單欄位與按鈕一律鎖定 */}
+          {/* 送出/刪除進行中時,整個表單欄位與按鈕一律鎖定 */}
           <fieldset
             disabled={isSubmitting || busy}
             className="space-y-4 min-w-0 border-0 p-0 m-0"
           >
+          <div className="space-y-2">
+            <Label>身份</Label>
+            <ToggleChips
+              options={MEMBER_TYPE_OPTIONS}
+              value={String(memberTypeField.value ?? MEMBER_TYPE.Player)}
+              onChange={(v) => {
+                if (v === "" || v == null) return;
+                memberTypeField.onChange(Number(v) as MemberType);
+              }}
+            />
+            {errors.memberType && (
+              <p className="text-sm text-destructive">{errors.memberType.message}</p>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">姓名 *</Label>
@@ -245,85 +319,97 @@ export default function PlayerEditPage() {
                 </p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="studentId">
-                學號 <span className="text-xs text-muted-foreground font-normal">（選填，需唯一）</span>
-              </Label>
-              <Input id="studentId" placeholder="例：1131234567" autoComplete="off" {...register("studentId")} />
-              {errors.studentId && (
-                <p className="text-sm text-destructive">
-                  {errors.studentId.message}
-                </p>
-              )}
-            </div>
+            {showStudentId && (
+              <div className="space-y-2">
+                <Label htmlFor="studentId">
+                  學號 <span className="text-xs text-muted-foreground font-normal">（選填,需唯一）</span>
+                </Label>
+                <Input id="studentId" placeholder="例:1131234567" autoComplete="off" {...register("studentId")} />
+                {errors.studentId && (
+                  <p className="text-sm text-destructive">
+                    {errors.studentId.message}
+                  </p>
+                )}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="nickname">
-                暱稱 <span className="text-xs text-muted-foreground font-normal">（選填，最多 32 字）</span>
+                暱稱 <span className="text-xs text-muted-foreground font-normal">（選填,最多 32 字）</span>
               </Label>
-              <Input id="nickname" placeholder="例：阿明" {...register("nickname")} />
+              <Input id="nickname" placeholder="例:阿明" {...register("nickname")} />
               {errors.nickname && (
                 <p className="text-sm text-destructive">
                   {errors.nickname.message}
                 </p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="jerseyNo">背號（1–99）</Label>
-              <Input
-                id="jerseyNo"
-                type="number"
-                min={1}
-                max={99}
-                {...register("jerseyNo")}
-              />
-              {errors.jerseyNo && (
-                <p className="text-sm text-destructive">
-                  {errors.jerseyNo.message}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="heightCm">身高 (cm)</Label>
-              <Input id="heightCm" type="number" {...register("heightCm")} />
-            </div>
+            {isPlayerType && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="jerseyNo">背號（1–99）</Label>
+                  <Input
+                    id="jerseyNo"
+                    type="number"
+                    min={1}
+                    max={99}
+                    {...register("jerseyNo")}
+                  />
+                  {errors.jerseyNo && (
+                    <p className="text-sm text-destructive">
+                      {errors.jerseyNo.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="heightCm">身高 (cm)</Label>
+                  <Input id="heightCm" type="number" {...register("heightCm")} />
+                </div>
+              </>
+            )}
             <div className="space-y-2">
               <Label>生日 <span className="text-xs text-muted-foreground font-normal">（選填）</span></Label>
               <DateInput value={birthDateField.value} onChange={birthDateField.onChange} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="grade">系級（例：110）</Label>
-              <Input
-                id="grade"
-                type="number"
-                placeholder="109"
-                {...register("grade")}
-              />
-              {errors.grade && (
-                <p className="text-sm text-destructive">
-                  {errors.grade.message}
-                </p>
-              )}
-            </div>
+            {showGrade && (
+              <div className="space-y-2">
+                <Label htmlFor="grade">系級（例:110）</Label>
+                <Input
+                  id="grade"
+                  type="number"
+                  placeholder="109"
+                  {...register("grade")}
+                />
+                {errors.grade && (
+                  <p className="text-sm text-destructive">
+                    {errors.grade.message}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="space-y-2">
-            <Label>位置（可多選）<span className="text-xs text-muted-foreground font-normal ml-1">（選填）</span></Label>
-            <ToggleChips
-              options={POSITIONS}
-              value={positionsField.value ?? []}
-              onChange={positionsField.onChange}
-              multi
-            />
-          </div>
+          {isPlayerType && (
+            <>
+              <div className="space-y-2">
+                <Label>位置（可多選）<span className="text-xs text-muted-foreground font-normal ml-1">（選填）</span></Label>
+                <ToggleChips
+                  options={POSITIONS}
+                  value={positionsField.value ?? []}
+                  onChange={positionsField.onChange}
+                  multi
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label>慣用手</Label>
-            <ToggleChips
-              options={HANDS}
-              value={handField.value ?? ""}
-              onChange={handField.onChange}
-            />
-          </div>
+              <div className="space-y-2">
+                <Label>慣用手</Label>
+                <ToggleChips
+                  options={HANDS}
+                  value={handField.value ?? ""}
+                  onChange={handField.onChange}
+                />
+              </div>
+            </>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="notes">備註</Label>
@@ -353,7 +439,13 @@ export default function PlayerEditPage() {
               type="button"
               variant="outline"
               disabled={isSubmitting || busy}
-              onClick={() => navigate("/players")}
+              onClick={() => {
+                // 取消／返回：用「進入頁時的身份」決定回到哪個 Tab
+                // - 編輯模式：以 data.memberType 為準（即使表單上切過身份，按取消就不算）
+                // - 新增模式：以 URL ?type= 為準（defaultMemberType 已涵蓋）
+                const back = data?.memberType ?? defaultMemberType;
+                navigate(listPath(back));
+              }}
             >
               {canSave ? "取消" : "返回"}
             </Button>
@@ -365,7 +457,7 @@ export default function PlayerEditPage() {
                   disabled={isSubmitting || busy}
                   onClick={() => run(async () => {
                     const result = await confirmAction(
-                      "確定永久刪除此選手？",
+                      `確定永久刪除此${memberLabel}？`,
                       "所有相關紀錄將一併移除，此操作無法復原。",
                       "永久刪除",
                       true,
@@ -374,15 +466,16 @@ export default function PlayerEditPage() {
                     try {
                       await playersApi.purge(Number(id));
                       await qc.invalidateQueries({ queryKey: ["players"] });
-                      await showSuccess("已刪除選手");
-                      navigate("/players");
+                      await showSuccess(`已刪除${memberLabel}`);
+                      // 刪除後人員已不存在，跳回該身份對應 Tab
+                      navigate(listPath(data?.memberType ?? defaultMemberType));
                     } catch (e: unknown) {
                       const m = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
                       showError(m ?? "刪除失敗");
                     }
                   })}
                 >
-                  刪除此選手
+                  刪除此{memberLabel}
                 </Button>
               )}
             </div>

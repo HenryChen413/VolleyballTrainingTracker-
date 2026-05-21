@@ -14,6 +14,7 @@ import MatchLogsPage from '@/pages/MatchLogs';
 import MatchLogEditPage from '@/pages/MatchLogEdit';
 import DrillsPage from '@/pages/Drills';
 import DrillEditPage from '@/pages/DrillEdit';
+import CryingLogsPage from '@/pages/CryingLogs';
 import ProfilePage from '@/pages/Profile';
 import AdminRolesPage from '@/pages/AdminRoles';
 import AdminUsersPage from '@/pages/AdminUsers';
@@ -56,6 +57,9 @@ export default function App() {
               <Route element={<ProtectedRoute requirePage={PAGE.Drills} />}>
                 <Route path="/drills" element={<DrillsPage />} />
                 <Route path="/drills/:id" element={<DrillEditPage />} />
+              </Route>
+              <Route element={<ProtectedRoute requirePage={PAGE.Crying} />}>
+                <Route path="/crying" element={<CryingLogsPage />} />
               </Route>
               <Route element={<ProtectedRoute requirePage={PAGE.Profile} />}>
                 <Route path="/profile" element={<ProfilePage />} />

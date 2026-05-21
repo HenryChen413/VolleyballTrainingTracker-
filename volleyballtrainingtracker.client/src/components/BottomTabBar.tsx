@@ -13,7 +13,7 @@ interface Props {
 }
 
 export default function BottomTabBar({ items }: Props) {
-  const tabs = items.slice(0, 5);
+  const tabs = items;
   if (tabs.length === 0) return null;
 
   return (

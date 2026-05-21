@@ -22,7 +22,7 @@ import {
   type MatchLogUpsert,
   type MatchLogSetInput,
 } from "@/api/matchLogs";
-import { playersApi, type Player } from "@/api/players";
+import { playersApi, MEMBER_TYPE, type Player } from "@/api/players";
 import { PERM, useAuthStore } from "@/stores/authStore";
 import { confirmAction, showError, showSuccess } from "@/lib/swal";
 import { DateInput } from "@/components/DateInput";
@@ -464,7 +464,7 @@ function RosterPicker({
 }) {
   const { data, isLoading } = useQuery({
     queryKey: ["players", "active"],
-    queryFn: () => playersApi.list(true),
+    queryFn: () => playersApi.list({ activeOnly: true, memberType: MEMBER_TYPE.Player }),
   });
   const sortedPlayers = useMemo(
     () =>

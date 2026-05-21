@@ -27,6 +27,8 @@ public class AppDbContext : DbContext
     public DbSet<MatchLog> MatchLogs => Set<MatchLog>();
     public DbSet<MatchLogSet> MatchLogSets => Set<MatchLogSet>();
     public DbSet<AuditDelete> AuditDeletes => Set<AuditDelete>();
+    public DbSet<CryingLog> CryingLogs => Set<CryingLog>();
+    public DbSet<CryingLogCulprit> CryingLogCulprits => Set<CryingLogCulprit>();
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -111,11 +113,13 @@ public class AppDbContext : DbContext
             e.Property(x => x.Notes).HasMaxLength(512);
             e.Property(x => x.JoinedAt).HasColumnType("date");
             e.Property(x => x.BirthDate).HasColumnType("date");
+            e.Property(x => x.MemberType).HasDefaultValue((byte)0);
             // 學號唯一（NULL 不參與唯一），對應 SQL 端的 partial unique index
             e.HasIndex(x => x.StudentId)
                 .IsUnique()
                 .HasFilter("\"StudentId\" IS NOT NULL")
                 .HasDatabaseName("UX_Players_StudentId");
+            e.HasIndex(x => x.MemberType).HasDatabaseName("IX_Players_MemberType");
             e.HasOne(x => x.User).WithMany(u => u.Players).HasForeignKey(x => x.UserId);
             e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
         });
@@ -198,6 +202,44 @@ public class AppDbContext : DbContext
             e.ToTable("AuditDeletes");
             e.Property(x => x.TableName).HasMaxLength(64).IsRequired();
             e.HasOne(x => x.DeletedBy).WithMany().HasForeignKey(x => x.DeletedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<CryingLog>(e =>
+        {
+            e.ToTable("CryingLogs");
+            e.Property(x => x.OccurredAt).HasColumnType("date");
+            e.Property(x => x.Reason).HasMaxLength(256).IsRequired();
+            e.Property(x => x.Notes).HasMaxLength(1024);
+            e.HasOne(x => x.Crier).WithMany().HasForeignKey(x => x.CrierPlayerId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(x => x.OccurredAt).HasDatabaseName("IX_CryingLogs_OccurredAt");
+            e.HasIndex(x => x.CrierPlayerId).HasDatabaseName("IX_CryingLogs_Crier");
+        });
+
+        modelBuilder.Entity<CryingLogCulprit>(e =>
+        {
+            e.ToTable("CryingLogCulprits", t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_CryingLogCulprits_OneOf",
+                    "(\"PlayerId\" IS NOT NULL AND \"ExternalName\" IS NULL) OR (\"PlayerId\" IS NULL AND \"ExternalName\" IS NOT NULL)");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ExternalName).HasMaxLength(64);
+            e.HasOne(x => x.CryingLog).WithMany(c => c.Culprits).HasForeignKey(x => x.CryingLogId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Player).WithMany().HasForeignKey(x => x.PlayerId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.CryingLogId).HasDatabaseName("IX_CryingLogCulprits_Log");
+            e.HasIndex(x => x.PlayerId)
+                .HasFilter("\"PlayerId\" IS NOT NULL")
+                .HasDatabaseName("IX_CryingLogCulprits_Player");
+            e.HasIndex(x => new { x.CryingLogId, x.PlayerId })
+                .IsUnique()
+                .HasFilter("\"PlayerId\" IS NOT NULL")
+                .HasDatabaseName("UX_CryingLogCulprits_LogPlayer");
+            e.HasIndex(x => new { x.CryingLogId, x.ExternalName })
+                .IsUnique()
+                .HasFilter("\"ExternalName\" IS NOT NULL")
+                .HasDatabaseName("UX_CryingLogCulprits_LogExternal");
         });
     }
 

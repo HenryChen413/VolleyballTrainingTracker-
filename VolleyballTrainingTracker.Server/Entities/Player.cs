@@ -15,7 +15,8 @@ public class Player
     public DateTime? BirthDate { get; set; }
     public DateTime JoinedAt { get; set; }
     public int? Grade { get; set; }
-    public byte IsActive { get; set; } = 1; // 1=現役 / 0=畢業 / 2=退隊
+    public byte IsActive { get; set; } = 1; // 1=現役 / 0=畢業 / 2=離隊
+    public byte MemberType { get; set; } // 0=選手 / 1=教練 / 2=球經
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

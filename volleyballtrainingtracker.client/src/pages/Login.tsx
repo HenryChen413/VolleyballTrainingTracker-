@@ -10,7 +10,11 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import ThemeToggle from '@/components/ThemeToggle';
+import ColdStartHint from '@/components/ColdStartHint';
 import { authApi } from '@/api/auth';
+import { getApiErrorMessage } from '@/api/client';
+import { pingHealth } from '@/api/health';
+import { useColdStartHint } from '@/lib/useColdStartHint';
 import { useAuthStore } from '@/stores/authStore';
 
 const schema = z.object({
@@ -29,6 +33,15 @@ export default function LoginPage() {
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
   });
+
+  // 後端喚醒提示：登入請求送出後若遲遲未回應，顯示漸進式「伺服器喚醒中」提示。
+  const coldStart = useColdStartHint(isSubmitting);
+
+  // 預先暖機：登入頁一載入就 fire-and-forget 打 /health，讓休眠的後端在使用者
+  // 輸入帳密期間就開始喚醒，按下登入時通常已就緒。失敗靜默、不影響登入。
+  useEffect(() => {
+    void pingHealth();
+  }, []);
 
   // 手機 bfcache（上一頁／下一頁快取）：從瀏覽紀錄返回登入頁時，
   // 頁面可能直接還原舊快照而不重跑 React。若此時已登入，強制導回儀表板。
@@ -55,9 +68,7 @@ export default function LoginPage() {
       // 登入後一律導向儀表板
       navigate('/', { replace: true });
     } catch (e: unknown) {
-      const message =
-        (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '登入失敗';
-      setError(message);
+      setError(getApiErrorMessage(e, '登入失敗'));
     }
   };
 
@@ -135,6 +146,7 @@ export default function LoginPage() {
               <Button type="submit" disabled={isSubmitting} className="w-full h-11 text-base shadow-soft">
                 {isSubmitting ? '登入中…' : '登入'}
               </Button>
+              <ColdStartHint state={coldStart} />
             </form>
           </CardContent>
         </Card>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Plus,
@@ -28,8 +28,11 @@ import {
   playersApi,
   PLAYER_STATUS,
   PLAYER_STATUS_LABEL,
+  MEMBER_TYPE,
+  MEMBER_TYPE_LABEL,
   type Player,
   type PlayerStatus,
+  type MemberType,
 } from "@/api/players";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,17 +69,35 @@ type SortKey = "jersey" | "name" | "height" | "grade";
 type SortDir = "asc" | "desc";
 const SORT_LS = "vbtt-players-sort";
 const SORT_DIR_LS = "vbtt-players-sort-dir";
+// 下拉選單顯示順序：背號 → 系級 → 姓名 → 身高
 const SORT_LABELS: Record<SortKey, string> = {
   jersey: "背號",
+  grade: "系級",
   name: "姓名",
   height: "身高",
-  grade: "系級",
 };
 
 // ── 狀態選項從 enum 派生（移除 0/1/2 硬編碼）──
 const STATUS_FILTER_OPTIONS = (Object.values(PLAYER_STATUS) as PlayerStatus[])
   .map((v) => ({ value: String(v), label: PLAYER_STATUS_LABEL[v] }))
   .sort((a, b) => Number(a.value) - Number(b.value)); // 確保順序穩定
+
+// ── 身份頁籤（陣容頁三分） ──
+const MEMBER_TABS: { value: MemberType; label: string; addLabel: string; urlType: string }[] = [
+  { value: MEMBER_TYPE.Player, label: "選手", addLabel: "新增選手", urlType: "player" },
+  { value: MEMBER_TYPE.Coach, label: "教練", addLabel: "新增教練", urlType: "coach" },
+  { value: MEMBER_TYPE.Manager, label: "球經", addLabel: "新增球經", urlType: "manager" },
+];
+
+function parseTabParam(raw: string | null): MemberType {
+  if (raw === "coach") return MEMBER_TYPE.Coach;
+  if (raw === "manager") return MEMBER_TYPE.Manager;
+  return MEMBER_TYPE.Player;
+}
+
+function memberTypeToUrl(t: MemberType): string {
+  return MEMBER_TABS.find((m) => m.value === t)?.urlType ?? "player";
+}
 
 const handLabel = (h: string | null | undefined) =>
   h === "Right" ? "右" : h === "Left" ? "左" : null;
@@ -94,12 +115,27 @@ export default function PlayersPage() {
     queryFn: () => playersApi.list(),
   });
 
+  // 身份頁籤狀態存於 URL（?tab=player|coach|manager）；無參數時預設選手
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = parseTabParam(searchParams.get("tab"));
+  const setTab = (v: MemberType) => {
+    const next = new URLSearchParams(searchParams);
+    if (v === MEMBER_TYPE.Player) next.delete("tab");
+    else next.set("tab", memberTypeToUrl(v));
+    setSearchParams(next, { replace: true });
+  };
+  const isPlayerTab = tab === MEMBER_TYPE.Player;
+  const isCoachTab = tab === MEMBER_TYPE.Coach;
+  const currentTabMeta = MEMBER_TABS.find((t) => t.value === tab) ?? MEMBER_TABS[0];
+
   // 即時搜尋／篩選（取消「查詢」按鈕，輸入即套用）
   const [query, setQuery] = useState("");
   const [filterPos, setFilterPos] = useState("");
   const [filterGrade, setFilterGrade] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterDup, setFilterDup] = useState(false);
+
+  // 非選手頁的「位置」「重複號碼」即使有殘留值，filter pipeline 也直接忽略
 
   // Sort 偏好（localStorage 持久化）
   const [sortKey, setSortKey] = useState<SortKey>(
@@ -115,7 +151,17 @@ export default function PlayersPage() {
     localStorage.setItem(SORT_DIR_LS, sortDir);
   }, [sortDir]);
 
-  // 摺疊（畢業/退隊預設摺疊，現役永遠展開）
+  // 排序鍵在不同 Tab 的有效值（不改寫使用者偏好；只是顯示時退回合理選項）
+  // - 選手：四個都可用
+  // - 球經：背號/身高不適用，退回姓名
+  // - 教練：只剩姓名（沒有系級）
+  const effectiveSortKey: SortKey = isCoachTab
+    ? "name"
+    : !isPlayerTab && (sortKey === "jersey" || sortKey === "height")
+      ? "name"
+      : sortKey;
+
+  // 摺疊（畢業/離隊預設摺疊，現役永遠展開）
   const [collapsed, setCollapsed] = useState<Record<PlayerStatus, boolean>>({
     [PLAYER_STATUS.Active]: false,
     [PLAYER_STATUS.Graduated]: true,
@@ -134,45 +180,52 @@ export default function PlayersPage() {
       return [...arr, id];
     });
 
-  // 重複號碼（現役）
+  // 當前 Tab 對應的人員（在所有後續計算之前先過濾 memberType）
+  const tabScoped = useMemo(
+    () => (data ?? []).filter((p) => (p.memberType ?? MEMBER_TYPE.Player) === tab),
+    [data, tab],
+  );
+
+  // 重複號碼（僅選手 Tab、現役）
   const dupNos = useMemo(() => {
+    if (!isPlayerTab) return new Set<number>();
     const counts = new Map<number, number>();
-    for (const p of (data ?? []).filter((p) => p.isActive === PLAYER_STATUS.Active)) {
+    for (const p of tabScoped.filter((p) => p.isActive === PLAYER_STATUS.Active)) {
       if (p.jerseyNo != null)
         counts.set(p.jerseyNo, (counts.get(p.jerseyNo) ?? 0) + 1);
     }
     return new Set(
       [...counts.entries()].filter(([, c]) => c > 1).map(([n]) => n),
     );
-  }, [data]);
+  }, [tabScoped, isPlayerTab]);
 
   const grades = useMemo(() => {
     const s = new Set(
-      (data ?? []).map((p) => p.grade).filter((g): g is number => g != null),
+      tabScoped.map((p) => p.grade).filter((g): g is number => g != null),
     );
     return [...s].sort((a, b) => a - b);
-  }, [data]);
+  }, [tabScoped]);
 
   // 篩選
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (data ?? []).filter((p) => {
+    return tabScoped.filter((p) => {
       if (q) {
         const hay = `${p.name} ${p.nickname ?? ""} ${p.jerseyNo ?? ""} ${p.studentId ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
-      if (filterPos && !positionsOf(p).includes(filterPos)) return false;
-      if (filterGrade && p.grade !== Number(filterGrade)) return false;
+      if (isPlayerTab && filterPos && !positionsOf(p).includes(filterPos)) return false;
+      if (!isCoachTab && filterGrade && p.grade !== Number(filterGrade)) return false;
       if (filterStatus !== "" && String(p.isActive) !== filterStatus) return false;
-      if (filterDup && (p.jerseyNo == null || !dupNos.has(p.jerseyNo))) return false;
+      if (isPlayerTab && filterDup && (p.jerseyNo == null || !dupNos.has(p.jerseyNo))) return false;
       return true;
     });
-  }, [data, query, filterPos, filterGrade, filterStatus, filterDup, dupNos]);
+  }, [tabScoped, isPlayerTab, isCoachTab, query, filterPos, filterGrade, filterStatus, filterDup, dupNos]);
 
   // 排序（comparator 一律以「升冪」為準，再依 sortDir 反向）
   const sortFn = (a: Player, b: Player): number => {
     let cmp: number;
-    switch (sortKey) {
+    switch (effectiveSortKey) {
       case "name":
         cmp = a.name.localeCompare(b.name, "zh-Hant");
         break;
@@ -191,27 +244,44 @@ export default function PlayersPage() {
 
   const activeList = useMemo(
     () => filtered.filter((p) => p.isActive === PLAYER_STATUS.Active).sort(sortFn),
-    [filtered, sortKey, sortDir], // eslint-disable-line react-hooks/exhaustive-deps
+    [filtered, effectiveSortKey, sortDir], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const graduatedList = useMemo(
     () =>
       filtered.filter((p) => p.isActive === PLAYER_STATUS.Graduated).sort(sortFn),
-    [filtered, sortKey, sortDir], // eslint-disable-line react-hooks/exhaustive-deps
+    [filtered, effectiveSortKey, sortDir], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const leftList = useMemo(
     () => filtered.filter((p) => p.isActive === PLAYER_STATUS.Left).sort(sortFn),
-    [filtered, sortKey, sortDir], // eslint-disable-line react-hooks/exhaustive-deps
+    [filtered, effectiveSortKey, sortDir], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  // 球隊統計（取自全部資料，不受 filter 影響）
+  // Tab 計數（只算現役）
+  const memberCounts = useMemo(() => {
+    const m: Record<MemberType, number> = {
+      [MEMBER_TYPE.Player]: 0,
+      [MEMBER_TYPE.Coach]: 0,
+      [MEMBER_TYPE.Manager]: 0,
+    };
+    for (const p of data ?? []) {
+      if (p.isActive !== PLAYER_STATUS.Active) continue;
+      const t = (p.memberType ?? MEMBER_TYPE.Player) as MemberType;
+      m[t] = (m[t] ?? 0) + 1;
+    }
+    return m;
+  }, [data]);
+
+  // 統計（依當前 Tab，不受其他 filter 影響）
   const stats = useMemo(() => {
-    const all = data ?? [];
+    const all = tabScoped;
     const active = all.filter((p) => p.isActive === PLAYER_STATUS.Active);
     const posCount: Record<string, number> = {};
-    for (const p of active) {
-      // 一個球員若有多個位置，只計入第一個（主位置）
-      const primary = positionsOf(p)[0];
-      if (primary) posCount[primary] = (posCount[primary] ?? 0) + 1;
+    if (isPlayerTab) {
+      for (const p of active) {
+        // 一個球員若有多個位置，只計入第一個（主位置）
+        const primary = positionsOf(p)[0];
+        if (primary) posCount[primary] = (posCount[primary] ?? 0) + 1;
+      }
     }
     return {
       activeCount: active.length,
@@ -219,10 +289,15 @@ export default function PlayersPage() {
       leftCount: all.filter((p) => p.isActive === PLAYER_STATUS.Left).length,
       posCount,
     };
-  }, [data]);
+  }, [tabScoped, isPlayerTab]);
 
+  // 只計入「對當前 Tab 實際生效」的條件
   const hasFilter =
-    !!query || !!filterPos || !!filterGrade || filterStatus !== "" || filterDup;
+    !!query ||
+    (isPlayerTab && !!filterPos) ||
+    (!isCoachTab && !!filterGrade) ||
+    filterStatus !== "" ||
+    (isPlayerTab && filterDup);
   const clearAll = () => {
     setQuery("");
     setFilterPos("");
@@ -231,23 +306,37 @@ export default function PlayersPage() {
     setFilterDup(false);
   };
 
-  // CSV 匯出（依目前篩選結果，按 現役/畢業/退隊 排序）
+  // CSV 匯出（依目前篩選結果，按 現役/畢業/離隊 排序；教練/球經省略選手專用欄位）
   const handleExport = () => {
     const ordered = [...activeList, ...graduatedList, ...leftList];
-    exportCsv(datedFilename("players"), [
-      ["背號", "學號", "姓名", "暱稱", "位置", "身高(cm)", "系級", "慣用手", "狀態"],
-      ...ordered.map((p) => [
-        p.jerseyNo ?? "",
-        p.studentId ?? "",
-        p.name,
-        p.nickname ?? "",
-        p.position ?? "",
-        p.heightCm ?? "",
-        p.grade ?? "",
-        handLabel(p.dominantHand) ?? "",
-        PLAYER_STATUS_LABEL[p.isActive],
-      ]),
-    ]);
+    const fileBase = isPlayerTab ? "players" : tab === MEMBER_TYPE.Coach ? "coaches" : "managers";
+    if (isPlayerTab) {
+      exportCsv(datedFilename(fileBase), [
+        ["背號", "學號", "姓名", "暱稱", "位置", "身高(cm)", "系級", "慣用手", "狀態"],
+        ...ordered.map((p) => [
+          p.jerseyNo ?? "",
+          p.studentId ?? "",
+          p.name,
+          p.nickname ?? "",
+          p.position ?? "",
+          p.heightCm ?? "",
+          p.grade ?? "",
+          handLabel(p.dominantHand) ?? "",
+          PLAYER_STATUS_LABEL[p.isActive],
+        ]),
+      ]);
+    } else {
+      exportCsv(datedFilename(fileBase), [
+        ["學號", "姓名", "暱稱", "系級", "狀態"],
+        ...ordered.map((p) => [
+          p.studentId ?? "",
+          p.name,
+          p.nickname ?? "",
+          p.grade ?? "",
+          PLAYER_STATUS_LABEL[p.isActive],
+        ]),
+      ]);
+    }
   };
 
   const comparePlayers = useMemo(
@@ -264,8 +353,11 @@ export default function PlayersPage() {
       e.preventDefault();
       if (canEdit) navigate(`/players/${p.id}`);
     } else if (e.key === " ") {
-      e.preventDefault();
-      toggleCompare(p.id);
+      // 比較功能僅針對選手；教練/球經不啟用
+      if ((p.memberType ?? MEMBER_TYPE.Player) === MEMBER_TYPE.Player) {
+        e.preventDefault();
+        toggleCompare(p.id);
+      }
     } else if (
       e.key === "ArrowRight" ||
       e.key === "ArrowDown" ||
@@ -293,11 +385,17 @@ export default function PlayersPage() {
       {/* 頁首 */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">選手</h1>
+          <h1 className="text-2xl font-bold tracking-tight">陣容</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            球隊名單總覽 · 點擊卡片編輯，
-            <kbd className="px-1 py-0.5 mx-0.5 text-[10px] bg-muted rounded">Space</kbd>
-            加入比較
+            {isPlayerTab ? (
+              <>
+                球隊名單總覽 · 點擊卡片編輯，
+                <kbd className="px-1 py-0.5 mx-0.5 text-[10px] bg-muted rounded">Space</kbd>
+                加入比較
+              </>
+            ) : (
+              <>{currentTabMeta.label}名單 · 點擊卡片編輯</>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -312,16 +410,23 @@ export default function PlayersPage() {
             匯出
           </Button>
           {canCreate && (
-            <Button onClick={() => navigate("/players/new")}>
+            <Button
+              onClick={() =>
+                navigate(`/players/new?type=${currentTabMeta.urlType}`)
+              }
+            >
               <Plus className="h-4 w-4 mr-1" />
-              新增選手
+              新增{currentTabMeta.label}
             </Button>
           )}
         </div>
       </div>
 
+      {/* 身份頁籤 */}
+      <MemberTabs value={tab} onChange={setTab} counts={memberCounts} />
+
       {/* Stat Strip */}
-      <StatStrip stats={stats} />
+      <StatStrip stats={stats} showPositionDist={isPlayerTab} memberLabel={currentTabMeta.label} />
 
       {/* Toolbar：搜尋 + 排序 + view */}
       <div className="rounded-lg border bg-card shadow-soft p-3 space-y-3">
@@ -354,16 +459,22 @@ export default function PlayersPage() {
               排序
             </div>
             <Select
-              value={sortKey}
+              value={effectiveSortKey}
               onChange={(e) => setSortKey(e.target.value as SortKey)}
               className="h-9 w-24"
               aria-label="排序方式"
             >
-              {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
-                <option key={k} value={k}>
-                  {SORT_LABELS[k]}
-                </option>
-              ))}
+              {(Object.keys(SORT_LABELS) as SortKey[])
+                .filter((k) => {
+                  if (isCoachTab) return k === "name";
+                  if (!isPlayerTab) return k !== "jersey" && k !== "height";
+                  return true;
+                })
+                .map((k) => (
+                  <option key={k} value={k}>
+                    {SORT_LABELS[k]}
+                  </option>
+                ))}
             </Select>
             <button
               onClick={() =>
@@ -384,39 +495,45 @@ export default function PlayersPage() {
 
         {/* Filter row */}
         <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
-          <FilterPill
-            icon="位置"
-            value={filterPos}
-            onChange={setFilterPos}
-            options={POSITION_OPTIONS.map((p) => ({
-              value: p,
-              label: `${POSITION_LABELS[p]} (${p})`,
-            }))}
-          />
-          <FilterPill
-            icon="系級"
-            value={filterGrade}
-            onChange={setFilterGrade}
-            options={grades.map((g) => ({ value: String(g), label: String(g) }))}
-          />
+          {isPlayerTab && (
+            <FilterPill
+              icon="位置"
+              value={filterPos}
+              onChange={setFilterPos}
+              options={POSITION_OPTIONS.map((p) => ({
+                value: p,
+                label: `${POSITION_LABELS[p]} (${p})`,
+              }))}
+            />
+          )}
+          {!isCoachTab && (
+            <FilterPill
+              icon="系級"
+              value={filterGrade}
+              onChange={setFilterGrade}
+              options={grades.map((g) => ({ value: String(g), label: String(g) }))}
+            />
+          )}
           <FilterPill
             icon="狀態"
             value={filterStatus}
             onChange={setFilterStatus}
             options={STATUS_FILTER_OPTIONS}
           />
-          <button
-            onClick={() => setFilterDup((v) => !v)}
-            className={cn(
-              "inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-full border transition",
-              filterDup
-                ? "bg-warning/15 text-warning border-warning/40"
-                : "bg-background border-border text-foreground/70 hover:bg-accent hover:text-accent-foreground hover:border-accent",
-            )}
-          >
-            <AlertTriangle className="h-3 w-3" />
-            重複號碼
-          </button>
+          {isPlayerTab && (
+            <button
+              onClick={() => setFilterDup((v) => !v)}
+              className={cn(
+                "inline-flex items-center gap-1 h-7 px-2.5 text-xs rounded-full border transition",
+                filterDup
+                  ? "bg-warning/15 text-warning border-warning/40"
+                  : "bg-background border-border text-foreground/70 hover:bg-accent hover:text-accent-foreground hover:border-accent",
+              )}
+            >
+              <AlertTriangle className="h-3 w-3" />
+              重複號碼
+            </button>
+          )}
 
           {hasFilter && (
             <Button
@@ -438,13 +555,13 @@ export default function PlayersPage() {
             {query && (
               <ActiveChip label={`搜尋「${query}」`} onClear={() => setQuery("")} />
             )}
-            {filterPos && (
+            {isPlayerTab && filterPos && (
               <ActiveChip
                 label={`位置：${POSITION_LABELS[filterPos] ?? filterPos}`}
                 onClear={() => setFilterPos("")}
               />
             )}
-            {filterGrade && (
+            {!isCoachTab && filterGrade && (
               <ActiveChip
                 label={`系級：${filterGrade}`}
                 onClear={() => setFilterGrade("")}
@@ -458,7 +575,7 @@ export default function PlayersPage() {
                 onClear={() => setFilterStatus("")}
               />
             )}
-            {filterDup && (
+            {isPlayerTab && filterDup && (
               <ActiveChip label="重複號碼" onClear={() => setFilterDup(false)} />
             )}
             <span className="ml-1 text-xs text-muted-foreground/70">
@@ -475,10 +592,10 @@ export default function PlayersPage() {
       {!isLoading && filtered.length === 0 && (
         <EmptyState
           icon={Users}
-          title={hasFilter ? "無符合條件的選手" : "尚無選手"}
+          title={hasFilter ? `無符合條件的${currentTabMeta.label}` : `尚無${currentTabMeta.label}`}
           description={
             canCreate && !hasFilter
-              ? "點擊右上「新增選手」開始建立名單"
+              ? `點擊右上「新增${currentTabMeta.label}」開始建立名單`
               : undefined
           }
         />
@@ -521,7 +638,7 @@ export default function PlayersPage() {
           )}
           {leftList.length > 0 && (
             <PlayerSection
-              label="退隊"
+              label="離隊"
               status={PLAYER_STATUS.Left}
               list={leftList}
               dupNos={dupNos}
@@ -539,8 +656,8 @@ export default function PlayersPage() {
         </div>
       )}
 
-      {/* 比較浮動列 */}
-      {compareIds.length > 0 && (
+      {/* 比較浮動列（僅在選手頁顯示） */}
+      {isPlayerTab && compareIds.length > 0 && (
         <CompareBar
           players={comparePlayers}
           onRemove={(id) =>
@@ -551,7 +668,7 @@ export default function PlayersPage() {
         />
       )}
 
-      {compareOpen && (
+      {isPlayerTab && compareOpen && (
         <CompareModal
           players={comparePlayers}
           onClose={() => setCompareOpen(false)}
@@ -570,47 +687,113 @@ interface Stats {
   leftCount: number;
   posCount: Record<string, number>;
 }
-function StatStrip({ stats }: { stats: Stats }) {
+function StatStrip({
+  stats,
+  showPositionDist,
+  memberLabel,
+}: {
+  stats: Stats;
+  showPositionDist: boolean;
+  memberLabel: string;
+}) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div
+      className={cn(
+        "grid gap-3",
+        showPositionDist ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-2",
+      )}
+    >
       <StatCard
         icon={UserCheck}
-        label="現役"
+        label={`現役${memberLabel}`}
         value={stats.activeCount}
         suffix="人"
         tone="primary"
       />
       <StatCard
         icon={Trophy}
-        label="畢業 / 退隊"
+        label="畢業 / 離隊"
         value={`${stats.graduatedCount} / ${stats.leftCount}`}
         tone="muted"
       />
 
-      {/* 位置分布條（與兩個 StatCard 同列；mobile 換行）*/}
-      <div className="rounded-lg border bg-card shadow-soft p-3 flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-          <TrendingUp className="h-3.5 w-3.5" />
-          位置分布
-        </span>
-        {POSITION_OPTIONS.map((p) => {
-          const n = stats.posCount[p] ?? 0;
-          return (
-            <Chip
-              key={p}
-              tone={n === 0 ? "neutral" : POSITION_TONE[p]}
-              size="md"
-              className={cn(n === 0 && "opacity-50")}
+      {showPositionDist && (
+        <div className="rounded-lg border bg-card shadow-soft p-3 flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+            <TrendingUp className="h-3.5 w-3.5" />
+            位置分布
+          </span>
+          {POSITION_OPTIONS.map((p) => {
+            const n = stats.posCount[p] ?? 0;
+            return (
+              <Chip
+                key={p}
+                tone={n === 0 ? "neutral" : POSITION_TONE[p]}
+                size="md"
+                className={cn(n === 0 && "opacity-50")}
+              >
+                {POSITION_LABELS[p]}
+                <span className="ml-0.5 font-numeric font-bold">{n}</span>
+              </Chip>
+            );
+          })}
+          {stats.activeCount === 0 && (
+            <span className="text-xs text-muted-foreground italic">尚無現役球員</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// MemberTabs — 選手 / 教練 / 球經 切換
+// ════════════════════════════════════════════════════════════════════════
+function MemberTabs({
+  value,
+  onChange,
+  counts,
+}: {
+  value: MemberType;
+  onChange: (v: MemberType) => void;
+  counts: Record<MemberType, number>;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="人員身份"
+      className="inline-flex rounded-lg border bg-card shadow-soft p-1"
+    >
+      {MEMBER_TABS.map((t) => {
+        const active = t.value === value;
+        return (
+          <button
+            key={t.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(t.value)}
+            className={cn(
+              "inline-flex items-center gap-1.5 h-8 px-3 text-sm rounded-md transition select-none",
+              active
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted",
+            )}
+          >
+            <span>{t.label}</span>
+            <span
+              className={cn(
+                "inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1 text-[11px] rounded-full font-numeric",
+                active
+                  ? "bg-primary-foreground/20 text-primary-foreground"
+                  : "bg-muted text-foreground/70",
+              )}
             >
-              {POSITION_LABELS[p]}
-              <span className="ml-0.5 font-numeric font-bold">{n}</span>
-            </Chip>
-          );
-        })}
-        {stats.activeCount === 0 && (
-          <span className="text-xs text-muted-foreground italic">尚無現役球員</span>
-        )}
-      </div>
+              {counts[t.value] ?? 0}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -866,11 +1049,20 @@ function PlayerCard({
 }) {
   const isActive = p.isActive === PLAYER_STATUS.Active;
   const isLeft = p.isActive === PLAYER_STATUS.Left;
-  const positions = positionsOf(p);
+  const memberType = (p.memberType ?? MEMBER_TYPE.Player) as MemberType;
+  const isPlayerType = memberType === MEMBER_TYPE.Player;
+  const positions = isPlayerType ? positionsOf(p) : [];
   const primaryPos = positions[0];
-  const dupJersey = isActive && p.jerseyNo != null && dupNos.has(p.jerseyNo);
-  const hand = handLabel(p.dominantHand);
-  const hasStats = p.heightCm != null || p.grade != null || hand != null || !!p.studentId;
+  const dupJersey = isPlayerType && isActive && p.jerseyNo != null && dupNos.has(p.jerseyNo);
+  const hand = isPlayerType ? handLabel(p.dominantHand) : null;
+  const hasStats = isPlayerType
+    ? p.heightCm != null || p.grade != null || hand != null || !!p.studentId
+    : p.grade != null || !!p.studentId;
+  // 教練/球經色帶配色：避免和選手相同
+  const nonPlayerBandCls =
+    memberType === MEMBER_TYPE.Coach
+      ? "bg-gradient-to-b from-info to-info/70"
+      : "bg-gradient-to-b from-navy to-navy/70";
 
   return (
     <motion.div
@@ -892,37 +1084,47 @@ function PlayerCard({
         !isActive && "opacity-90",
       )}
     >
-      {/* 左：背號色帶 */}
+      {/* 左：色帶（選手＝背號；教練/球經＝身份徽章） */}
       <div
         className={cn(
           "relative w-20 shrink-0 flex flex-col items-center justify-center text-white px-1.5",
-          isActive
-            ? "bg-gradient-to-b from-primary to-primary/70"
-            : isLeft
-              ? "bg-gradient-to-b from-destructive/70 to-destructive/50"
-              : "bg-gradient-to-b from-muted-foreground/60 to-muted-foreground/40",
+          !isPlayerType
+            ? nonPlayerBandCls
+            : isActive
+              ? "bg-gradient-to-b from-primary to-primary/70"
+              : isLeft
+                ? "bg-gradient-to-b from-destructive/70 to-destructive/50"
+                : "bg-gradient-to-b from-muted-foreground/60 to-muted-foreground/40",
         )}
       >
-        <span
-          aria-hidden
-          className="absolute inset-0 flex items-center justify-center pointer-events-none select-none text-[70px] font-black leading-none text-white/[0.08]"
-        >
-          {p.jerseyNo ?? "?"}
-        </span>
-        <span className="font-numeric text-3xl font-black leading-none drop-shadow-sm relative">
-          {p.jerseyNo ?? "—"}
-        </span>
-        {primaryPos && (
-          <span className="mt-1 text-[10px] font-bold tracking-wider opacity-95 relative">
-            {primaryPos}
-          </span>
-        )}
-        {dupJersey && (
-          <span
-            className="absolute top-1 left-1 inline-flex items-center justify-center h-4 w-4 rounded-full bg-warning text-warning-foreground"
-            title="背號重複"
-          >
-            <AlertTriangle className="h-2.5 w-2.5" />
+        {isPlayerType ? (
+          <>
+            <span
+              aria-hidden
+              className="absolute inset-0 flex items-center justify-center pointer-events-none select-none text-[70px] font-black leading-none text-white/[0.08]"
+            >
+              {p.jerseyNo ?? "?"}
+            </span>
+            <span className="font-numeric text-3xl font-black leading-none drop-shadow-sm relative">
+              {p.jerseyNo ?? "—"}
+            </span>
+            {primaryPos && (
+              <span className="mt-1 text-[10px] font-bold tracking-wider opacity-95 relative">
+                {primaryPos}
+              </span>
+            )}
+            {dupJersey && (
+              <span
+                className="absolute top-1 left-1 inline-flex items-center justify-center h-4 w-4 rounded-full bg-warning text-warning-foreground"
+                title="背號重複"
+              >
+                <AlertTriangle className="h-2.5 w-2.5" />
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="font-bold text-base leading-tight drop-shadow-sm tracking-widest">
+            {MEMBER_TYPE_LABEL[memberType]}
           </span>
         )}
       </div>
@@ -938,7 +1140,7 @@ function PlayerCard({
           )}
         </div>
 
-        {positions.length > 0 && (
+        {isPlayerType && positions.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {positions.map((c) => (
               <Chip
@@ -963,7 +1165,7 @@ function PlayerCard({
                 {p.studentId}
               </span>
             )}
-            {p.heightCm != null && (
+            {isPlayerType && p.heightCm != null && (
               <span className="inline-flex items-center gap-0.5 font-numeric">
                 <Ruler className="h-3 w-3" />
                 {p.heightCm}
@@ -988,17 +1190,19 @@ function PlayerCard({
 
       {/* 操作按鈕：比較常駐顯示（行動裝置可點），編輯於 hover 時顯示 */}
       <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
-        <CardIconButton
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleCompare(p.id);
-          }}
-          title={isInCompare ? "從比較移除" : "加入比較"}
-          active={isInCompare}
-          className="h-8 w-8"
-        >
-          <Scale className="h-4 w-4" />
-        </CardIconButton>
+        {isPlayerType && (
+          <CardIconButton
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleCompare(p.id);
+            }}
+            title={isInCompare ? "從比較移除" : "加入比較"}
+            active={isInCompare}
+            className="h-8 w-8"
+          >
+            <Scale className="h-4 w-4" />
+          </CardIconButton>
+        )}
         {canEdit && (
           <CardIconButton
             onClick={(e) => {
@@ -1013,14 +1217,14 @@ function PlayerCard({
         )}
       </div>
 
-      {/* 比較選中標記 */}
-      {isInCompare && (
+      {/* 比較選中標記（僅選手） */}
+      {isPlayerType && isInCompare && (
         <span className="absolute top-1.5 left-1.5 inline-flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold shadow-sm">
           ✓
         </span>
       )}
 
-      {/* 狀態微標（畢業/退隊）*/}
+      {/* 狀態微標（畢業/離隊）*/}
       {!isActive && (
         <span className="absolute bottom-1.5 right-2 text-[10px] px-1.5 py-0.5 rounded-full bg-background/80 backdrop-blur-sm border text-muted-foreground">
           {PLAYER_STATUS_LABEL[p.isActive]}

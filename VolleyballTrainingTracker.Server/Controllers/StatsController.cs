@@ -34,7 +34,7 @@ public class StatsController : ControllerBase
 
         var dto = new OverviewDto
         {
-            ActivePlayerCount = await _db.Players.Where(p => p.IsActive == 1).CountAsync(),
+            ActivePlayerCount = await _db.Players.Where(p => p.IsActive == 1 && p.MemberType == 0).CountAsync(),
             LastSessionDate = await _db.TrainingSessions
                 .OrderByDescending(s => s.SessionDate).Select(s => (DateTime?)s.SessionDate).FirstOrDefaultAsync(),
             LatestAcademicYear = latestYear,

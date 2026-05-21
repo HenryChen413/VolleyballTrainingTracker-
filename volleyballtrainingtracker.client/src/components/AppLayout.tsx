@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Link,
   NavLink,
@@ -21,7 +21,8 @@ import ThemeToggle from "@/components/ThemeToggle";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import BottomTabBar from "@/components/BottomTabBar";
 import { PAGE, useAuthStore } from "@/stores/authStore";
-import { ALL_NAV, type NavItem } from "@/config/nav";
+import { pingHealth } from "@/api/health";
+import { ALL_NAV, BOTTOM_TAB_PAGES, type NavItem } from "@/config/nav";
 import { cn } from "@/lib/utils";
 
 /** 閒置自動登出時間（毫秒）*/
@@ -38,6 +39,11 @@ export default function AppLayout() {
   const mainItems = navItems.filter((n) => n.group !== "admin");
   const adminItems = navItems.filter((n) => n.group === "admin");
   const canSeeProfile = allowedPages.includes(PAGE.Profile);
+
+  // 底部列：依固定順序取出對應項目，無權限的不顯示也不補位
+  const bottomTabItems = BOTTOM_TAB_PAGES
+    .map((page) => ALL_NAV.find((n) => n.page === page))
+    .filter((n): n is NavItem => !!n && allowedPages.includes(n.page));
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<boolean>(
@@ -74,16 +80,58 @@ export default function AppLayout() {
     navigate("/login", { replace: true });
   };
 
-  // 閒置 5 分鐘自動登出
+  // 閒置自動登出 ＋ 回前景後端喚醒。
+  //
+  // 改用「真實時間戳」判定，而非只依賴 setTimeout：頁面被切到背景或進入
+  // 上一頁／下一頁快取（bfcache）時會被凍結，setTimeout 也隨之暫停，回來後
+  // 不會如預期觸發。因此在回前景（pageshow persisted／visibilitychange）時，
+  // 用 Date.now() 與最後活動時間比對，逾時或 token 失效就立即登出；
+  // 仍在登入狀態則順手喚醒可能已休眠的後端。
+  const lastActivityRef = useRef<number>(Date.now());
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
-    const reset = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        clear();
-        navigate("/login", { replace: true });
-      }, IDLE_LOGOUT_MS);
+
+    const forceLogout = () => {
+      clear();
+      navigate("/login", { replace: true });
     };
+
+    // 閒置過久或 token 已失效都該登出
+    const shouldLogout = () =>
+      Date.now() - lastActivityRef.current >= IDLE_LOGOUT_MS ||
+      !useAuthStore.getState().isAuthenticated();
+
+    const arm = () => {
+      clearTimeout(timer);
+      timer = setTimeout(check, IDLE_LOGOUT_MS);
+    };
+
+    const check = () => {
+      if (shouldLogout()) forceLogout();
+      else arm();
+    };
+
+    const reset = () => {
+      lastActivityRef.current = Date.now();
+      arm();
+    };
+
+    // 從背景／bfcache 回到前景：先判定是否該登出，否則喚醒後端並重啟計時。
+    const onResume = () => {
+      if (shouldLogout()) {
+        forceLogout();
+      } else {
+        void pingHealth();
+        reset();
+      }
+    };
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) onResume();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") onResume();
+    };
+
     const events = [
       "mousemove",
       "mousedown",
@@ -94,10 +142,15 @@ export default function AppLayout() {
     events.forEach((e) =>
       window.addEventListener(e, reset, { passive: true }),
     );
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibility);
+
     reset();
     return () => {
       clearTimeout(timer);
       events.forEach((e) => window.removeEventListener(e, reset));
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [clear, navigate]);
 
@@ -282,7 +335,7 @@ export default function AppLayout() {
         </main>
 
         {/* === 行動 Bottom Tab Bar === */}
-        <BottomTabBar items={mainItems} />
+        <BottomTabBar items={bottomTabItems} />
       </div>
 
     </div>

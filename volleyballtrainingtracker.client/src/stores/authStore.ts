@@ -68,6 +68,7 @@ export const PAGE = {
   Sessions: 'sessions',
   MatchLogs: 'match-logs',
   Drills: 'drills',
+  Crying: 'crying',
   AdminRoles: 'admin-roles',
   AdminUsers: 'admin-users',
   Profile: 'profile',

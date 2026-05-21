@@ -73,17 +73,17 @@ public class ProfileController : ControllerBase
 
     /// <summary>
     /// 取得目前登入者綁定的選手檔案與出賽紀錄（唯讀）。
-    /// 未綁定選手者回傳 404，前端據此略過顯示。
+    /// 未綁定選手是正常情況，回傳 200＋null（而非 404），避免瀏覽器 Console 跳網路錯誤。
     /// </summary>
     [HttpGet("player")]
-    public async Task<ActionResult<MyPlayerInfo>> GetPlayer()
+    public async Task<ActionResult<MyPlayerInfo?>> GetPlayer()
     {
         var id = GetUserId();
         if (id is null) return Unauthorized();
 
         var player = await _db.Players.AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == id);
-        if (player == null) return NotFound(new { message = "尚未綁定選手資料" });
+        if (player == null) return Ok((MyPlayerInfo?)null);
 
         var appearances = await _db.MatchEventPlayers.AsNoTracking()
             .Where(mep => mep.PlayerId == player.Id)

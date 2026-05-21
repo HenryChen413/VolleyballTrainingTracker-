@@ -36,12 +36,13 @@ public static class Pages
     public const string Sessions = "sessions";
     public const string MatchLogs = "match-logs";
     public const string Drills = "drills";
+    public const string Crying = "crying";
     public const string AdminRoles = "admin-roles";
     public const string AdminUsers = "admin-users";
     public const string Profile = "profile";
 
     public static readonly string[] All =
     {
-        Dashboard, Calendar, Players, Sessions, MatchLogs, Drills, AdminRoles, AdminUsers, Profile,
+        Dashboard, Calendar, Players, Sessions, MatchLogs, Drills, Crying, AdminRoles, AdminUsers, Profile,
     };
 }

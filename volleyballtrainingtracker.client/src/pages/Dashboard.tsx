@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import {
   PolarAngleAxis,
   PolarGrid,
@@ -19,6 +20,7 @@ import {
   Calendar,
   BookOpen,
   Cake,
+  Volleyball,
 } from "lucide-react";
 import {
   Card,
@@ -44,9 +46,15 @@ import {
   type MatchSummary,
   type RecentEvent,
 } from "@/api/stats";
-import { playersApi, type Player } from "@/api/players";
+import {
+  playersApi,
+  MEMBER_TYPE,
+  PLAYER_STATUS,
+  type Player,
+} from "@/api/players";
 
 const YT_CHANNEL_URL = "https://youtube.com/channel/UCvONl3xCT8XLwoozldtsCcQ";
+const IG_URL = "https://www.instagram.com/kmumed_gvb/";
 
 type ResultKey = "W" | "L" | "D";
 const RESULT_LABEL: Record<ResultKey, string> = { W: "勝", L: "敗", D: "平" };
@@ -70,6 +78,7 @@ const MATCH_TYPE_TONE: Record<string, "info" | "warning"> = {
 };
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [distMonths, setDistMonths] = useState(6);
   const [guideOpen, setGuideOpen] = useState(false);
   const { data: overview, isLoading: lo } = useQuery({
@@ -88,6 +97,18 @@ export default function DashboardPage() {
     queryKey: ["stats", "recentEvents"],
     queryFn: () => statsApi.recentEvents(5),
   });
+
+  // 現役教練/球經人數 — 用於 KPI 副標
+  const { data: activeStaff } = useQuery({
+    queryKey: ["players", "activeStaffCounts"],
+    queryFn: () => playersApi.list({ activeOnly: true }),
+  });
+  const coachCount = (activeStaff ?? []).filter(
+    (p) => p.memberType === MEMBER_TYPE.Coach,
+  ).length;
+  const managerCount = (activeStaff ?? []).filter(
+    (p) => p.memberType === MEMBER_TYPE.Manager,
+  ).length;
 
   const yearLabel =
     overview?.latestAcademicYear != null
@@ -121,26 +142,40 @@ export default function DashboardPage() {
 
       <UserGuideDialog open={guideOpen} onClose={() => setGuideOpen(false)} />
 
-      {/* YouTube banner */}
+      {/* 社群連結 */}
       <Card className="surface-soft border-primary/20 overflow-hidden">
-        <CardContent className="flex flex-col sm:flex-row sm:items-center gap-4 py-5">
-          <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-destructive/10 text-destructive shrink-0">
-            <YoutubeIcon className="h-6 w-6" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold">YouTube 頻道</div>
-            <div className="text-sm text-muted-foreground truncate">
-              訂閱頻道,觀看訓練與比賽影片
+        <CardContent className="py-5">
+          <div className="flex items-start sm:items-center gap-3 mb-4">
+            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-primary/10 text-primary shrink-0">
+              <Volleyball className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold">社群連結</div>
+              <div className="text-sm text-muted-foreground">
+                訂閱頻道、追蹤動態
+              </div>
             </div>
           </div>
-          <a
-            href={YT_CHANNEL_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center justify-center h-10 px-4 rounded-lg text-sm font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shrink-0 shadow-soft"
-          >
-            前往頻道
-          </a>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <a
+              href={YT_CHANNEL_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-soft"
+            >
+              <YoutubeIcon className="h-4 w-4" />
+              YouTube 頻道
+            </a>
+            <a
+              href={IG_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-white bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 hover:opacity-90 transition-opacity shadow-soft"
+            >
+              <InstagramIcon className="h-4 w-4" />
+              Instagram
+            </a>
+          </div>
         </CardContent>
       </Card>
 
@@ -160,6 +195,11 @@ export default function DashboardPage() {
               suffix="人"
               icon={Users}
               tone="primary"
+              subtitle={
+                coachCount + managerCount > 0
+                  ? `教練 ${coachCount} · 球經 ${managerCount}`
+                  : undefined
+              }
             />
             <StatCard
               title="比賽次數"
@@ -247,7 +287,11 @@ export default function DashboardPage() {
             ) : recentEvents && recentEvents.length > 0 ? (
               <ul className="divide-y">
                 {recentEvents.map((e, i) => (
-                  <RecentEventRow key={i} e={e} />
+                  <RecentEventRow
+                    key={i}
+                    e={e}
+                    onClick={() => navigate("/matchlogs")}
+                  />
                 ))}
               </ul>
             ) : (
@@ -272,8 +316,8 @@ interface BirthdayStar {
 
 function BirthdayCard() {
   const { data: players, isLoading } = useQuery({
-    queryKey: ["players", "birthdayActive"],
-    queryFn: () => playersApi.list(true),
+    queryKey: ["players", "birthdayActiveAll"],
+    queryFn: () => playersApi.list({ activeOnly: true }),
   });
 
   const now = new Date();
@@ -281,8 +325,17 @@ function BirthdayCard() {
   const curDay = String(now.getDate()).padStart(2, "0");
   const curYear = now.getFullYear();
 
+  // 選手在前、教練/球經在後（同身份再依日期）
+  const memberTypeOrder = (t: number) =>
+    t === MEMBER_TYPE.Player ? 0 : t === MEMBER_TYPE.Coach ? 1 : 2;
+
   const stars: BirthdayStar[] = (players ?? [])
-    .filter((p) => !!p.birthDate && p.birthDate.slice(5, 7) === curMonth)
+    .filter(
+      (p) =>
+        p.isActive === PLAYER_STATUS.Active &&
+        !!p.birthDate &&
+        p.birthDate.slice(5, 7) === curMonth,
+    )
     .map((p) => {
       const month = p.birthDate!.slice(5, 7);
       const day = p.birthDate!.slice(8, 10);
@@ -295,7 +348,13 @@ function BirthdayCard() {
         isToday: month === curMonth && day === curDay,
       };
     })
-    .sort((a, b) => a.dayNum - b.dayNum);
+    .sort((a, b) => {
+      const ord =
+        memberTypeOrder(a.player.memberType) -
+        memberTypeOrder(b.player.memberType);
+      if (ord !== 0) return ord;
+      return a.dayNum - b.dayNum;
+    });
 
   return (
     <Card>
@@ -305,7 +364,7 @@ function BirthdayCard() {
           本月壽星
         </CardTitle>
         <CardDescription>
-          {Number(curMonth)} 月過生日的現役選手
+          {Number(curMonth)} 月過生日的現役隊員
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -332,6 +391,8 @@ function BirthdayCard() {
 function BirthdayRow({ star }: { star: BirthdayStar }) {
   const { player, monthNum, dayNum, age, isToday } = star;
   const displayName = player.nickname?.trim() || player.name;
+  const isPlayer = player.memberType === MEMBER_TYPE.Player;
+  const isCoach = player.memberType === MEMBER_TYPE.Coach;
   return (
     <div
       className={cn(
@@ -344,11 +405,19 @@ function BirthdayRow({ star }: { star: BirthdayStar }) {
           {isToday && <span className="mr-1">🎂</span>}
           {displayName}
         </span>
-        {player.jerseyNo != null && (
+        {isPlayer && player.jerseyNo != null ? (
           <Chip tone="neutral" size="sm" className="shrink-0">
             #{player.jerseyNo}
           </Chip>
-        )}
+        ) : !isPlayer ? (
+          <Chip
+            tone={isCoach ? "info" : "warning"}
+            size="sm"
+            className="shrink-0"
+          >
+            {isCoach ? "教練" : "球經"}
+          </Chip>
+        ) : null}
       </div>
       <div className="text-xs text-muted-foreground flex items-center gap-1.5">
         <Calendar className="h-3 w-3" />
@@ -692,12 +761,35 @@ function ResultLine({
   );
 }
 
-function RecentEventRow({ e }: { e: RecentEvent }) {
+function RecentEventRow({
+  e,
+  onClick,
+}: {
+  e: RecentEvent;
+  onClick?: () => void;
+}) {
   const title = e.matchName?.trim() || "（未命名賽事）";
   const typeKey = e.matchType ?? "";
   const isSplit = e.squadCount >= 2;
   return (
-    <li className="py-2.5 flex items-start justify-between gap-3 hover:bg-accent/30 -mx-2 px-2 rounded-md transition-colors">
+    <li
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={(ev) => {
+        if (!onClick) return;
+        if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          onClick();
+        }
+      }}
+      className={cn(
+        "py-2.5 flex items-start justify-between gap-3 -mx-2 px-2 rounded-md transition-colors",
+        onClick
+          ? "cursor-pointer hover:bg-accent/40 focus:bg-accent/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          : "hover:bg-accent/30",
+      )}
+    >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
           {typeKey && (
@@ -863,6 +955,25 @@ function YoutubeIcon({ className }: { className?: string }) {
       aria-hidden="true"
     >
       <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z" />
+    </svg>
+  );
+}
+
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
     </svg>
   );
 }

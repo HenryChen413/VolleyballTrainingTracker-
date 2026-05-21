@@ -4,7 +4,7 @@ import { ALL_NAV } from '@/config/nav';
 import { cn } from '@/lib/utils';
 
 const EDIT_LABELS: Record<string, string> = {
-  '/players/new': '新增選手',
+  '/players/new': '新增人員',
   '/sessions/new': '新增訓練',
   '/match-logs/new': '新增比賽',
 };

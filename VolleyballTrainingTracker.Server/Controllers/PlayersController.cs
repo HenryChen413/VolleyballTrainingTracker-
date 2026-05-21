@@ -17,11 +17,18 @@ public class PlayersController : ControllerBase
     public PlayersController(AppDbContext db) => _db = db;
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<PlayerDto>>> List([FromQuery] bool? activeOnly = null)
+    public async Task<ActionResult<IEnumerable<PlayerDto>>> List(
+        [FromQuery] bool? activeOnly = null,
+        [FromQuery] byte? memberType = null)
     {
         var q = _db.Players.AsQueryable();
         if (activeOnly == true) q = q.Where(p => p.IsActive == 1);
-        var list = await q.OrderBy(p => p.JerseyNo ?? 999).ThenBy(p => p.Name).Select(p => ToDto(p)).ToListAsync();
+        if (memberType.HasValue) q = q.Where(p => p.MemberType == memberType.Value);
+        var list = await q.OrderBy(p => p.MemberType)
+            .ThenBy(p => p.JerseyNo ?? 999)
+            .ThenBy(p => p.Name)
+            .Select(p => ToDto(p))
+            .ToListAsync();
         return Ok(list);
     }
 
@@ -36,25 +43,27 @@ public class PlayersController : ControllerBase
     [RequirePermission(Permissions.PlayersEdit)]
     public async Task<ActionResult<PlayerDto>> Create([FromBody] PlayerUpsertRequest req)
     {
-        var studentId = NormalizeStudentId(req.StudentId);
+        var isPlayerType = req.MemberType == 0;
+        var isCoachType = req.MemberType == 1;
+        var studentId = isCoachType ? null : NormalizeStudentId(req.StudentId);
         if (studentId != null && await _db.Players.AnyAsync(x => x.StudentId == studentId))
             return Conflict(new { message = $"學號 {studentId} 已被使用" });
-
         var p = new Player
         {
             UserId = req.UserId,
             StudentId = studentId,
             Name = req.Name,
             Nickname = req.Nickname,
-            JerseyNo = req.JerseyNo,
-            Position = req.Position,
-            HeightCm = req.HeightCm,
-            WeightKg = req.WeightKg,
-            DominantHand = req.DominantHand,
+            JerseyNo = isPlayerType ? req.JerseyNo : null,
+            Position = isPlayerType ? req.Position : null,
+            HeightCm = isPlayerType ? req.HeightCm : null,
+            WeightKg = isPlayerType ? req.WeightKg : null,
+            DominantHand = isPlayerType ? req.DominantHand : null,
             BirthDate = req.BirthDate,
             JoinedAt = req.JoinedAt ?? DateTime.UtcNow.Date,
-            Grade = req.Grade,
+            Grade = isCoachType ? null : req.Grade,
             IsActive = req.IsActive,
+            MemberType = req.MemberType,
             Notes = req.Notes,
         };
         _db.Players.Add(p);
@@ -69,23 +78,25 @@ public class PlayersController : ControllerBase
         var p = await _db.Players.FindAsync(id);
         if (p == null) return NotFound();
 
-        var studentId = NormalizeStudentId(req.StudentId);
+        var isPlayerType = req.MemberType == 0;
+        var isCoachType = req.MemberType == 1;
+        var studentId = isCoachType ? null : NormalizeStudentId(req.StudentId);
         if (studentId != null && await _db.Players.AnyAsync(x => x.StudentId == studentId && x.Id != id))
             return Conflict(new { message = $"學號 {studentId} 已被使用" });
-
         p.UserId = req.UserId;
         p.StudentId = studentId;
         p.Name = req.Name;
         p.Nickname = req.Nickname;
-        p.JerseyNo = req.JerseyNo;
-        p.Position = req.Position;
-        p.HeightCm = req.HeightCm;
-        p.WeightKg = req.WeightKg;
-        p.DominantHand = req.DominantHand;
+        p.JerseyNo = isPlayerType ? req.JerseyNo : null;
+        p.Position = isPlayerType ? req.Position : null;
+        p.HeightCm = isPlayerType ? req.HeightCm : null;
+        p.WeightKg = isPlayerType ? req.WeightKg : null;
+        p.DominantHand = isPlayerType ? req.DominantHand : null;
         p.BirthDate = req.BirthDate;
         if (req.JoinedAt.HasValue) p.JoinedAt = req.JoinedAt.Value;
-        p.Grade = req.Grade;
+        p.Grade = isCoachType ? null : req.Grade;
         p.IsActive = req.IsActive;
+        p.MemberType = req.MemberType;
         p.Notes = req.Notes;
         await _db.SaveChangesAsync();
         return Ok(ToDto(p));
@@ -136,6 +147,7 @@ public class PlayersController : ControllerBase
         JoinedAt = p.JoinedAt,
         Grade = p.Grade,
         IsActive = p.IsActive,
+        MemberType = p.MemberType,
         Notes = p.Notes,
         UpdatedAt = p.UpdatedAt,
         UpdatedByName = p.UpdatedByUser != null ? (p.UpdatedByUser.DisplayName ?? p.UpdatedByUser.UserName) : null,

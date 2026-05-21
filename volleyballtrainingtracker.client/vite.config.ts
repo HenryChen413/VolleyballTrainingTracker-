@@ -51,6 +51,12 @@ function createDevServerConfig() {
                 target,
                 secure: false,
             },
+            // /health 在後端根路徑（非 /api 下），供 cold start 暖機 ping 使用，
+            // 本機開發也一併代理，讓行為與正式環境一致。
+            '^/health': {
+                target,
+                secure: false,
+            },
         },
         port: parseInt(env.DEV_SERVER_PORT || '57797'),
         https: {

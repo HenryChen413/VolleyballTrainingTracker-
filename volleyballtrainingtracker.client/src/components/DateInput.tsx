@@ -82,6 +82,11 @@ export function DateInput({
     }
   };
 
+  // 隱藏的原生 <input type="date"> 只接受完整、補零後的 yyyy-MM-dd；
+  // 編輯途中（如月/日僅輸入 1 碼）給空字串，避免瀏覽器「不符合 yyyy-MM-dd」警告。
+  const nativeValue =
+    y.length === 4 && m.length === 2 && d.length === 2 ? `${y}-${m}-${d}` : '';
+
   const seg = 'bg-transparent outline-none text-center tabular-nums';
 
   return (
@@ -133,7 +138,7 @@ export function DateInput({
       <input
         ref={nativeRef}
         type="date"
-        value={y && m && d ? `${y}-${m}-${d}` : ''}
+        value={nativeValue}
         onChange={onNativePick}
         className="sr-only"
         tabIndex={-1}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export interface ColdStartHintState {
   /** 是否該顯示提示（active 持續超過 delayMs 後才為 true） */
@@ -36,19 +36,23 @@ function messageFor(elapsed: number): string {
 export function useColdStartHint(active: boolean, delayMs = 4_000): ColdStartHintState {
   const [elapsed, setElapsed] = useState(0);
   const [show, setShow] = useState(false);
-  const startRef = useRef<number | null>(null);
+  const [wasActive, setWasActive] = useState(active);
+
+  // active 由等待轉為閒置時，於 render 期間即時歸零。
+  // 這是 React 官方建議的「依前一次 prop 調整 state」寫法，
+  // 可避免在 effect 內同步 setState 造成連鎖渲染。
+  if (wasActive !== active) {
+    setWasActive(active);
+    if (!active) {
+      setElapsed(0);
+      setShow(false);
+    }
+  }
 
   useEffect(() => {
-    if (!active) {
-      setShow(false);
-      setElapsed(0);
-      startRef.current = null;
-      return;
-    }
-    startRef.current = Date.now();
+    if (!active) return;
+    const start = Date.now();
     const id = setInterval(() => {
-      const start = startRef.current;
-      if (start == null) return;
       const ms = Date.now() - start;
       setElapsed(Math.floor(ms / 1000));
       setShow(ms >= delayMs);

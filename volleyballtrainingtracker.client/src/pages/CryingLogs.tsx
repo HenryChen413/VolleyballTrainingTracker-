@@ -240,7 +240,7 @@ export default function CryingLogsPage() {
   const handleDelete = async (log: CryingLog) => {
     const res = await confirmAction(
       "刪除哭哭紀錄？",
-      `${formatDate(log.occurredAt)}　${log.crierName}　${log.reason}`,
+      `${formatDate(log.occurredAt)}\u3000${log.crierName}\u3000${log.reason}`,
       "刪除",
       true,
     );

@@ -87,7 +87,9 @@ export default function AppLayout() {
   // 不會如預期觸發。因此在回前景（pageshow persisted／visibilitychange）時，
   // 用 Date.now() 與最後活動時間比對，逾時或 token 失效就立即登出；
   // 仍在登入狀態則順手喚醒可能已休眠的後端。
-  const lastActivityRef = useRef<number>(Date.now());
+  // 初始值留 0，避免在 render 期間呼叫不純的 Date.now()；
+  // 下方 effect 掛載時會呼叫 reset() 寫入真實時間戳。
+  const lastActivityRef = useRef<number>(0);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
 

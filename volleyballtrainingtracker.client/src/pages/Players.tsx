@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -101,6 +101,18 @@ function memberTypeToUrl(t: MemberType): string {
 
 const handLabel = (h: string | null | undefined) =>
   h === "Right" ? "右" : h === "Left" ? "左" : null;
+
+// 由生日推算實歲（與 Dashboard 一致：未過生日則減一）
+const ageOf = (birthDate: string | null): number | null => {
+  if (!birthDate) return null;
+  const b = new Date(birthDate);
+  if (Number.isNaN(b.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age -= 1;
+  return age < 0 ? null : age;
+};
 
 // ════════════════════════════════════════════════════════════════════════
 // Page
@@ -1337,84 +1349,47 @@ function CompareModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const rows: { label: string; render: (p: Player) => React.ReactNode }[] = [
+  // 數值欄位的極值（供長條與差值徽章使用）
+  const heightVals = players
+    .map((p) => p.heightCm)
+    .filter((v): v is number => v != null);
+  const maxH = heightVals.length ? Math.max(...heightVals) : null;
+
+  // 純文字欄位（單行，跨卡片同序對齊）
+  const textRows: { label: string; value: (p: Player) => React.ReactNode }[] = [
     {
-      label: "背號",
-      render: (p) => (
-        <span className="font-numeric font-bold text-lg">
-          {p.jerseyNo ?? "—"}
-        </span>
-      ),
-    },
-    {
-      label: "姓名",
-      render: (p) => (
-        <div>
-          <p className="font-semibold">{p.name}</p>
-          {p.nickname && (
-            <p className="text-xs text-muted-foreground">{p.nickname}</p>
-          )}
-        </div>
-      ),
-    },
-    {
-      label: "學號",
-      render: (p) =>
-        p.studentId ? (
-          <span className="font-numeric">{p.studentId}</span>
-        ) : (
-          <span className="text-muted-foreground/50">—</span>
-        ),
-    },
-    {
-      label: "位置",
-      render: (p) => {
-        const positions = positionsOf(p);
-        return positions.length === 0 ? (
-          <span className="text-muted-foreground/50">—</span>
-        ) : (
-          <div className="flex flex-wrap gap-1">
-            {positions.map((c) => (
-              <Chip key={c} tone={POSITION_TONE[c] ?? "neutral"} size="sm">
-                {POSITION_LABELS[c] ?? c}
-              </Chip>
-            ))}
-          </div>
-        );
+      label: "年齡",
+      value: (p) => {
+        const a = ageOf(p.birthDate);
+        return a != null ? <span className="font-numeric">{a} 歲</span> : <Dash />;
       },
     },
     {
-      label: "身高",
-      render: (p) => (
-        <span className="font-numeric">
-          {p.heightCm != null ? `${p.heightCm} cm` : "—"}
-        </span>
-      ),
-    },
-    {
       label: "系級",
-      render: (p) => (
-        <span className="font-numeric">{p.grade ?? "—"}</span>
-      ),
+      value: (p) =>
+        p.grade != null ? <span className="font-numeric">{p.grade}</span> : <Dash />,
     },
     {
       label: "慣用手",
-      render: (p) => <span>{handLabel(p.dominantHand) ?? "—"}</span>,
+      value: (p) =>
+        handLabel(p.dominantHand) ? <span>{handLabel(p.dominantHand)}</span> : <Dash />,
+    },
+    {
+      label: "學號",
+      value: (p) =>
+        p.studentId ? (
+          <span className="font-numeric text-xs">{p.studentId}</span>
+        ) : (
+          <Dash />
+        ),
     },
     {
       label: "狀態",
-      render: (p) => (
+      value: (p) => (
         <span className="text-xs">{PLAYER_STATUS_LABEL[p.isActive]}</span>
       ),
     },
   ];
-
-  // 找出每列「最大值」做視覺強調
-  const highlights: Record<string, number | null> = {
-    身高: Math.max(
-      ...players.map((p) => p.heightCm ?? -Infinity),
-    ),
-  };
 
   return (
     <div
@@ -1425,9 +1400,13 @@ function CompareModal({
         className="bg-card rounded-xl shadow-lift w-full max-w-4xl max-h-[90vh] flex flex-col animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-5 py-3.5 flex items-center justify-between border-b">
-          <h3 className="text-lg font-semibold">
-            比較 {players.length} 位球員
+        <div className="px-5 py-3.5 flex items-center justify-between border-b shrink-0">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Scale className="h-5 w-5 text-primary" />
+            球員對戰比較
+            <span className="text-sm font-normal text-muted-foreground">
+              {players.length} 位
+            </span>
           </h3>
           <button
             onClick={onClose}
@@ -1438,59 +1417,176 @@ function CompareModal({
           </button>
         </div>
         <div className="overflow-auto p-3 sm:p-5">
-          <table className="w-full text-sm">
-            <thead>
-              <tr>
-                <th className="text-left text-xs text-muted-foreground font-medium pb-2 w-20">
-                  項目
-                </th>
-                {players.map((p) => (
-                  <th
-                    key={p.id}
-                    className="text-left font-medium pb-2 px-3 min-w-[8rem]"
-                  >
-                    <span className="text-xs text-muted-foreground">
-                      #{p.jerseyNo ?? "—"}
+          <div className="flex gap-2 sm:gap-3 items-stretch">
+            {players.map((p, i) => (
+              <Fragment key={p.id}>
+                {i > 0 && players.length === 2 && (
+                  <div className="flex items-center shrink-0">
+                    <span className="font-numeric font-extrabold text-sm text-muted-foreground/70 select-none">
+                      VS
                     </span>
-                    <p className="font-semibold">{p.name}</p>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.label} className="border-t border-border/60">
-                  <td className="py-2.5 text-xs text-muted-foreground align-top">
-                    {row.label}
-                  </td>
-                  {players.map((p) => {
-                    const isMax =
-                      row.label === "身高" &&
-                      p.heightCm != null &&
-                      p.heightCm === highlights.身高;
-                    return (
-                      <td
-                        key={p.id}
-                        className={cn(
-                          "py-2.5 px-3 align-top",
-                          isMax &&
-                            "bg-primary/5 text-primary font-bold",
-                        )}
-                      >
-                        {row.render(p)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                )}
+                <PlayerCompareCard p={p} maxH={maxH} textRows={textRows} />
+              </Fragment>
+            ))}
+          </div>
           {players.length < 2 && (
             <p className="mt-3 text-xs text-muted-foreground italic text-center">
               至少選擇 2 位球員才能進行比較
             </p>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// 缺值佔位
+function Dash() {
+  return <span className="text-muted-foreground/50">—</span>;
+}
+
+// 標頭依主位置上色
+const ACCENT_HEADER: Record<string, string> = {
+  primary: "bg-primary/5",
+  info: "bg-info/10",
+  navy: "bg-navy/10",
+  warning: "bg-warning/10",
+  success: "bg-success/10",
+  neutral: "bg-muted/40",
+};
+
+// 對戰比較卡：上半身分、下半各項數值
+function PlayerCompareCard({
+  p,
+  maxH,
+  textRows,
+}: {
+  p: Player;
+  maxH: number | null;
+  textRows: { label: string; value: (p: Player) => React.ReactNode }[];
+}) {
+  const positions = positionsOf(p);
+  const accent = ACCENT_HEADER[POSITION_TONE[positions[0]] ?? "neutral"];
+
+  return (
+    <div className="flex-1 min-w-[130px] sm:min-w-[150px] rounded-xl border bg-card overflow-hidden flex flex-col">
+      {/* 身分標頭 */}
+      <div
+        className={cn(
+          "p-3 text-center border-b min-h-[120px] flex flex-col items-center gap-1.5",
+          accent,
+        )}
+      >
+        <div className="h-11 w-11 rounded-full bg-background/70 border flex items-center justify-center font-numeric font-bold text-xl shrink-0">
+          {p.jerseyNo ?? "—"}
+        </div>
+        <div className="min-w-0 w-full">
+          <p className="font-semibold truncate leading-tight">{p.name}</p>
+          {p.nickname && (
+            <p className="text-xs text-muted-foreground truncate">{p.nickname}</p>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-1 justify-center">
+          {positions.length === 0 ? (
+            <span className="text-xs text-muted-foreground/50">—</span>
+          ) : (
+            positions.map((c) => (
+              <Chip key={c} tone={POSITION_TONE[c] ?? "neutral"} size="sm">
+                {POSITION_LABELS[c] ?? c}
+              </Chip>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* 數值列 */}
+      <div className="divide-y">
+        <MetricBarRow
+          label="身高"
+          unit="cm"
+          value={p.heightCm}
+          max={maxH}
+          leaderLabel="最高"
+          leaderTone="primary"
+          barClass="bg-primary"
+        />
+        {textRows.map((row) => (
+          <div
+            key={row.label}
+            className="px-3 py-2 min-h-[2.75rem] flex flex-col justify-center gap-0.5"
+          >
+            <span className="text-[11px] text-muted-foreground">{row.label}</span>
+            <div className="text-sm">{row.value(p)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 單一數值列：值 + 等比長條 + 最大值徽章／落後差值
+function MetricBarRow({
+  label,
+  unit,
+  value,
+  max,
+  leaderLabel,
+  leaderTone,
+  barClass,
+}: {
+  label: string;
+  unit: string;
+  value: number | null;
+  max: number | null;
+  leaderLabel: string;
+  leaderTone: "primary" | "neutral";
+  barClass: string;
+}) {
+  const isLeader = value != null && max != null && max > 0 && value === max;
+  const behind =
+    value != null && max != null && value < max ? max - value : null;
+  const pct =
+    value != null && max != null && max > 0
+      ? Math.round((value / max) * 100)
+      : 0;
+
+  return (
+    <div className="px-3 py-2 min-h-[3.5rem] flex flex-col justify-center gap-1">
+      <div className="flex items-center justify-between gap-1">
+        <span className="text-[11px] text-muted-foreground">{label}</span>
+        {isLeader ? (
+          <Chip tone={leaderTone} size="sm">
+            {leaderLabel}
+          </Chip>
+        ) : behind != null ? (
+          <span className="text-[11px] text-muted-foreground/70 font-numeric">
+            −{behind}
+            {unit}
+          </span>
+        ) : null}
+      </div>
+      <div>
+        <span
+          className={cn(
+            "font-numeric font-semibold tabular-nums",
+            isLeader && "text-primary",
+          )}
+        >
+          {value != null ? value : "—"}
+          {value != null && (
+            <span className="text-[11px] text-muted-foreground ml-0.5 font-normal">
+              {unit}
+            </span>
+          )}
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn("h-full rounded-full transition-all", barClass)}
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );

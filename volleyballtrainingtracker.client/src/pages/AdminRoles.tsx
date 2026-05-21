@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   CalendarDays,
+  Droplets,
   Dumbbell,
   LayoutDashboard,
   ListChecks,
@@ -47,6 +48,7 @@ const PAGE_META: PageMeta[] = [
   { key: PAGE.Sessions,    label: "訓練紀錄",     icon: Dumbbell },
   { key: PAGE.MatchLogs,   label: "比賽紀錄",     icon: Volleyball },
   { key: PAGE.Drills,      label: "訓練項目",     icon: ListChecks },
+  { key: PAGE.Crying,      label: "哭哭榜",       icon: Droplets },
   { key: PAGE.AdminUsers,  label: "使用者管理",   icon: UserCog },
   { key: PAGE.AdminRoles,  label: "角色管理",     icon: ShieldCheck },
   { key: PAGE.Profile,     label: "我的帳號",     icon: User },

@@ -75,6 +75,13 @@ export default defineConfig(({ command }) => ({
         },
     },
     server: command === 'serve' ? createDevServerConfig() : undefined,
+    build: {
+        // 字型一律不內嵌：避免被切成 data: URI 而觸犯 CSP 的 font-src 'self'。
+        // 改 emit 成 /assets 同源檔（'self' 放行），CJK subset 也能按 unicode-range 按需載入。
+        // 其他資產（小圖、SVG 等）維持 Vite 預設 4KB 內嵌門檻。
+        assetsInlineLimit: (filePath: string) =>
+            /\.(woff2?|ttf|otf|eot)$/i.test(filePath) ? false : undefined,
+    },
     test: {
         environment: 'jsdom',
         globals: true,

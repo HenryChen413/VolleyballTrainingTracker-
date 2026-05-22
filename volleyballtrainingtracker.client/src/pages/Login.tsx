@@ -2,8 +2,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { Volleyball, AlertCircle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Volleyball, AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -24,15 +24,23 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+// 帳號只允許英數字並一律大寫；用於過濾貼上／IME 組字後的內容。
+const sanitizeUserName = (raw: string) => raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
   const isAuthed = useAuthStore((s) => s.isAuthenticated());
   const [error, setError] = useState<string | null>(null);
+  // IME（拼音／注音）組字進行中的旗標：組字期間先放手，避免即時過濾打斷組字。
+  const composingRef = useRef(false);
 
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
   });
+
+  const userName = watch('userName') ?? '';
+  const password = watch('password') ?? '';
 
   // 後端喚醒提示：登入請求送出後若遲遲未回應，顯示漸進式「伺服器喚醒中」提示。
   const coldStart = useColdStartHint(isSubmitting);
@@ -110,19 +118,41 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="userName">帳號</Label>
-                <Input
-                  id="userName"
-                  autoComplete="username"
-                  disabled={isSubmitting}
-                  className="font-mono uppercase tracking-wider"
-                  {...register('userName')}
-                  onChange={(e) => {
-                    const upper = e.target.value.replace(/[^A-Z0-9]/gi, (c) =>
-                      /[a-z]/.test(c) ? c.toUpperCase() : ''
-                    );
-                    setValue('userName', upper, { shouldValidate: true });
-                  }}
-                />
+                <div className="relative">
+                  <Input
+                    id="userName"
+                    autoComplete="username"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    disabled={isSubmitting}
+                    className="font-mono uppercase tracking-wider pr-10"
+                    {...register('userName')}
+                    onChange={(e) => {
+                      // 組字中（拼音／注音 IME）先放手，等 onCompositionEnd 再過濾，避免打斷組字。
+                      if (composingRef.current) return;
+                      setValue('userName', sanitizeUserName(e.target.value), { shouldValidate: true });
+                    }}
+                    onCompositionStart={() => {
+                      composingRef.current = true;
+                    }}
+                    onCompositionEnd={(e) => {
+                      composingRef.current = false;
+                      setValue('userName', sanitizeUserName(e.currentTarget.value), { shouldValidate: true });
+                    }}
+                  />
+                  {userName && !isSubmitting && (
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setValue('userName', '', { shouldValidate: true })}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+                      aria-label="清除帳號"
+                      title="清除帳號"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
                 {errors.userName && (
                   <p className="text-sm text-destructive">{errors.userName.message}</p>
                 )}
@@ -134,6 +164,8 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   disabled={isSubmitting}
                   {...register('password')}
+                  showClear={!!password && !isSubmitting}
+                  onClear={() => setValue('password', '', { shouldValidate: true })}
                 />
                 {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
               </div>

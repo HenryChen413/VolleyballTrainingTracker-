@@ -1044,9 +1044,7 @@ function EditorForm({
               style={{ textTransform: 'uppercase' }}
               maxLength={32}
               onChange={(e) => {
-                const upper = e.target.value.replace(/[^A-Z0-9]/gi, (c) =>
-                  /[a-z]/.test(c) ? c.toUpperCase() : '',
-                );
+                const upper = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
                 setDraft((d) => ({ ...d, userName: upper }));
               }}
               placeholder="僅英數，3 字以上"

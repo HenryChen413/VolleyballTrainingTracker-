@@ -85,7 +85,13 @@
       "Bash(node -p \"require\\('vite/package.json'\\).version\")",
       "Bash(node -p \"require\\('esbuild/package.json'\\).version\")",
       "Bash(sed -n '30,50p' node_modules/rolldown/dist/shared/binding-zH1vcmbM.d.mts)",
-      "Bash(sed -n '120,135p' node_modules/rolldown/dist/shared/binding-zH1vcmbM.d.mts)"
+      "Bash(sed -n '120,135p' node_modules/rolldown/dist/shared/binding-zH1vcmbM.d.mts)",
+      "Bash(curl -sSI https://volleyball-training-tracker.vercel.app/robots.txt)",
+      "Bash(curl -sSI https://volleyball-training-tracker.vercel.app/assets/index-CYN90Awl.js)",
+      "Bash(curl -sSI -H \"Origin: https://evil.example.com\" https://volleyball-training-tracker.vercel.app/login)",
+      "Bash(curl -sS https://volleyball-training-tracker.vercel.app/)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('volleyballtrainingtracker.client/vercel.json','utf8'\\)\\); console.log\\('vercel.json OK'\\)\")",
+      "Bash(curl -sSI https://volleyball-training-tracker.vercel.app__TRACKED_VAR__)"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

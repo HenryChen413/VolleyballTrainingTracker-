@@ -82,7 +82,7 @@ export const ALL_NAV: NavItem[] = [
   },
   {
     to: "/sponsors",
-    label: "隊費贊助",
+    label: "隊費贊助榜",
     page: PAGE.Sponsors,
     icon: HandCoins,
     group: "main",

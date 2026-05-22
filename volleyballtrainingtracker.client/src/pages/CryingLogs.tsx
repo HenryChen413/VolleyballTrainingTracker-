@@ -312,7 +312,7 @@ export default function CryingLogsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <TotalCard total={stats?.totalLogs ?? 0} />
         <Top3MiniCard
-          title="哭王 TOP 3"
+          title="哭哭王 TOP 3"
           icon={<Crown className="h-4 w-4 text-warning" />}
           tone="info"
           rows={(stats?.topCriers ?? []).map((r) => ({

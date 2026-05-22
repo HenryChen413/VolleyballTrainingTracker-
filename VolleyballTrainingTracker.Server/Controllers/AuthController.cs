@@ -37,6 +37,14 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "帳號或密碼錯誤" });
         if (user.Role == null)
             return StatusCode(500, new { message = "使用者未綁定角色" });
+
+        // 記錄最近一次成功登入時間（UTC）
+        // 以 ExecuteUpdate 直接更新單一欄位，避免觸發 SaveChanges 的稽核戳記
+        // （否則登入會被誤記為一次「更新」並把 UpdatedAt/UpdatedByUserId 蓋掉）
+        await _db.Users
+            .Where(u => u.Id == user.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.LastLoginAt, DateTime.UtcNow));
+
         return Ok(BuildResponse(user));
     }
 

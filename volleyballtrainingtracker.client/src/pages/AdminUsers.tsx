@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronsUpDown,
+  Clock,
   Mail,
   Pencil,
   Plus,
@@ -39,17 +40,19 @@ import { cn } from '@/lib/utils';
 
 // ── 型別 ────────────────────────────────────────────────────────────────
 type StatusFilter = 'all' | 'active' | 'inactive';
+type LoginFilter = 'all' | 'never';
 type ChipTone = 'neutral' | 'primary' | 'navy' | 'success' | 'destructive' | 'warning' | 'info';
-type SortKey = 'user' | 'email' | 'role' | 'status';
+type SortKey = 'user' | 'email' | 'role' | 'status' | 'lastLogin';
 type SortDir = 'asc' | 'desc';
 
 interface FilterState {
   query: string;
   roleId: number | 'all';
   status: StatusFilter;
+  loginFilter: LoginFilter;
 }
 
-const emptyFilter: FilterState = { query: '', roleId: 'all', status: 'all' };
+const emptyFilter: FilterState = { query: '', roleId: 'all', status: 'all', loginFilter: 'all' };
 
 interface DraftState {
   id: number | null;
@@ -114,6 +117,53 @@ function Avatar({ seed, size = 'md' }: { seed: string; size?: 'sm' | 'md' }) {
 function getApiErrorMessage(e: unknown, fallback: string) {
   return (
     (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback
+  );
+}
+
+// ── 時間格式化（最近登入） ───────────────────────────────────────────────
+const rtf = new Intl.RelativeTimeFormat('zh-Hant', { numeric: 'auto' });
+
+/** 相對時間（例：3 天前）。傳入 UTC ISO 字串。 */
+function formatRelativeTime(iso: string): string {
+  const ts = new Date(iso).getTime();
+  if (Number.isNaN(ts)) return '—';
+  const sec = Math.round((ts - Date.now()) / 1000);
+  const abs = Math.abs(sec);
+  if (abs < 60) return rtf.format(sec, 'second');
+  const min = Math.round(sec / 60);
+  if (Math.abs(min) < 60) return rtf.format(min, 'minute');
+  const hr = Math.round(min / 60);
+  if (Math.abs(hr) < 24) return rtf.format(hr, 'hour');
+  const day = Math.round(hr / 24);
+  if (Math.abs(day) < 30) return rtf.format(day, 'day');
+  const month = Math.round(day / 30);
+  if (Math.abs(month) < 12) return rtf.format(month, 'month');
+  return rtf.format(Math.round(month / 12), 'year');
+}
+
+/** 絕對時間（本地時區），作為 tooltip 顯示。 */
+function formatAbsoluteTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function LastLoginCell({ iso }: { iso?: string | null }) {
+  if (!iso) return <span className="text-muted-foreground">從未登入</span>;
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-muted-foreground"
+      title={formatAbsoluteTime(iso)}
+    >
+      <Clock className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate">{formatRelativeTime(iso)}</span>
+    </span>
   );
 }
 
@@ -243,7 +293,8 @@ export default function AdminUsersPage() {
     const list = users ?? [];
     const active = list.filter((u) => u.isActive).length;
     const admin = list.filter((u) => u.roleName === 'Admin').length;
-    return { total: list.length, active, inactive: list.length - active, admin };
+    const neverLoggedIn = list.filter((u) => !u.lastLoginAt).length;
+    return { total: list.length, active, inactive: list.length - active, admin, neverLoggedIn };
   }, [users]);
 
   // 篩選
@@ -258,6 +309,7 @@ export default function AdminUsersPage() {
       if (filters.roleId !== 'all' && u.roleId !== filters.roleId) return false;
       if (filters.status === 'active' && !u.isActive) return false;
       if (filters.status === 'inactive' && u.isActive) return false;
+      if (filters.loginFilter === 'never' && u.lastLoginAt) return false;
       return true;
     });
   }, [users, filters]);
@@ -273,6 +325,12 @@ export default function AdminUsersPage() {
           return a.roleName.localeCompare(b.roleName, 'zh-Hant');
         case 'status':
           return Number(a.isActive) - Number(b.isActive);
+        case 'lastLogin': {
+          // 從未登入（null）視為最早，asc 時排在最前、desc 時最近在前
+          const ta = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : 0;
+          const tb = b.lastLoginAt ? new Date(b.lastLoginAt).getTime() : 0;
+          return ta - tb;
+        }
         case 'user':
         default:
           return (a.displayName || a.userName).localeCompare(
@@ -574,6 +632,22 @@ export default function AdminUsersPage() {
               </div>
             </div>
           </div>
+          <div className="mt-3 flex items-center gap-2">
+            <Switch
+              id="f-never-login"
+              checked={filters.loginFilter === 'never'}
+              onCheckedChange={(v) =>
+                setFilters((f) => ({ ...f, loginFilter: v ? 'never' : 'all' }))
+              }
+              aria-label="僅顯示從未登入者"
+            />
+            <Label htmlFor="f-never-login" className="cursor-pointer text-sm font-normal">
+              僅顯示從未登入者
+              {stats.neverLoggedIn > 0 && (
+                <span className="text-muted-foreground">（{stats.neverLoggedIn}）</span>
+              )}
+            </Label>
+          </div>
         </CardContent>
       </Card>
 
@@ -638,6 +712,7 @@ export default function AdminUsersPage() {
                     <SortableTh label="Email" sortKey="email" sort={sort} onSort={toggleSort} />
                     <SortableTh label="角色" sortKey="role" sort={sort} onSort={toggleSort} />
                     <SortableTh label="狀態" sortKey="status" sort={sort} onSort={toggleSort} />
+                    <SortableTh label="最近登入" sortKey="lastLogin" sort={sort} onSort={toggleSort} />
                     <th className="px-4 py-3 font-medium text-muted-foreground text-right">操作</th>
                   </tr>
                 </thead>
@@ -834,6 +909,9 @@ function UserRow({
           <Chip tone="neutral">停用</Chip>
         )}
       </td>
+      <td className="px-4 py-3 text-sm">
+        <LastLoginCell iso={u.lastLoginAt} />
+      </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1 justify-end">
           {canManage ? (
@@ -944,6 +1022,9 @@ function UserMobileCard({
                 停用
               </Chip>
             )}
+          </div>
+          <div className="mt-1.5 text-xs">
+            <LastLoginCell iso={u.lastLoginAt} />
           </div>
         </div>
       </div>

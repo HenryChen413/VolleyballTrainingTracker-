@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS "Users" (
     "CreatedAt"       timestamptz   NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
     "UpdatedAt"       timestamptz   NULL,
     "CreatedByUserId" integer       NULL,
-    "UpdatedByUserId" integer       NULL
+    "UpdatedByUserId" integer       NULL,
+    "LastLoginAt"     timestamptz   NULL                          -- 最近一次成功登入時間（UTC），未登入過為 NULL
 );
 
 -- ---------- Players ----------

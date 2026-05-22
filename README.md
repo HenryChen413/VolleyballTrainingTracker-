@@ -27,13 +27,7 @@ dotnet run --project VolleyballTrainingTracker.Server -- seed-roles
 dotnet run --project VolleyballTrainingTracker.Server -- seed-user YUANHE "你的管理員密碼" Admin
 ```
 
-### 3. 匯出 Schema 到 Client（DB-First）
-```bash
-dotnet run --project VolleyballTrainingTracker.Server -- export-schema
-```
-→ 寫入 `volleyballtrainingtracker.client/Schema/TableSchema/*.ts` 與 `Sequences/*.ts`。
-
-### 4. 啟動後端 + 前端
+### 3. 啟動後端 + 前端
 從 Visual Studio 開啟 `VolleyballTrainingTracker.sln` 並按 F5；或：
 ```bash
 # 後端
@@ -103,9 +97,9 @@ volleyballtrainingtracker.client/   # React 19 + Vite + TS
                        MatchLogs, MatchLogEdit, Stats,
                        AdminUsers, AdminRoles, Profile, NoAccess
     stores/authStore.ts
-  Schema/              ★ 由 SchemaExporter 產生（勿手改）
 
 docs/操作手冊.md                            # 使用者操作手冊
+docs/CHANGELOG.md                           # 變更日誌
 ```
 
 ## 資料庫

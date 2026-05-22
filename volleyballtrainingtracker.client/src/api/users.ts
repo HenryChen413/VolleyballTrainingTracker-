@@ -9,6 +9,7 @@ export interface UserListItem {
   roleName: string;
   isActive: boolean;
   createdAt: string;
+  lastLoginAt?: string | null;
 }
 
 export interface UserCreatePayload {

@@ -12,6 +12,7 @@ public class UserListItemDto
     public string RoleName { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+    public DateTime? LastLoginAt { get; set; }
 }
 
 public class UserRoleUpdateRequest

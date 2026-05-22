@@ -58,6 +58,7 @@ public class UsersController : ControllerBase
                 RoleName = u.Role!.Name,
                 IsActive = u.IsActive,
                 CreatedAt = u.CreatedAt,
+                LastLoginAt = u.LastLoginAt,
             })
             .ToListAsync();
         return Ok(list);

@@ -74,7 +74,18 @@
       "PowerShell(npm --prefix \"c:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\volleyballtrainingtracker.client\" run build)",
       "Bash(git -C \"c:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\" log --oneline -20)",
       "Bash(echo \"===TSC EXIT $?===\")",
-      "Bash(echo \"===ESLINT EXIT $?===\")"
+      "Bash(echo \"===ESLINT EXIT $?===\")",
+      "Bash(node -e \"console.log\\(require\\('sweetalert2/package.json'\\).version\\)\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const p=require.resolve\\('sweetalert2'\\);console.log\\(p\\)\")",
+      "Bash(node -e \"const path=require\\('path'\\);const dir=path.dirname\\(require.resolve\\('sweetalert2'\\)\\);const fs=require\\('fs'\\);console.log\\(fs.readdirSync\\(path.join\\(dir,'..'\\)\\)\\)\")",
+      "Bash(node -e \"console.log\\('dialog', require\\('@radix-ui/react-dialog/package.json'\\).version\\); console.log\\('focus-scope', require\\('@radix-ui/react-focus-scope/package.json'\\).version\\)\")",
+      "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>console.log\\('focus-scope',JSON.parse\\(s\\).version\\)\\)\")",
+      "Bash(curl -sSI https://volleyball-training-tracker.vercel.app/)",
+      "Bash(curl -sSI https://volleyball-training-tracker.vercel.app/login)",
+      "Bash(node -p \"require\\('vite/package.json'\\).version\")",
+      "Bash(node -p \"require\\('esbuild/package.json'\\).version\")",
+      "Bash(sed -n '30,50p' node_modules/rolldown/dist/shared/binding-zH1vcmbM.d.mts)",
+      "Bash(sed -n '120,135p' node_modules/rolldown/dist/shared/binding-zH1vcmbM.d.mts)"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

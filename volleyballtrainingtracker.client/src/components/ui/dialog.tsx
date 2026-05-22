@@ -60,7 +60,7 @@ export function Dialog({
           }}
           className={cn(
             'fixed left-1/2 top-1/2 z-50 flex w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col',
-            'max-h-[calc(100vh-2rem)] overflow-hidden rounded-lg border bg-card text-card-foreground shadow-lift',
+            'max-h-[calc(100dvh-2rem)] overflow-hidden rounded-lg border bg-card text-card-foreground shadow-lift',
             'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
             'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
             SIZE_CLASS[size],

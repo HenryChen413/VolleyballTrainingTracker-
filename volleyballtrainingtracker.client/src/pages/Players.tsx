@@ -887,7 +887,7 @@ function FilterPill({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="appearance-none bg-transparent pr-4 text-xs focus:outline-none cursor-pointer font-medium"
+        className="appearance-none bg-transparent pr-4 text-base md:text-xs focus:outline-none cursor-pointer font-medium"
       >
         <option value="" style={optionStyle}>全部</option>
         {options.map((o) => (

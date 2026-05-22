@@ -180,7 +180,7 @@ function SetScoreInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          "w-10 h-8 text-center text-sm font-numeric tabular-nums border-x border-input bg-background focus:outline-none focus:ring-0",
+          "w-10 h-8 text-center text-base md:text-sm font-numeric tabular-nums border-x border-input bg-background focus:outline-none focus:ring-0",
           accent === "our" && "text-primary font-semibold",
           accent === "opp" && "text-foreground",
         )}
@@ -286,7 +286,7 @@ function MatchRowCard({
                   value={row.manualWins}
                   onChange={(e) => onChange({ manualWins: e.target.value })}
                   placeholder="0"
-                  className="w-10 h-7 text-center text-xs font-numeric tabular-nums rounded-md border border-input bg-background text-success font-semibold focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="w-10 h-7 text-center text-base md:text-xs font-numeric tabular-nums rounded-md border border-input bg-background text-success font-semibold focus:outline-none focus:ring-1 focus:ring-ring"
                   aria-label="我方局勝數"
                 />
                 <span className="text-muted-foreground">:</span>
@@ -295,7 +295,7 @@ function MatchRowCard({
                   value={row.manualLosses}
                   onChange={(e) => onChange({ manualLosses: e.target.value })}
                   placeholder="0"
-                  className="w-10 h-7 text-center text-xs font-numeric tabular-nums rounded-md border border-input bg-background text-destructive font-semibold focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="w-10 h-7 text-center text-base md:text-xs font-numeric tabular-nums rounded-md border border-input bg-background text-destructive font-semibold focus:outline-none focus:ring-1 focus:ring-ring"
                   aria-label="對方局勝數"
                 />
               </div>
@@ -404,7 +404,7 @@ function MatchRowCard({
             type="date"
             value={row.matchDate}
             onChange={(e) => onChange({ matchDate: e.target.value })}
-            className="h-7 px-1.5 rounded-md border border-input bg-background text-xs font-numeric tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+            className="h-7 px-1.5 rounded-md border border-input bg-background text-base md:text-xs font-numeric tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
           />
           {row.matchDate ? (
             <button

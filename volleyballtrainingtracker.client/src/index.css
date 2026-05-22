@@ -91,6 +91,17 @@
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
   }
 
+  /* iOS Safari：聚焦字級 <16px 的輸入框會自動放大且不縮回，使用者得手動雙擊縮小。
+     手機（<768px，即 Tailwind md 以下）強制表單控制項至少 16px 以杜絕此行為。
+     用元素選擇器（不加 !important），避免覆蓋刻意寫死 text-xs 的緊湊小框排版。 */
+  @media (max-width: 767.98px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
   /* 數字、比分、統計值使用 mono + tabular-nums */
   .font-display { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; font-feature-settings: "ss01" 1, "cv11" 1; }
   .font-numeric { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }

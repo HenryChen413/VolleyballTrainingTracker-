@@ -32,6 +32,8 @@ public class AppDbContext : DbContext
     public DbSet<BoardPost> BoardPosts => Set<BoardPost>();
     public DbSet<BoardComment> BoardComments => Set<BoardComment>();
     public DbSet<BoardReaction> BoardReactions => Set<BoardReaction>();
+    public DbSet<Sponsor> Sponsors => Set<Sponsor>();
+    public DbSet<Sponsorship> Sponsorships => Set<Sponsorship>();
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -276,6 +278,35 @@ public class AppDbContext : DbContext
             e.HasIndex(x => new { x.PostId, x.UserId, x.Emoji })
                 .IsUnique()
                 .HasDatabaseName("UX_BoardReactions_Post_User_Emoji");
+        });
+
+        modelBuilder.Entity<Sponsor>(e =>
+        {
+            e.ToTable("Sponsors");
+            e.Property(x => x.DisplayName).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Notes).HasMaxLength(256);
+            e.HasOne(x => x.Player).WithMany().HasForeignKey(x => x.PlayerId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
+            // 一位球員最多對應一筆贊助者名冊（NULL 不參與唯一）
+            e.HasIndex(x => x.PlayerId)
+                .IsUnique()
+                .HasFilter("\"PlayerId\" IS NOT NULL")
+                .HasDatabaseName("UX_Sponsors_Player");
+        });
+
+        modelBuilder.Entity<Sponsorship>(e =>
+        {
+            e.ToTable("Sponsorships", t =>
+            {
+                t.HasCheckConstraint("CK_Sponsorships_AmountPositive", "\"Amount\" > 0");
+            });
+            e.Property(x => x.OccurredAt).HasColumnType("date");
+            e.Property(x => x.Purpose).HasMaxLength(128);
+            e.Property(x => x.Notes).HasMaxLength(256);
+            e.HasOne(x => x.Sponsor).WithMany(s => s.Sponsorships).HasForeignKey(x => x.SponsorId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(x => x.SponsorId).HasDatabaseName("IX_Sponsorships_Sponsor");
+            e.HasIndex(x => x.OccurredAt).HasDatabaseName("IX_Sponsorships_OccurredAt");
         });
     }
 

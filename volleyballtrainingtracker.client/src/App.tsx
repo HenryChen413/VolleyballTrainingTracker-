@@ -16,6 +16,7 @@ import DrillsPage from '@/pages/Drills';
 import DrillEditPage from '@/pages/DrillEdit';
 import CryingLogsPage from '@/pages/CryingLogs';
 import BoardPage from '@/pages/Board';
+import SponsorsPage from '@/pages/Sponsors';
 import ProfilePage from '@/pages/Profile';
 import AdminRolesPage from '@/pages/AdminRoles';
 import AdminUsersPage from '@/pages/AdminUsers';
@@ -64,6 +65,9 @@ export default function App() {
               </Route>
               <Route element={<ProtectedRoute requirePage={PAGE.Board} />}>
                 <Route path="/board" element={<BoardPage />} />
+              </Route>
+              <Route element={<ProtectedRoute requirePage={PAGE.Sponsors} />}>
+                <Route path="/sponsors" element={<SponsorsPage />} />
               </Route>
               <Route element={<ProtectedRoute requirePage={PAGE.Profile} />}>
                 <Route path="/profile" element={<ProfilePage />} />

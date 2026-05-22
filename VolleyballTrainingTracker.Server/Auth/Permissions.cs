@@ -21,12 +21,17 @@ public static class Permissions
     // 此權限額外授予「刪除任何人的貼文/回覆、置頂」的管理能力。
     public const string BoardManage   = "board.manage";
 
+    // 隊費贊助榜：看／編分離。Pages.Sponsors 控誰看得到芳名榜；
+    // 此權限額外授予新增/修改/刪除贊助者與贊助紀錄的能力（金錢較敏感）。
+    public const string SponsorsEdit  = "sponsors.edit";
+
     public static readonly string[] All =
     {
         PlayersEdit, PlayersPurge,
         SessionsEdit, DrillsEdit, MatchLogsEdit,
         UsersManage, RolesManage,
         BoardManage,
+        SponsorsEdit,
     };
 }
 
@@ -43,12 +48,13 @@ public static class Pages
     public const string Drills = "drills";
     public const string Crying = "crying";
     public const string Board = "board";
+    public const string Sponsors = "sponsors";
     public const string AdminRoles = "admin-roles";
     public const string AdminUsers = "admin-users";
     public const string Profile = "profile";
 
     public static readonly string[] All =
     {
-        Dashboard, Calendar, Players, Sessions, MatchLogs, Drills, Crying, Board, AdminRoles, AdminUsers, Profile,
+        Dashboard, Calendar, Players, Sessions, MatchLogs, Drills, Crying, Board, Sponsors, AdminRoles, AdminUsers, Profile,
     };
 }

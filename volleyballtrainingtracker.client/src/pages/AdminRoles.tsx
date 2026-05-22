@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Droplets,
   Dumbbell,
+  HandCoins,
   LayoutDashboard,
   ListChecks,
   Lock,
@@ -51,6 +52,7 @@ const PAGE_META: PageMeta[] = [
   { key: PAGE.Drills,      label: "訓練項目",     icon: ListChecks },
   { key: PAGE.Crying,      label: "哭哭榜",       icon: Droplets },
   { key: PAGE.Board,       label: "留言板",       icon: MessageSquare },
+  { key: PAGE.Sponsors,    label: "隊費贊助",     icon: HandCoins },
   { key: PAGE.AdminUsers,  label: "使用者管理",   icon: UserCog },
   { key: PAGE.AdminRoles,  label: "角色管理",     icon: ShieldCheck },
   { key: PAGE.Profile,     label: "我的帳號",     icon: User },
@@ -71,6 +73,7 @@ const EDIT_PERMS: PermMeta[] = [
   { key: PERM.SessionsEdit,  label: "訓練紀錄", icon: Dumbbell,   desc: "新增、修改、刪除訓練紀錄", relatedPage: PAGE.Sessions },
   { key: PERM.DrillsEdit,    label: "訓練項目", icon: ListChecks, desc: "新增、修改、停用訓練項目", relatedPage: PAGE.Drills },
   { key: PERM.MatchLogsEdit, label: "比賽紀錄", icon: Volleyball, desc: "新增、修改、刪除比賽紀錄", relatedPage: PAGE.MatchLogs },
+  { key: PERM.SponsorsEdit,  label: "隊費贊助", icon: HandCoins,  desc: "新增、修改、刪除贊助者與贊助紀錄", relatedPage: PAGE.Sponsors },
 ];
 
 const SPECIAL_PERMS: PermMeta[] = [

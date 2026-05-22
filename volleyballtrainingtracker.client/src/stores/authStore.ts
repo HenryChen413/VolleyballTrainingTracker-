@@ -60,6 +60,7 @@ export const PERM = {
   UsersManage: 'users.manage',
   RolesManage: 'roles.manage',
   BoardManage: 'board.manage',
+  SponsorsEdit: 'sponsors.edit',
 } as const;
 
 export const PAGE = {
@@ -71,6 +72,7 @@ export const PAGE = {
   Drills: 'drills',
   Crying: 'crying',
   Board: 'board',
+  Sponsors: 'sponsors',
   AdminRoles: 'admin-roles',
   AdminUsers: 'admin-users',
   Profile: 'profile',

@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import {
   CalendarDays,
   Droplets,
+  HandCoins,
   LayoutDashboard,
   MessageSquare,
   Settings,
@@ -77,6 +78,13 @@ export const ALL_NAV: NavItem[] = [
     label: "留言板",
     page: PAGE.Board,
     icon: MessageSquare,
+    group: "main",
+  },
+  {
+    to: "/sponsors",
+    label: "隊費贊助",
+    page: PAGE.Sponsors,
+    icon: HandCoins,
     group: "main",
   },
   {

@@ -293,10 +293,11 @@ static async Task SeedRolesAsync(AppDbContext db)
         Permissions.PlayersEdit,
         Permissions.SessionsEdit,
         Permissions.DrillsEdit,
+        Permissions.SponsorsEdit,
     });
     var coachPages = JsonSerializer.Serialize(new[]
     {
-        Pages.Dashboard, Pages.Calendar, Pages.Players, Pages.Sessions, Pages.Drills, Pages.Board, Pages.Profile,
+        Pages.Dashboard, Pages.Calendar, Pages.Players, Pages.Sessions, Pages.Drills, Pages.Board, Pages.Sponsors, Pages.Profile,
     });
     var playerPerms = JsonSerializer.Serialize(Array.Empty<string>());
     var playerPages = coachPages; // 跟 Coach 同步主功能可看

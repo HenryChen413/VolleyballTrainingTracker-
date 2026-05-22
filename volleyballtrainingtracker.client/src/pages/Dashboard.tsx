@@ -21,6 +21,7 @@ import {
   BookOpen,
   Cake,
   Volleyball,
+  Crown,
 } from "lucide-react";
 import {
   Card,
@@ -52,6 +53,12 @@ import {
   PLAYER_STATUS,
   type Player,
 } from "@/api/players";
+import {
+  sponsorsApi,
+  SPONSOR_IDENTITY_LABEL,
+  type SponsorRank,
+} from "@/api/sponsors";
+import { PAGE, useAuthStore } from "@/stores/authStore";
 
 const YT_CHANNEL_URL = "https://youtube.com/channel/UCvONl3xCT8XLwoozldtsCcQ";
 const IG_URL = "https://www.instagram.com/kmumed_gvb/";
@@ -76,6 +83,17 @@ const MATCH_TYPE_TONE: Record<string, "info" | "warning"> = {
   Official: "info",
   Friendly: "warning",
 };
+
+// 贊助榜前三名名次配色（金 / 銀 / 銅）
+const SPONSOR_RANK_COLOR = [
+  "text-warning",
+  "text-muted-foreground",
+  "text-foreground/50",
+];
+
+function formatMoneyShort(n: number): string {
+  return `$${(n ?? 0).toLocaleString("en-US")}`;
+}
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -109,6 +127,16 @@ export default function DashboardPage() {
   const managerCount = (activeStaff ?? []).filter(
     (p) => p.memberType === MEMBER_TYPE.Manager,
   ).length;
+
+  // 贊助榜前三名（僅在有「隊費贊助」頁面權限時查詢與顯示）
+  const canSeeSponsors = useAuthStore((s) => s.canAccess)(PAGE.Sponsors);
+  const { data: sponsorStats } = useQuery({
+    queryKey: ["sponsor-stats", "dashboard-top3"],
+    queryFn: () => sponsorsApi.stats({ top: 3 }),
+    enabled: canSeeSponsors,
+  });
+  const topSponsors = sponsorStats?.topSponsors ?? [];
+  const showSponsorKpi = canSeeSponsors && topSponsors.length > 0;
 
   const yearLabel =
     overview?.latestAcademicYear != null
@@ -179,8 +207,14 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Hero KPI grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
+      {/* Hero KPI grid（有贊助榜時為 4 欄：贊助榜 / 現役選手 / 比賽 / 友誼賽） */}
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-3 lg:gap-4",
+          showSponsorKpi ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3",
+        )}
+      >
+        {showSponsorKpi && <SponsorKpiCard sponsors={topSponsors} />}
         {lo ? (
           <>
             <SkeletonCard />
@@ -533,6 +567,63 @@ function StatCard({
             )}
           >
             <Icon className="h-5 w-5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ============== 贊助榜 KPI 卡（StatCard 樣式，內含前三名三行） ============== */
+
+function SponsorKpiCard({ sponsors }: { sponsors: SponsorRank[] }) {
+  return (
+    <Card
+      className={cn(
+        "relative overflow-hidden transition-all hover:shadow-lift hover:-translate-y-0.5",
+        "bg-gradient-to-br",
+        TONE_ACCENT.warning,
+      )}
+    >
+      <CardContent className="p-4 lg:p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-muted-foreground">贊助榜</p>
+            <ol className="mt-1.5 space-y-1">
+              {sponsors.slice(0, 3).map((s, i) => (
+                <li
+                  key={s.sponsorId}
+                  className="flex items-baseline gap-1.5 text-sm"
+                >
+                  <span
+                    className={cn(
+                      "font-bold tabular-nums shrink-0 w-3",
+                      SPONSOR_RANK_COLOR[i] ?? "text-muted-foreground",
+                    )}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="font-medium truncate flex-1 min-w-0">
+                    {s.jerseyNo != null ? `#${s.jerseyNo} ` : ""}
+                    {s.displayName}
+                    <span className="ml-1 text-[11px] text-muted-foreground">
+                      {SPONSOR_IDENTITY_LABEL[s.identity] ?? ""}
+                    </span>
+                  </span>
+                  <span className="font-semibold tabular-nums text-warning shrink-0">
+                    {formatMoneyShort(s.totalAmount)}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div
+            className={cn(
+              "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
+              TONE_BG.warning,
+            )}
+          >
+            <Crown className="h-5 w-5" />
           </div>
         </div>
       </CardContent>

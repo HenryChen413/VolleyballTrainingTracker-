@@ -141,7 +141,7 @@ public class CryingLogsController : ControllerBase
             Reason = req.Reason.Trim(),
             Notes = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim(),
         };
-        foreach (var pid in NormalizePlayerIds(req.ScorerPlayerIds, req.CrierPlayerId))
+        foreach (var pid in NormalizePlayerIds(req.ScorerPlayerIds))
             log.Culprits.Add(new CryingLogCulprit { PlayerId = pid });
         foreach (var name in NormalizeExternalNames(req.ScorerExternalNames))
             log.Culprits.Add(new CryingLogCulprit { ExternalName = name });
@@ -168,7 +168,7 @@ public class CryingLogsController : ControllerBase
         log.Reason = req.Reason.Trim();
         log.Notes = string.IsNullOrWhiteSpace(req.Notes) ? null : req.Notes.Trim();
 
-        var wantPlayerIds = NormalizePlayerIds(req.ScorerPlayerIds, req.CrierPlayerId).ToHashSet();
+        var wantPlayerIds = NormalizePlayerIds(req.ScorerPlayerIds).ToHashSet();
         var wantExternals = NormalizeExternalNames(req.ScorerExternalNames).ToHashSet(StringComparer.Ordinal);
 
         // 移除不再保留的（球員 or 外部）
@@ -355,7 +355,7 @@ public class CryingLogsController : ControllerBase
         var crierExists = await _db.Players.AnyAsync(p => p.Id == req.CrierPlayerId);
         if (!crierExists) return "找不到哭哭的人";
 
-        var playerIds = NormalizePlayerIds(req.ScorerPlayerIds, req.CrierPlayerId).ToList();
+        var playerIds = NormalizePlayerIds(req.ScorerPlayerIds).ToList();
         if (playerIds.Count > 0)
         {
             var found = await _db.Players.CountAsync(p => playerIds.Contains(p.Id));
@@ -369,8 +369,9 @@ public class CryingLogsController : ControllerBase
         return null;
     }
 
-    private static IEnumerable<int> NormalizePlayerIds(IEnumerable<int> raw, int crierId)
-        => raw.Where(id => id != crierId).Distinct();
+    // 加分者允許包含哭者自己（可能自己把自己弄哭），僅去重
+    private static IEnumerable<int> NormalizePlayerIds(IEnumerable<int> raw)
+        => raw.Distinct();
 
     private static IEnumerable<string> NormalizeExternalNames(IEnumerable<string> raw)
         => raw

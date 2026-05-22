@@ -106,10 +106,11 @@ export const ALL_NAV: NavItem[] = [
 /**
  * 行動裝置底部列固定顯示的 5 個頁面（順序即顯示順序）。
  * 儀表板刻意放中央，符合行動 App「Home 在中間」的直覺。
+ * 行事曆仍保留於側欄，僅底部快捷列改放哭哭榜。
  * 若使用者對某頁無權限，該格不顯示，不由其他頁面補位。
  */
 export const BOTTOM_TAB_PAGES: readonly string[] = [
-  PAGE.Calendar,
+  PAGE.Crying,
   PAGE.Players,
   PAGE.Dashboard,
   PAGE.Sessions,

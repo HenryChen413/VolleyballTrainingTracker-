@@ -29,6 +29,7 @@ import {
   type Player,
   PLAYER_STATUS,
   PLAYER_STATUS_LABEL,
+  MEMBER_TYPE,
 } from "@/api/players";
 import { confirmAction, showError, showSuccess } from "@/lib/swal";
 import { cn } from "@/lib/utils";
@@ -76,6 +77,18 @@ function playerLabel(p: { name: string; jerseyNo: number | null }): string {
 function statusSuffix(p: Player): string {
   if (p.isActive === PLAYER_STATUS.Active) return "";
   return ` (${PLAYER_STATUS_LABEL[p.isActive] ?? ""})`;
+}
+
+// 下拉分組順序：教練 → 現役 → 畢業 → 球經 → 離隊（索引即排序值）
+const BUCKET_LABELS = ["教練", "現役", "畢業", "球經", "離隊"] as const;
+
+// 將成員歸入分組；離隊一律墊底，教練/球經依身分歸組，其餘選手再分現役/畢業
+function playerBucket(p: Player): number {
+  if (p.isActive === PLAYER_STATUS.Left) return 4; // 離隊
+  if (p.memberType === MEMBER_TYPE.Coach) return 0; // 教練
+  if (p.memberType === MEMBER_TYPE.Manager) return 3; // 球經
+  if (p.isActive === PLAYER_STATUS.Graduated) return 2; // 畢業
+  return 1; // 現役
 }
 
 export default function CryingLogsPage() {
@@ -129,14 +142,12 @@ export default function CryingLogsPage() {
     return m;
   }, [allPlayers]);
 
-  // 現役優先 → 畢業 → 離隊；同段內依背號、姓名
+  // 教練 → 現役 → 畢業 → 球經 → 離隊；同組內依背號、姓名
   const sortedFormPlayers = useMemo(() => {
-    const statusRank = (s: number) =>
-      s === PLAYER_STATUS.Active ? 0 : s === PLAYER_STATUS.Graduated ? 1 : 2;
     const arr = [...(allPlayers ?? [])];
     arr.sort((a, b) => {
-      const sr = statusRank(a.isActive) - statusRank(b.isActive);
-      if (sr !== 0) return sr;
+      const br = playerBucket(a) - playerBucket(b);
+      if (br !== 0) return br;
       const ja = a.jerseyNo ?? 999;
       const jb = b.jerseyNo ?? 999;
       if (ja !== jb) return ja - jb;
@@ -144,6 +155,21 @@ export default function CryingLogsPage() {
     });
     return arr;
   }, [allPlayers]);
+
+  // 依分組切成 optgroup / 分段所需的結構（sortedFormPlayers 已是分組順序）
+  const formPlayerGroups = useMemo(() => {
+    const groups: { bucket: number; label: string; players: Player[] }[] = [];
+    for (const p of sortedFormPlayers) {
+      const b = playerBucket(p);
+      let g = groups.find((x) => x.bucket === b);
+      if (!g) {
+        g = { bucket: b, label: BUCKET_LABELS[b], players: [] };
+        groups.push(g);
+      }
+      g.players.push(p);
+    }
+    return groups;
+  }, [sortedFormPlayers]);
 
   const createMut = useMutation({
     mutationFn: (data: CryingLogUpsert) => cryingApi.create(data),
@@ -225,9 +251,7 @@ export default function CryingLogsPage() {
       crierPlayerId: draft.crierPlayerId,
       reason: draft.reason.trim(),
       notes: draft.notes.trim() || null,
-      scorerPlayerIds: draft.scorerPlayerIds.filter(
-        (id) => id !== draft.crierPlayerId,
-      ),
+      scorerPlayerIds: draft.scorerPlayerIds,
       scorerExternalNames: draft.scorerExternalNames,
     };
     if (draft.id == null) createMut.mutate(data);
@@ -560,11 +584,15 @@ export default function CryingLogsPage() {
                 className="h-10 w-full rounded-md border bg-background px-3 text-sm"
               >
                 <option value="">— 選擇 —</option>
-                {sortedFormPlayers.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {playerLabel(p)}
-                    {statusSuffix(p)}
-                  </option>
+                {formPlayerGroups.map((g) => (
+                  <optgroup key={g.bucket} label={g.label}>
+                    {g.players.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {playerLabel(p)}
+                        {statusSuffix(p)}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>
@@ -609,7 +637,7 @@ export default function CryingLogsPage() {
             <label className="text-sm font-medium">
               加分者
               <span className="ml-1 text-muted-foreground/70 text-xs">
-                （可多選、可空；哭者自己會自動排除）
+                （可多選、可空；可選哭者自己）
               </span>
             </label>
 
@@ -648,44 +676,46 @@ export default function CryingLogsPage() {
                 </div>
               )}
 
-              {/* 球員多選網格（含畢業/離隊） */}
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">
-                  球員（含畢業 / 離隊）
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5">
-                  {sortedFormPlayers
-                    .filter((p) => p.id !== draft.crierPlayerId)
-                    .map((p) => {
-                      const selected = draft.scorerPlayerIds.includes(p.id);
-                      const inactive = p.isActive !== PLAYER_STATUS.Active;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => togglePlayerScorer(p.id)}
-                          className={cn(
-                            "relative text-left rounded-md border px-2 py-1.5 text-sm transition-colors",
-                            selected
-                              ? "border-warning bg-warning/15 text-warning"
-                              : "border-border hover:bg-accent/50",
-                          )}
-                        >
-                          {selected && (
-                            <Check className="absolute top-1 right-1 h-3 w-3" />
-                          )}
-                          <span className="pr-4 truncate block">
-                            {playerLabel(p)}
-                            {inactive && (
-                              <span className="ml-1 text-[10px] text-muted-foreground">
-                                {statusSuffix(p).trim()}
-                              </span>
+              {/* 球員多選網格（依教練/現役/畢業/球經/離隊分組；含哭者自己） */}
+              <div className="space-y-3">
+                {formPlayerGroups.map((g) => (
+                  <div key={g.bucket}>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      {g.label}
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5">
+                      {g.players.map((p) => {
+                        const selected = draft.scorerPlayerIds.includes(p.id);
+                        const isSelf = p.id === draft.crierPlayerId;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => togglePlayerScorer(p.id)}
+                            className={cn(
+                              "relative text-left rounded-md border px-2 py-1.5 text-sm transition-colors",
+                              selected
+                                ? "border-warning bg-warning/15 text-warning"
+                                : "border-border hover:bg-accent/50",
                             )}
-                          </span>
-                        </button>
-                      );
-                    })}
-                </div>
+                          >
+                            {selected && (
+                              <Check className="absolute top-1 right-1 h-3 w-3" />
+                            )}
+                            <span className="pr-4 truncate block">
+                              {playerLabel(p)}
+                              {isSelf && (
+                                <span className="ml-1 text-[10px] text-muted-foreground">
+                                  自己
+                                </span>
+                              )}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {/* 外部自由輸入 */}
@@ -768,13 +798,24 @@ function Top3MiniCard({
   rows: MiniRow[];
   tone: "info" | "warning";
 }) {
-  const top3 = rows.slice(0, 3);
-  const max = Math.max(1, ...top3.map((r) => r.count));
-  const medalColors = [
-    "text-warning",
-    "text-muted-foreground",
-    "text-foreground/60",
-  ];
+  // 標準競技排名（1224）：同分同名次，下一名次跳號；顯示名次 ≤ 3 的全部
+  // 例：兩人同居首 → 1,1,3；同居次 → 1,2,2；同居季 → 1,2,3,3
+  const ordered = [...rows].sort((a, b) => b.count - a.count);
+  const ranked: (MiniRow & { rank: number })[] = [];
+  let prevCount: number | null = null;
+  let rank = 0;
+  ordered.forEach((r, i) => {
+    if (prevCount === null || r.count !== prevCount) rank = i + 1;
+    prevCount = r.count;
+    ranked.push({ ...r, rank });
+  });
+  const visible = ranked.filter((r) => r.rank <= 3);
+  const max = Math.max(1, ...visible.map((r) => r.count));
+  const medalColors: Record<number, string> = {
+    1: "text-warning",
+    2: "text-muted-foreground",
+    3: "text-foreground/60",
+  };
   const barTone = tone === "warning" ? "bg-warning/60" : "bg-info/60";
 
   return (
@@ -784,22 +825,22 @@ function Top3MiniCard({
           {icon}
           <span>{title}</span>
         </div>
-        {top3.length === 0 ? (
+        {visible.length === 0 ? (
           <p className="text-xs text-muted-foreground py-3 text-center">
             尚無資料
           </p>
         ) : (
           <ol className="space-y-1.5">
-            {top3.map((r, i) => (
+            {visible.map((r) => (
               <li key={r.key} className="text-sm">
                 <div className="flex items-center gap-2">
                   <span
                     className={cn(
                       "w-4 font-bold tabular-nums shrink-0",
-                      medalColors[i],
+                      medalColors[r.rank],
                     )}
                   >
-                    {i + 1}
+                    {r.rank}
                   </span>
                   <span className="flex-1 min-w-0 truncate">
                     {r.label}

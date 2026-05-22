@@ -58,6 +58,7 @@ import {
   SPONSOR_IDENTITY_LABEL,
   type SponsorRank,
 } from "@/api/sponsors";
+import { cryingApi, type CryingPlayerRank } from "@/api/crying";
 import { PAGE, useAuthStore } from "@/stores/authStore";
 
 const YT_CHANNEL_URL = "https://youtube.com/channel/UCvONl3xCT8XLwoozldtsCcQ";
@@ -138,6 +139,15 @@ export default function DashboardPage() {
   const topSponsors = sponsorStats?.topSponsors ?? [];
   const showSponsorKpi = canSeeSponsors && topSponsors.length > 0;
 
+  // 哭哭榜 TOP3（僅在有「哭哭榜」頁面權限時查詢與顯示）
+  // queryKey 與哭哭榜頁共用，可重用快取
+  const canSeeCrying = useAuthStore((s) => s.canAccess)(PAGE.Crying);
+  const { data: cryingStats } = useQuery({
+    queryKey: ["crying-stats"],
+    queryFn: () => cryingApi.stats({ top: 10 }),
+    enabled: canSeeCrying,
+  });
+
   const yearLabel =
     overview?.latestAcademicYear != null
       ? `${overview.latestAcademicYear} 學年度`
@@ -207,17 +217,16 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Hero KPI grid（有贊助榜時為 4 欄：贊助榜 / 現役選手 / 比賽 / 友誼賽） */}
+      {/* Hero KPI grid（有贊助榜時為 3 欄：贊助榜 / 現役選手 / 賽事統計） */}
       <div
         className={cn(
           "grid grid-cols-1 gap-3 lg:gap-4",
-          showSponsorKpi ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3",
+          showSponsorKpi ? "sm:grid-cols-3" : "sm:grid-cols-2",
         )}
       >
         {showSponsorKpi && <SponsorKpiCard sponsors={topSponsors} />}
         {lo ? (
           <>
-            <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
           </>
@@ -235,25 +244,47 @@ export default function DashboardPage() {
                   : undefined
               }
             />
-            <StatCard
-              title="比賽次數"
-              value={overview?.officialEventCount ?? "-"}
-              suffix="項"
-              icon={Trophy}
-              tone="info"
-              subtitle={yearLabel}
-            />
-            <StatCard
-              title="友誼賽次數"
-              value={overview?.friendlyEventCount ?? "-"}
-              suffix="項"
-              icon={Handshake}
-              tone="warning"
-              subtitle={yearLabel}
+            <MatchKpiCard
+              official={overview?.officialEventCount ?? 0}
+              friendly={overview?.friendlyEventCount ?? 0}
+              yearLabel={yearLabel}
             />
           </>
         )}
       </div>
+
+      {/* 哭哭榜 TOP3（哭哭王 / 加分王，各一張單清單卡） */}
+      {canSeeCrying && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
+          <CryingKpiCard
+            title="哭哭王 TOP 3"
+            icon={Crown}
+            tone="info"
+            rows={(cryingStats?.topCriers ?? []).map((r) => ({
+              key: `${r.kind}-${r.playerId ?? r.name}`,
+              label: r.name,
+              sub: r.jerseyNo != null ? `#${r.jerseyNo}` : "",
+              count: r.count,
+            }))}
+          />
+          <CryingKpiCard
+            title="加分王 TOP 3"
+            icon={Trophy}
+            tone="warning"
+            rows={(cryingStats?.topScorers ?? []).map((r: CryingPlayerRank) => ({
+              key: `${r.kind}-${r.playerId ?? r.name}`,
+              label: r.name,
+              sub:
+                r.kind === "external"
+                  ? "(外)"
+                  : r.jerseyNo != null
+                    ? `#${r.jerseyNo}`
+                    : "",
+              count: r.count,
+            }))}
+          />
+        </div>
+      )}
 
       {/* 本月壽星 */}
       <BirthdayCard />
@@ -624,6 +655,202 @@ function SponsorKpiCard({ sponsors }: { sponsors: SponsorRank[] }) {
             )}
           >
             <Crown className="h-5 w-5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ============== 賽事統計 KPI 卡（StatCard 樣式，比賽＋友誼賽兩行） ============== */
+
+function MatchKpiCard({
+  official,
+  friendly,
+  yearLabel,
+}: {
+  official: number;
+  friendly: number;
+  yearLabel: string;
+}) {
+  const lines: { label: string; value: number; icon: typeof Trophy }[] = [
+    { label: "比賽", value: official, icon: Trophy },
+    { label: "友誼賽", value: friendly, icon: Handshake },
+  ];
+  return (
+    <Card
+      className={cn(
+        "relative overflow-hidden transition-all hover:shadow-lift hover:-translate-y-0.5",
+        "bg-gradient-to-br",
+        TONE_ACCENT.info,
+      )}
+    >
+      <CardContent className="p-4 lg:p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-muted-foreground">賽事統計</p>
+            <div className="mt-1.5 space-y-1.5">
+              {lines.map((ln) => (
+                <div
+                  key={ln.label}
+                  className="flex items-baseline justify-between gap-2"
+                >
+                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <ln.icon className="h-3.5 w-3.5" />
+                    {ln.label}
+                  </span>
+                  <span className="font-display font-bold tracking-tight text-foreground">
+                    <span className="font-numeric text-xl">
+                      <AnimatedNumber value={ln.value} />
+                    </span>
+                    <span className="text-xs font-normal text-muted-foreground ml-1">
+                      項
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              {yearLabel}
+            </p>
+          </div>
+          <div
+            className={cn(
+              "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
+              TONE_BG.info,
+            )}
+          >
+            <Trophy className="h-5 w-5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ============== 哭哭榜 TOP3 KPI 卡（StatCard 樣式，單一清單 + 並列收合） ============== */
+
+interface CryRow {
+  key: string;
+  label: string;
+  sub?: string;
+  count: number;
+}
+
+// 名次配色（金 / 銀 / 銅）
+const CRY_RANK_COLOR = [
+  "text-warning",
+  "text-muted-foreground",
+  "text-foreground/50",
+];
+
+function CryingKpiCard({
+  title,
+  icon: Icon,
+  tone,
+  rows,
+}: {
+  title: string;
+  icon: typeof Trophy;
+  tone: Tone;
+  rows: CryRow[];
+}) {
+  const navigate = useNavigate();
+
+  // 標準競技排名（1224）：同分同名次、下一名次跳號；只取名次 ≤ 3 者
+  const ordered = [...rows].sort((a, b) => b.count - a.count);
+  const ranked: (CryRow & { rank: number })[] = [];
+  let prevCount: number | null = null;
+  let rank = 0;
+  ordered.forEach((r, i) => {
+    if (prevCount === null || r.count !== prevCount) rank = i + 1;
+    prevCount = r.count;
+    ranked.push({ ...r, rank });
+  });
+  const top = ranked.filter((r) => r.rank <= 3);
+
+  // 同名次並列 > 2 人時，僅顯示前 2 位，其餘收合成一行「並列第N・還有X人」
+  type Item =
+    | { type: "row"; data: CryRow & { rank: number } }
+    | { type: "overflow"; rank: number; more: number };
+  const items: Item[] = [];
+  for (let i = 0; i < top.length; ) {
+    const rk = top[i].rank;
+    const group = top.filter((r) => r.rank === rk);
+    if (group.length <= 2) {
+      group.forEach((g) => items.push({ type: "row", data: g }));
+    } else {
+      group.slice(0, 2).forEach((g) => items.push({ type: "row", data: g }));
+      items.push({ type: "overflow", rank: rk, more: group.length - 2 });
+    }
+    i += group.length;
+  }
+
+  return (
+    <Card
+      className={cn(
+        "relative overflow-hidden transition-all hover:shadow-lift hover:-translate-y-0.5",
+        "bg-gradient-to-br",
+        TONE_ACCENT[tone],
+      )}
+    >
+      <CardContent className="p-4 lg:p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-muted-foreground">{title}</p>
+            {items.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2">尚無資料</p>
+            ) : (
+              <ol className="mt-1.5 space-y-1">
+                {items.map((it, idx) =>
+                  it.type === "row" ? (
+                    <li
+                      key={it.data.key}
+                      className="flex items-baseline gap-1.5 text-sm"
+                    >
+                      <span
+                        className={cn(
+                          "font-bold tabular-nums shrink-0 w-3",
+                          CRY_RANK_COLOR[it.data.rank - 1] ??
+                            "text-muted-foreground",
+                        )}
+                      >
+                        {it.data.rank}
+                      </span>
+                      <span className="font-medium truncate flex-1 min-w-0">
+                        {it.data.label}
+                        {it.data.sub && (
+                          <span className="ml-1 text-[11px] text-muted-foreground">
+                            {it.data.sub}
+                          </span>
+                        )}
+                      </span>
+                      <span className="font-semibold tabular-nums shrink-0">
+                        {it.data.count}
+                      </span>
+                    </li>
+                  ) : (
+                    <li key={`overflow-${idx}`}>
+                      <button
+                        type="button"
+                        onClick={() => navigate("/crying")}
+                        className="pl-[1.125rem] text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        並列第{it.rank}・還有 {it.more} 人 →
+                      </button>
+                    </li>
+                  ),
+                )}
+              </ol>
+            )}
+          </div>
+          <div
+            className={cn(
+              "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
+              TONE_BG[tone],
+            )}
+          >
+            <Icon className="h-5 w-5" />
           </div>
         </div>
       </CardContent>

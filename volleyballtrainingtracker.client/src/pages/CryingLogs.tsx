@@ -23,11 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog } from "@/components/ui/dialog";
 import { DateInput } from "@/components/DateInput";
 import EmptyState from "@/components/EmptyState";
-import {
-  cryingApi,
-  type CryingLog,
-  type CryingLogUpsert,
-} from "@/api/crying";
+import { cryingApi, type CryingLog, type CryingLogUpsert } from "@/api/crying";
 import {
   playersApi,
   type Player,
@@ -180,7 +176,8 @@ export default function CryingLogsPage() {
     onError: (e: unknown) => showError(errMsg(e) ?? "刪除失敗"),
   });
 
-  const busy = createMut.isPending || updateMut.isPending || deleteMut.isPending;
+  const busy =
+    createMut.isPending || updateMut.isPending || deleteMut.isPending;
 
   async function invalidateAll() {
     await Promise.all([
@@ -303,7 +300,7 @@ export default function CryingLogsPage() {
             哭哭紀錄表
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            紀錄誰哭了、誰加分、為什麼 — 可看就可編輯
+            紀錄誰哭了、誰加分、為什麼
           </p>
         </div>
         <Button onClick={openNew} disabled={busy}>
@@ -396,9 +393,7 @@ export default function CryingLogsPage() {
                   s.kind === "player" ? `p:${s.playerId}` : `e:${s.name}`;
                 return (
                   <option key={token} value={token}>
-                    {s.kind === "external"
-                      ? `${s.name}（外）`
-                      : playerLabel(s)}
+                    {s.kind === "external" ? `${s.name}（外）` : playerLabel(s)}
                   </option>
                 );
               })}
@@ -451,7 +446,9 @@ export default function CryingLogsPage() {
                         {log.crierName}
                       </Chip>
                     </div>
-                    <p className="font-medium mt-1 line-clamp-2">{log.reason}</p>
+                    <p className="font-medium mt-1 line-clamp-2">
+                      {log.reason}
+                    </p>
                     {log.scorers.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap items-center gap-1 text-xs">
                         <span className="text-muted-foreground">加分：</span>
@@ -734,7 +731,9 @@ export default function CryingLogsPage() {
             </label>
             <Textarea
               value={draft.notes}
-              onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, notes: e.target.value }))
+              }
               maxLength={1024}
               rows={3}
               placeholder="情境、後續處理、需要關心的點…"

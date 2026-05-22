@@ -237,13 +237,13 @@ public class BoardController : ControllerBase
         return me != null && authorUserId != null && me.Value == authorUserId.Value;
     }
 
-    private ObjectResult Forbid403(string message) =>
+    private static ObjectResult Forbid403(string message) =>
         new(new { message }) { StatusCode = StatusCodes.Status403Forbidden };
 
     private static string DisplayName(User? u) =>
         u == null ? "（已停用）" : (u.DisplayName ?? u.UserName);
 
-    private BoardPostDto ToDto(BoardPost p, int? me, bool canManage)
+    private static BoardPostDto ToDto(BoardPost p, int? me, bool canManage)
     {
         var owner = me != null && p.CreatedByUserId == me.Value;
         return new BoardPostDto
@@ -269,7 +269,7 @@ public class BoardController : ControllerBase
         };
     }
 
-    private BoardCommentDto ToDto(BoardComment c, int? me, bool canManage)
+    private static BoardCommentDto ToDto(BoardComment c, int? me, bool canManage)
     {
         var owner = me != null && c.CreatedByUserId == me.Value;
         return new BoardCommentDto

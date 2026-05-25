@@ -71,10 +71,20 @@ dotnet run --project VolleyballTrainingTracker.Server -- seed-user YUANHE "你�
    | `Jwt__SecretKey` | 至少 32 字元隨機字串（`openssl rand -base64 48`） |
    | `Cors__AllowedOrigins__0` | 先暫填 `https://localhost`，步驟 4 後再回來改 |
 
+   > `DOTNET_hostBuilder__reloadConfigOnChange=false` 已寫死在 `Dockerfile.api`，
+   > 不需手動設定（用途見下方備註）。
+
 4. 部署完成後記下後端網址，例如 `https://vbtt-api.onrender.com`。
    開 `https://vbtt-api.onrender.com/health` 應回傳 `{"status":"ok"}`。
 
 > ⚠️ Render 免費版閒置 15 分鐘休眠，下次喚醒約需 30～60 秒。
+>
+> ⚠️ **inotify 耗盡（exit 139 啟動崩潰）**：Render 主機的
+> `fs.inotify.max_user_instances` 額度為整台主機共用。.NET 預設會對
+> `appsettings*.json` 開檔案監看（熱重載），額度被鄰居容器吃光時，
+> 後端會在 `WebApplication.CreateBuilder` 啟動期拋 `IOException` 並崩潰。
+> 已透過 `DOTNET_hostBuilder__reloadConfigOnChange=false`（見 `Dockerfile.api`）
+> 停用該監看解決，生產環境本就不需要熱重載設定檔。
 
 ---
 

@@ -12,6 +12,10 @@ services:
     region: singapore
     healthCheckPath: /health
     envVars:
+      # 關閉 appsettings 熱重載監看，避免 inotify 耗盡導致啟動崩潰（exit 139）。
+      # 詳見 Dockerfile.api 內說明；此處同步宣告供藍圖紀錄。
+      - key: DOTNET_hostBuilder__reloadConfigOnChange
+        value: "false"
       # 機密值（sync: false → 不寫進版控，需在 Render 後台手動填）
       - key: ConnectionStrings__Default
         sync: false   # Supabase 連線字串，格式：Host=...;Port=5432;Database=postgres;Username=...;Password=...

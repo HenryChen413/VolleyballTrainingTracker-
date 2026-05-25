@@ -21,5 +21,10 @@ WORKDIR /app
 COPY --from=build /app/publish .
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ASPNETCORE_URLS=http://+:8080
+# 關閉 appsettings 的熱重載檔案監看（生產環境用不到）。
+# 否則 .NET 會為每個設定檔開 inotify FileSystemWatcher；Render 主機的
+# fs.inotify.max_user_instances 額度被共用耗盡時，CreateBuilder 會在啟動期
+# 直接拋 IOException 崩潰（exit 139）。停用後即不再建立這些監看。
+ENV DOTNET_hostBuilder__reloadConfigOnChange=false
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "VolleyballTrainingTracker.Server.dll"]

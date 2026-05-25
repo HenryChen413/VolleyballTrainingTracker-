@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   HandCoins,
-  Plus,
   Pencil,
   Trash2,
   X,
@@ -16,6 +15,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AddFab } from "@/components/ui/add-fab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -380,12 +380,13 @@ export default function SponsorsPage() {
             <Button variant="outline" onClick={openRoster} disabled={busy}>
               <Settings2 className="h-4 w-4 mr-1" /> 管理贊助者
             </Button>
-            <Button onClick={openNewShip} disabled={busy}>
-              <Plus className="h-4 w-4 mr-1" /> 新增贊助
-            </Button>
           </div>
         )}
       </div>
+
+      {canEdit && (
+        <AddFab label="新增贊助" onClick={openNewShip} disabled={busy} />
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -418,7 +419,7 @@ export default function SponsorsPage() {
               icon={Crown}
               title="尚無贊助"
               description={
-                canEdit ? "點右上「新增贊助」開始記錄" : "尚未有贊助紀錄"
+                canEdit ? "點右下「新增贊助」開始記錄" : "尚未有贊助紀錄"
               }
             />
           </CardContent>
@@ -506,7 +507,7 @@ export default function SponsorsPage() {
               icon={Inbox}
               title="尚無紀錄"
               description={
-                canEdit ? "點右上「新增贊助」開始記錄" : "尚未有贊助紀錄"
+                canEdit ? "點右下「新增贊助」開始記錄" : "尚未有贊助紀錄"
               }
             />
           )}

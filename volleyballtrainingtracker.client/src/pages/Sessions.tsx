@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronDown, Pencil, Volleyball, MapPin, Clock, Search } from 'lucide-react';
+import { ChevronDown, Pencil, Volleyball, MapPin, Clock, Search } from 'lucide-react';
 import { sessionsApi, type SessionDrill, type SessionListItem } from '@/api/sessions';
 import { Button } from '@/components/ui/button';
+import { AddFab } from '@/components/ui/add-fab';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -275,12 +276,11 @@ export default function SessionsPage() {
             點擊卡片可展開查看訓練項目分類
           </p>
         </div>
-        {canEdit && (
-          <Button onClick={() => navigate('/sessions/new')}>
-            <Plus className="mr-1 h-4 w-4" /> 新增訓練
-          </Button>
-        )}
       </div>
+
+      {canEdit && (
+        <AddFab label="新增訓練" onClick={() => navigate('/sessions/new')} />
+      )}
 
       {!isLoading && hasData && (
         <div className="flex flex-col gap-2 sm:flex-row">

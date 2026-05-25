@@ -19,6 +19,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { AddFab } from '@/components/ui/add-fab';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
@@ -531,14 +532,11 @@ export default function AdminUsersPage() {
             </Chip>
           )}
         </div>
-        {canManage && (
-          <Button onClick={startCreate} disabled={busy}>
-            <span className="flex items-center gap-1.5">
-              <Plus className="h-4 w-4" /> 新增使用者
-            </span>
-          </Button>
-        )}
       </div>
+
+      {canManage && (
+        <AddFab label="新增使用者" onClick={startCreate} disabled={busy} />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

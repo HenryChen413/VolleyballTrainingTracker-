@@ -1092,6 +1092,16 @@ function MatchEventForm({
                   />
                 ))}
               </div>
+              {/* 清單底部再放一顆：滑到最後一張對戰卡即可接續新增，免滑回頂部 */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addRow}
+                disabled={isSubmitting}
+                className="mt-3 w-full border-dashed h-11 text-muted-foreground hover:text-foreground"
+              >
+                <Plus className="h-4 w-4 mr-1.5" /> 新增對戰
+              </Button>
             </CardContent>
           </Card>
 

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Droplets,
-  Plus,
   Pencil,
   Trash2,
   X,
@@ -15,6 +14,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AddFab } from "@/components/ui/add-fab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -327,10 +327,9 @@ export default function CryingLogsPage() {
             紀錄誰哭了、誰加分、為什麼
           </p>
         </div>
-        <Button onClick={openNew} disabled={busy}>
-          <Plus className="h-4 w-4 mr-1" /> 新增哭哭
-        </Button>
       </div>
+
+      <AddFab label="新增哭哭" onClick={openNew} disabled={busy} />
 
       {/* Summary cards：總次數 + 哭王 TOP3 + 加分王 TOP3 + 經典組合 TOP3 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -448,7 +447,7 @@ export default function CryingLogsPage() {
               compact
               icon={Inbox}
               title="尚無紀錄"
-              description="點右上「新增哭哭」開始記錄"
+              description="點右下「新增哭哭」開始記錄"
             />
           )}
           <ul className="space-y-2">

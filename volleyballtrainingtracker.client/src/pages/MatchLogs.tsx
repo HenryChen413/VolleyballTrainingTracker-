@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
-  Plus, ChevronRight, ChevronDown, Video, Pencil, Trophy,
+  ChevronRight, ChevronDown, Video, Pencil, Trophy,
   MapPin, Users, Search, StickyNote, X, Download, CalendarDays,
 } from "lucide-react";
 import {
@@ -11,6 +11,7 @@ import {
   type MatchLogItem,
 } from "@/api/matchLogs";
 import { Button } from "@/components/ui/button";
+import { AddFab } from "@/components/ui/add-fab";
 import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { Input } from "@/components/ui/input";
@@ -178,11 +179,6 @@ export default function MatchLogsPage() {
           >
             <Download className="h-4 w-4 mr-1" /> 匯出
           </Button>
-          {canCreate && (
-            <Button onClick={() => navigate("/match-logs/new")}>
-              <Plus className="h-4 w-4 mr-1" /> 新增比賽
-            </Button>
-          )}
         </div>
       </div>
 
@@ -214,7 +210,7 @@ export default function MatchLogsPage() {
         <Card>
           <EmptyState
             title="尚無比賽紀錄"
-            description={canCreate ? "點擊右上「新增比賽」開始記錄第一場賽事" : undefined}
+            description={canCreate ? "點擊右下「新增比賽」開始記錄第一場賽事" : undefined}
             icon={Trophy}
           />
         </Card>
@@ -385,6 +381,11 @@ export default function MatchLogsPage() {
             );
           })}
         </div>
+      )}
+
+      {/* 浮動「新增比賽」：固定右下，捲動到任何位置都點得到 */}
+      {canCreate && (
+        <AddFab label="新增比賽" onClick={() => navigate("/match-logs/new")} />
       )}
     </div>
   );

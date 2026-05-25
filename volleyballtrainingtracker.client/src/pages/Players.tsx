@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Plus,
   Pencil,
   Ruler,
   Hand,
@@ -35,6 +34,7 @@ import {
   type MemberType,
 } from "@/api/players";
 import { Button } from "@/components/ui/button";
+import { AddFab } from "@/components/ui/add-fab";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Chip } from "@/components/ui/chip";
@@ -421,18 +421,16 @@ export default function PlayersPage() {
             <Download className="h-4 w-4 mr-1" />
             匯出
           </Button>
-          {canCreate && (
-            <Button
-              onClick={() =>
-                navigate(`/players/new?type=${currentTabMeta.urlType}`)
-              }
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              新增{currentTabMeta.label}
-            </Button>
-          )}
         </div>
       </div>
+
+      {/* 浮動新增：固定右下；比較列出現時讓位隱藏 */}
+      {canCreate && !(isPlayerTab && compareIds.length > 0) && (
+        <AddFab
+          label={`新增${currentTabMeta.label}`}
+          onClick={() => navigate(`/players/new?type=${currentTabMeta.urlType}`)}
+        />
+      )}
 
       {/* 身份頁籤 */}
       <MemberTabs value={tab} onChange={setTab} counts={memberCounts} />
@@ -607,7 +605,7 @@ export default function PlayersPage() {
           title={hasFilter ? `無符合條件的${currentTabMeta.label}` : `尚無${currentTabMeta.label}`}
           description={
             canCreate && !hasFilter
-              ? `點擊右上「新增${currentTabMeta.label}」開始建立名單`
+              ? `點擊右下「新增${currentTabMeta.label}」開始建立名單`
               : undefined
           }
         />

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
-  Plus,
   Pencil,
   Inbox,
   Search,
@@ -12,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AddFab } from "@/components/ui/add-fab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -163,14 +163,11 @@ export default function DrillsPage() {
             管理可在訓練紀錄中選擇的項目
           </p>
         </div>
-        {canCreate && (
-          <Button onClick={goNew} disabled={busy}>
-            <span className="flex items-center gap-1">
-              <Plus className="h-4 w-4" /> 新增項目
-            </span>
-          </Button>
-        )}
       </div>
+
+      {canCreate && (
+        <AddFab label="新增項目" onClick={goNew} disabled={busy} />
+      )}
 
       {/* Toolbar */}
       <Card>

@@ -26,6 +26,8 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err?.response?.status === 401) {
+      // token 失效／逾期：標記原因供登入頁提示（與 AppLayout 閒置登出共用同一標記）。
+      sessionStorage.setItem('vbtt-logout-reason', 'idle');
       useAuthStore.getState().clear();
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';

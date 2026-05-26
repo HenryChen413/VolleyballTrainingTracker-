@@ -26,7 +26,7 @@ import { ALL_NAV, BOTTOM_TAB_PAGES, type NavItem } from "@/config/nav";
 import { cn } from "@/lib/utils";
 
 /** 閒置自動登出時間（毫秒）*/
-const IDLE_LOGOUT_MS = 5 * 60 * 1000;
+const IDLE_LOGOUT_MS = 30 * 60 * 1000;
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -76,6 +76,8 @@ export default function AppLayout() {
   }, []);
 
   const logout = () => {
+    // 主動登出：清掉可能殘留的被動登出標記，避免登入頁誤顯示「閒置自動登出」提示。
+    sessionStorage.removeItem("vbtt-logout-reason");
     clear();
     navigate("/login", { replace: true });
   };
@@ -94,6 +96,8 @@ export default function AppLayout() {
     let timer: ReturnType<typeof setTimeout>;
 
     const forceLogout = () => {
+      // 標記登出原因，登入頁讀取後提示使用者；手動點登出按鈕（上方 logout）不標記。
+      sessionStorage.setItem("vbtt-logout-reason", "idle");
       clear();
       navigate("/login", { replace: true });
     };
@@ -113,7 +117,15 @@ export default function AppLayout() {
       else arm();
     };
 
+    // 使用者活動：重置前先把關。離開過久後回前景的「第一個動作」（mousemove／
+    // click）會搶在這裡發生；若不先判定就直接寫入現在時間，逾時狀態會被洗掉。
+    // 在分頁始終 visible（電腦睡眠／離座／僅切換視窗）時沒有 visibilitychange，
+    // 全靠這道把關才會如預期登出。
     const reset = () => {
+      if (shouldLogout()) {
+        forceLogout();
+        return;
+      }
       lastActivityRef.current = Date.now();
       arm();
     };
@@ -124,7 +136,8 @@ export default function AppLayout() {
         forceLogout();
       } else {
         void pingHealth();
-        reset();
+        lastActivityRef.current = Date.now();
+        arm();
       }
     };
     const onPageShow = (e: PageTransitionEvent) => {
@@ -145,13 +158,22 @@ export default function AppLayout() {
       window.addEventListener(e, reset, { passive: true }),
     );
     window.addEventListener("pageshow", onPageShow);
+    // focus／online：涵蓋「分頁未切換但視窗失焦（切換應用程式、電腦睡眠喚醒、
+    // 斷網重連）」的情境 —— 這些情況不會觸發 visibilitychange。
+    window.addEventListener("focus", onResume);
+    window.addEventListener("online", onResume);
     document.addEventListener("visibilitychange", onVisibility);
 
-    reset();
+    // 掛載：直接初始化時間戳並啟動計時（不可走 reset，否則 lastActivityRef
+    // 仍為初始 0，shouldLogout 會誤判逾時而立即登出）。
+    lastActivityRef.current = Date.now();
+    arm();
     return () => {
       clearTimeout(timer);
       events.forEach((e) => window.removeEventListener(e, reset));
       window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("focus", onResume);
+      window.removeEventListener("online", onResume);
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [clear, navigate]);

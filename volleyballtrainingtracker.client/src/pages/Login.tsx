@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
-import { Volleyball, AlertCircle, X } from 'lucide-react';
+import { Volleyball, AlertCircle, Clock, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -32,6 +32,8 @@ export default function LoginPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const isAuthed = useAuthStore((s) => s.isAuthenticated());
   const [error, setError] = useState<string | null>(null);
+  // 被動登出提示（如：閒置過久／登入逾期自動登出），由 AppLayout 透過 sessionStorage 帶入。
+  const [notice, setNotice] = useState<string | null>(null);
   // IME（拼音／注音）組字進行中的旗標：組字期間先放手，避免即時過濾打斷組字。
   const composingRef = useRef(false);
 
@@ -49,6 +51,15 @@ export default function LoginPage() {
   // 輸入帳密期間就開始喚醒，按下登入時通常已就緒。失敗靜默、不影響登入。
   useEffect(() => {
     void pingHealth();
+  }, []);
+
+  // 讀取被動登出原因（AppLayout 閒置／逾期登出時寫入），顯示提示後立即清除，
+  // 避免下次正常進入登入頁仍殘留。
+  useEffect(() => {
+    if (sessionStorage.getItem('vbtt-logout-reason') === 'idle') {
+      sessionStorage.removeItem('vbtt-logout-reason');
+      setNotice('因閒置過久或登入逾期，系統已自動登出，請重新登入。');
+    }
   }, []);
 
   // 手機 bfcache（上一頁／下一頁快取）：從瀏覽紀錄返回登入頁時，
@@ -115,6 +126,12 @@ export default function LoginPage() {
             <CardDescription>請輸入你的帳號與密碼</CardDescription>
           </CardHeader>
           <CardContent>
+            {notice && (
+              <div className="mb-4 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+                <Clock className="h-4 w-4 shrink-0 mt-0.5" />
+                <p>{notice}</p>
+              </div>
+            )}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="userName">帳號</Label>

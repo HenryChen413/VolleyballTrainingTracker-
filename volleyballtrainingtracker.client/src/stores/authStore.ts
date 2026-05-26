@@ -37,7 +37,16 @@ export const useAuthStore = create<AuthState>()(
         const cur = get().user;
         if (cur) set({ user: { ...cur, ...patch } });
       },
-      clear: () => set({ accessToken: null, expiresAt: null, user: null }),
+      clear: () => {
+        // 一併清掉 AppLayout 寫入的「最後活動時間」持久化 key，避免下次登入時
+        // 讀到舊值被誤判為逾時而立刻被踢出。key 名稱需與 AppLayout 同步。
+        try {
+          localStorage.removeItem('vbtt-last-activity');
+        } catch {
+          /* 隱私模式等情境可能拒寫 localStorage，靜默忽略 */
+        }
+        set({ accessToken: null, expiresAt: null, user: null });
+      },
       isAuthenticated: () => {
         const { accessToken, expiresAt } = get();
         if (!accessToken || !expiresAt) return false;

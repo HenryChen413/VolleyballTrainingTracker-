@@ -27,6 +27,10 @@ import { cn } from "@/lib/utils";
 
 /** 閒置自動登出時間（毫秒）*/
 const IDLE_LOGOUT_MS = 30 * 60 * 1000;
+/** 最後活動時間的持久化 key（key 名稱需與 authStore.clear() 內的清除動作同步） */
+const LAST_ACTIVITY_KEY = "vbtt-last-activity";
+/** localStorage 寫入節流間隔（毫秒）— 高頻事件如 mousemove 不需每次都寫入 */
+const PERSIST_THROTTLE_MS = 10_000;
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -94,6 +98,29 @@ export default function AppLayout() {
   const lastActivityRef = useRef<number>(0);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
+    // 上次寫入 localStorage 的時間戳；節流避免高頻事件每次都觸發磁碟寫入
+    let lastPersistAt = 0;
+
+    const readPersisted = (): number => {
+      try {
+        const raw = localStorage.getItem(LAST_ACTIVITY_KEY);
+        const n = raw ? Number(raw) : 0;
+        return Number.isFinite(n) ? n : 0;
+      } catch {
+        return 0;
+      }
+    };
+    const writePersisted = (t: number) => {
+      try {
+        localStorage.setItem(LAST_ACTIVITY_KEY, String(t));
+        lastPersistAt = t;
+      } catch {
+        /* 隱私模式等情境可能拒寫 localStorage，靜默忽略 */
+      }
+    };
+    const persistThrottled = (t: number) => {
+      if (t - lastPersistAt >= PERSIST_THROTTLE_MS) writePersisted(t);
+    };
 
     const forceLogout = () => {
       // 標記登出原因，登入頁讀取後提示使用者；手動點登出按鈕（上方 logout）不標記。
@@ -107,9 +134,16 @@ export default function AppLayout() {
       Date.now() - lastActivityRef.current >= IDLE_LOGOUT_MS ||
       !useAuthStore.getState().isAuthenticated();
 
+    // 動態 arm：依「距離上次活動還剩多久」設定 setTimeout。掛載時若 ref 取自
+    // localStorage 的舊值（非現在），remaining 會小於 IDLE_LOGOUT_MS，確保
+    // timer 在正確時點 fire 而非延後到全長後才判定。
     const arm = () => {
       clearTimeout(timer);
-      timer = setTimeout(check, IDLE_LOGOUT_MS);
+      const remaining = Math.max(
+        0,
+        IDLE_LOGOUT_MS - (Date.now() - lastActivityRef.current),
+      );
+      timer = setTimeout(check, remaining);
     };
 
     const check = () => {
@@ -126,7 +160,9 @@ export default function AppLayout() {
         forceLogout();
         return;
       }
-      lastActivityRef.current = Date.now();
+      const now = Date.now();
+      lastActivityRef.current = now;
+      persistThrottled(now);
       arm();
     };
 
@@ -136,7 +172,9 @@ export default function AppLayout() {
         forceLogout();
       } else {
         void pingHealth();
-        lastActivityRef.current = Date.now();
+        const now = Date.now();
+        lastActivityRef.current = now;
+        writePersisted(now); // 回前景一律即時寫入（非高頻事件）
         arm();
       }
     };
@@ -164,10 +202,23 @@ export default function AppLayout() {
     window.addEventListener("online", onResume);
     document.addEventListener("visibilitychange", onVisibility);
 
-    // 掛載：直接初始化時間戳並啟動計時（不可走 reset，否則 lastActivityRef
-    // 仍為初始 0，shouldLogout 會誤判逾時而立即登出）。
-    lastActivityRef.current = Date.now();
-    arm();
+    // 掛載：讀取 localStorage 的最後活動時間，與當下比對：
+    //  - 已超過閒置上限 → 視為前一個 session 已逾時（例如關閉網頁很久才回來），強制登出
+    //  - 仍在有效範圍 → 沿用該值繼續計時（arm 會用剩餘時間設 timer）
+    //  - 無紀錄（剛登入或剛被清除）→ 以現在時間作為新 session 起點並寫入
+    const now = Date.now();
+    const persisted = readPersisted();
+    if (persisted > 0 && now - persisted >= IDLE_LOGOUT_MS) {
+      forceLogout();
+    } else if (persisted > 0) {
+      lastActivityRef.current = persisted;
+      lastPersistAt = persisted;
+      arm();
+    } else {
+      lastActivityRef.current = now;
+      writePersisted(now);
+      arm();
+    }
     return () => {
       clearTimeout(timer);
       events.forEach((e) => window.removeEventListener(e, reset));

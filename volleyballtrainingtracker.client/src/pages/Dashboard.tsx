@@ -498,10 +498,10 @@ function SponsorTop3Card({ sponsors }: { sponsors: SponsorRank[] }) {
           subtitle="本學年度累計金額"
         />
         <ul className="space-y-2.5">
-          {sponsors.slice(0, 3).map((s) => (
+          {sponsors.slice(0, 3).map((s, idx) => (
             <li key={s.sponsorId} className="flex items-center gap-3 py-1.5">
               <RankNumeral
-                rank={s.rank ?? 0}
+                rank={idx + 1}
                 className="text-[20px] w-6 text-center"
               />
               <div className="flex-1 min-w-0 flex items-baseline gap-2">

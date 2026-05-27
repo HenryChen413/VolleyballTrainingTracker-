@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Navigate, useNavigate } from "react-router-dom";
@@ -33,7 +33,16 @@ export default function LoginPage() {
   const isAuthed = useAuthStore((s) => s.isAuthenticated());
   const [error, setError] = useState<string | null>(null);
   // 被動登出提示（如：閒置過久／登入逾期自動登出），由 AppLayout 透過 sessionStorage 帶入。
-  const [notice, setNotice] = useState<string | null>(null);
+  // 用 lazy initializer 於首次渲染同步讀取並清除 sessionStorage，避免在 useEffect 內 setState
+  // 造成 cascading render（React Compiler 會把這視為錯誤）。
+  const [notice] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    if (sessionStorage.getItem("vbtt-logout-reason") === "idle") {
+      sessionStorage.removeItem("vbtt-logout-reason");
+      return "因閒置過久或登入逾期，系統已自動登出，請重新登入。";
+    }
+    return null;
+  });
   // IME（拼音／注音）組字進行中的旗標：組字期間先放手，避免即時過濾打斷組字。
   const composingRef = useRef(false);
 
@@ -41,14 +50,14 @@ export default function LoginPage() {
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
   });
 
-  const userName = watch("userName") ?? "";
-  const password = watch("password") ?? "";
+  const userName = useWatch({ control, name: "userName" }) ?? "";
+  const password = useWatch({ control, name: "password" }) ?? "";
 
   const coldStart = useColdStartHint(isSubmitting);
 
@@ -56,15 +65,6 @@ export default function LoginPage() {
   // 輸入帳密期間就開始喚醒，按下登入時通常已就緒。失敗靜默、不影響登入。
   useEffect(() => {
     void pingHealth();
-  }, []);
-
-  // 讀取被動登出原因（AppLayout 閒置／逾期登出時寫入），顯示提示後立即清除，
-  // 避免下次正常進入登入頁仍殘留。
-  useEffect(() => {
-    if (sessionStorage.getItem("vbtt-logout-reason") === "idle") {
-      sessionStorage.removeItem("vbtt-logout-reason");
-      setNotice("因閒置過久或登入逾期，系統已自動登出，請重新登入。");
-    }
   }, []);
 
   // 手機 bfcache：從瀏覽紀錄返回登入頁時，頁面可能直接還原舊快照而不重跑 React。

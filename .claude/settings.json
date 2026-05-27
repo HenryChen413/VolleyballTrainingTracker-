@@ -110,7 +110,11 @@
       "Bash(ls -la \"C:/Users/apple/Downloads/KMU Volleyball Dashboard Redesign \\(2\\)\")",
       "Read(//c/Users/apple/Downloads/KMU Volleyball Dashboard Redesign \\(2\\)/**)",
       "Bash(cd /c/Users/apple/Desktop/VolleyballTrainingTracker && ls VolleyballTrainingTracker.Server/ | head -30)",
-      "Read(//c/c/Users/apple/Desktop/VolleyballTrainingTracker/**)"
+      "Read(//c/c/Users/apple/Desktop/VolleyballTrainingTracker/**)",
+      "Bash(git -C \"c:/Users/apple/Desktop/VolleyballTrainingTracker\" add volleyballtrainingtracker.client/src/pages/Dashboard.tsx)",
+      "Bash(git -C c:/Users/apple/Desktop/VolleyballTrainingTracker commit -m ' *)",
+      "Bash(git -C \"c:/Users/apple/Desktop/VolleyballTrainingTracker\" push origin main)",
+      "Bash(tasklist //FI \"IMAGENAME eq dotnet.exe\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

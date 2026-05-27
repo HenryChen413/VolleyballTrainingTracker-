@@ -82,6 +82,7 @@ public class AuthController : ControllerBase
             DisplayName = u.DisplayName,
             RoleId = u.RoleId,
             Role = role.Name,
+            RoleDescription = role.Description,
             Permissions = JwtTokenService.ParseJsonArray(role.Permissions).ToList(),
             AllowedPages = JwtTokenService.ParseJsonArray(role.AllowedPages).ToList(),
         };

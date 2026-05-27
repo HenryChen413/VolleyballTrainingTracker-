@@ -40,7 +40,8 @@ export default function AppLayout() {
   const allowedPages = user?.allowedPages ?? [];
 
   const navItems = ALL_NAV.filter((n) => allowedPages.includes(n.page));
-  const mainItems = navItems.filter((n) => n.group !== "admin");
+  const mainItems = navItems.filter((n) => n.group === "main" || !n.group);
+  const accountItems = navItems.filter((n) => n.group === "account");
   const adminItems = navItems.filter((n) => n.group === "admin");
   const canSeeProfile = allowedPages.includes(PAGE.Profile);
 
@@ -271,6 +272,13 @@ export default function AppLayout() {
             items={mainItems}
             collapsed={collapsed}
           />
+          {accountItems.length > 0 && (
+            <SidebarGroup
+              label="個人"
+              items={accountItems}
+              collapsed={collapsed}
+            />
+          )}
           {adminItems.length > 0 && (
             <SidebarGroup
               label="管理"
@@ -349,7 +357,7 @@ export default function AppLayout() {
                 <span className="text-sm text-muted-foreground hidden xl:inline px-2">
                   {user.displayName ?? user.userName}
                   <span className="text-xs ml-1.5 text-muted-foreground/70">
-                    ({user.role})
+                    ({user.roleDescription || user.role})
                   </span>
                 </span>
               )}
@@ -379,12 +387,29 @@ export default function AppLayout() {
               aria-hidden
             />
             <nav className="lg:hidden fixed left-0 right-0 top-14 bottom-0 bg-card border-b shadow-lift z-40 overflow-y-auto py-3 px-2 space-y-4 animate-slide-up">
+              {user && (
+                <MobileUserCard
+                  displayName={user.displayName ?? user.userName}
+                  userName={user.userName}
+                  role={user.roleDescription || user.role}
+                  canSeeProfile={canSeeProfile}
+                  onClick={() => setMobileOpen(false)}
+                />
+              )}
               <SidebarGroup
                 label="主功能"
                 items={mainItems}
                 collapsed={false}
                 onItemClick={() => setMobileOpen(false)}
               />
+              {accountItems.length > 0 && (
+                <SidebarGroup
+                  label="個人"
+                  items={accountItems}
+                  collapsed={false}
+                  onItemClick={() => setMobileOpen(false)}
+                />
+              )}
               {adminItems.length > 0 && (
                 <SidebarGroup
                   label="管理"
@@ -414,6 +439,54 @@ export default function AppLayout() {
       </div>
 
     </div>
+  );
+}
+
+interface MobileUserCardProps {
+  displayName: string;
+  userName: string;
+  role: string;
+  canSeeProfile: boolean;
+  onClick: () => void;
+}
+function MobileUserCard({
+  displayName,
+  userName,
+  role,
+  canSeeProfile,
+  onClick,
+}: MobileUserCardProps) {
+  const initial = (displayName || userName || "?").slice(0, 1).toUpperCase();
+  const showUserName = userName && userName !== displayName;
+  const inner = (
+    <>
+      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-base font-semibold">
+        {initial}
+      </span>
+      <span className="min-w-0 flex-1 text-left">
+        <span className="block truncate font-semibold text-sm">
+          {displayName}
+        </span>
+        <span className="block truncate text-xs text-muted-foreground">
+          {role}
+          {showUserName && ` · ${userName}`}
+        </span>
+      </span>
+    </>
+  );
+  const baseCls =
+    "flex items-center gap-3 rounded-lg p-3 bg-accent/40 mx-1 mb-1";
+  if (!canSeeProfile) {
+    return <div className={baseCls}>{inner}</div>;
+  }
+  return (
+    <Link
+      to="/profile"
+      onClick={onClick}
+      className={cn(baseCls, "hover:bg-accent transition")}
+    >
+      {inner}
+    </Link>
   );
 }
 

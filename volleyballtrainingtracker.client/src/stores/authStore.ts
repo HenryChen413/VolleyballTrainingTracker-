@@ -7,6 +7,7 @@ export interface AuthUser {
   email: string;
   roleId: number;
   role: string;
+  roleDescription?: string | null;
   displayName?: string | null;
   permissions: string[];
   allowedPages: string[];

@@ -25,6 +25,7 @@ public class UserInfo
     public string Email { get; set; } = string.Empty;
     public int RoleId { get; set; }
     public string Role { get; set; } = string.Empty;
+    public string? RoleDescription { get; set; }
     public string? DisplayName { get; set; }
     public List<string> Permissions { get; set; } = new();
     public List<string> AllowedPages { get; set; } = new();

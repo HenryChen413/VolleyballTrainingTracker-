@@ -8,6 +8,7 @@ import {
   Settings,
   Shield,
   Trophy,
+  UserCircle,
   Users,
   Volleyball,
 } from "lucide-react";
@@ -19,7 +20,7 @@ export interface NavItem {
   page: string;
   end?: boolean;
   icon: ComponentType<{ className?: string }>;
-  group?: "main" | "admin";
+  group?: "main" | "admin" | "account";
 }
 
 export const ALL_NAV: NavItem[] = [
@@ -86,6 +87,13 @@ export const ALL_NAV: NavItem[] = [
     page: PAGE.Sponsors,
     icon: HandCoins,
     group: "main",
+  },
+  {
+    to: "/profile",
+    label: "我的帳號",
+    page: PAGE.Profile,
+    icon: UserCircle,
+    group: "account",
   },
   {
     to: "/admin/users",

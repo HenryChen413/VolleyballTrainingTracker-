@@ -101,7 +101,7 @@ export default function ProfilePage() {
       <div>
         <h1 className="text-2xl font-bold">我的帳號</h1>
         <p className="text-sm text-muted-foreground">
-          帳號：{user?.userName}（角色：{user?.role}）
+          帳號：{user?.userName}（角色：{user?.roleDescription || user?.role}）
         </p>
       </div>
 

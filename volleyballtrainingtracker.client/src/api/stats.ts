@@ -56,12 +56,15 @@ export interface MatchSummary {
 }
 
 export interface RecentEvent {
+  id: number;
   matchDate: string;
   matchType: string | null;
   matchName: string | null;
   ranking: string | null;
+  rankingB: string | null;
   location: string | null;
   squadCount: number;
+  lines: MatchResultLine[];
 }
 
 export const statsApi = {

@@ -102,7 +102,15 @@
       "PowerShell(Push-Location volleyballtrainingtracker.client; npx tsc -b; $code = $LASTEXITCODE; Pop-Location; \"TSC exit: $code\")",
       "PowerShell(Push-Location volleyballtrainingtracker.client; npx eslint src/components/AppLayout.tsx src/stores/authStore.ts; $code = $LASTEXITCODE; Pop-Location; \"ESLint exit: $code\")",
       "PowerShell(git add volleyballtrainingtracker.client/src/components/AppLayout.tsx volleyballtrainingtracker.client/src/stores/authStore.ts volleyballtrainingtracker.client/src/content/user-guide.md docs)",
-      "PowerShell(\"--- staged ---\")"
+      "PowerShell(\"--- staged ---\")",
+      "Bash(ls -la \"C:/Users/apple/Downloads/KMU Volleyball Dashboard Redesign\")",
+      "Read(//c/Users/apple/Downloads/KMU Volleyball Dashboard Redesign/**)",
+      "Bash(ls -la \"C:/Users/apple/Downloads/KMU Volleyball Dashboard Redesign \\(1\\)\")",
+      "Read(//c/Users/apple/Downloads/KMU Volleyball Dashboard Redesign \\(1\\)/**)",
+      "Bash(ls -la \"C:/Users/apple/Downloads/KMU Volleyball Dashboard Redesign \\(2\\)\")",
+      "Read(//c/Users/apple/Downloads/KMU Volleyball Dashboard Redesign \\(2\\)/**)",
+      "Bash(cd /c/Users/apple/Desktop/VolleyballTrainingTracker && ls VolleyballTrainingTracker.Server/ | head -30)",
+      "Read(//c/c/Users/apple/Desktop/VolleyballTrainingTracker/**)"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

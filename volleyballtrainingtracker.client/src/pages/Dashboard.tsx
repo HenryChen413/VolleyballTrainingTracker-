@@ -15,24 +15,18 @@ import {
   Trophy,
   Handshake,
   Activity,
-  TrendingUp,
   MapPin,
   Calendar,
   BookOpen,
   Cake,
   Volleyball,
   Crown,
+  Clock,
+  ArrowRight,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
 import UserGuideDialog from "@/components/UserGuideDialog";
 import { SkeletonCard, Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -71,11 +65,6 @@ const RESULT_TONE: Record<ResultKey, "success" | "destructive" | "neutral"> = {
   L: "destructive",
   D: "neutral",
 };
-const RESULT_CLASS: Record<ResultKey, string> = {
-  W: "text-success font-semibold",
-  L: "text-destructive font-semibold",
-  D: "text-muted-foreground font-semibold",
-};
 const MATCH_TYPE_LABEL: Record<string, string> = {
   Official: "比賽",
   Friendly: "友誼賽",
@@ -85,21 +74,98 @@ const MATCH_TYPE_TONE: Record<string, "info" | "warning"> = {
   Friendly: "warning",
 };
 
-// 贊助榜前三名名次配色（金 / 銀 / 銅）
-const SPONSOR_RANK_COLOR = [
-  "text-warning",
-  "text-muted-foreground",
-  "text-foreground/50",
-];
+// 名次字串配色：冠/亞/季 視覺較顯眼用 warning（金黃），其他用 navy。
+function rankingTone(label: string | null | undefined): "warning" | "navy" {
+  if (!label) return "navy";
+  if (/冠軍|亞軍|季軍/.test(label)) return "warning";
+  return "navy";
+}
 
 function formatMoneyShort(n: number): string {
   return `$${(n ?? 0).toLocaleString("en-US")}`;
 }
 
+// 顯示用日期格式：YYYY/MM/DD（從 ISO 字串切出前 10 碼）
+function fmtDate(iso: string): string {
+  return iso.slice(0, 10).replace(/-/g, "/");
+}
+
+// 顯示用日期格式：MM/DD（從 ISO 字串切出 5~10 碼）
+function fmtShortDate(iso: string): string {
+  return iso.slice(5, 10).replace(/-/g, "/");
+}
+
+/* ============== 共用小元件：RankNumeral / ProgressBar ============== */
+
+function RankNumeral({
+  rank,
+  className,
+}: {
+  rank: number;
+  className?: string;
+}) {
+  const color =
+    rank === 1
+      ? "text-[hsl(var(--gold))]"
+      : rank === 2
+        ? "text-[hsl(var(--silver))]"
+        : rank === 3
+          ? "text-[hsl(var(--bronze))]"
+          : "text-muted-foreground";
+  return (
+    <span
+      className={cn("font-numeric font-bold tabular-nums", color, className)}
+    >
+      {rank}
+    </span>
+  );
+}
+
+type BarTone = "primary" | "warning" | "info" | "success";
+const BAR_FILL: Record<BarTone, string> = {
+  primary: "bg-primary",
+  warning: "bg-warning",
+  info: "bg-info",
+  success: "bg-success",
+};
+
+function ProgressBar({
+  value,
+  max,
+  tone = "primary",
+  className,
+}: {
+  value: number;
+  max: number;
+  tone?: BarTone;
+  className?: string;
+}) {
+  const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
+  return (
+    <div
+      className={cn(
+        "h-1.5 w-full rounded-full bg-muted overflow-hidden",
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          "h-full rounded-full transition-[width] duration-500 ease-out",
+          BAR_FILL[tone],
+        )}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
+
+/* ============== 主元件 ============== */
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const [distMonths, setDistMonths] = useState(6);
   const [guideOpen, setGuideOpen] = useState(false);
+
   const { data: overview, isLoading: lo } = useQuery({
     queryKey: ["stats", "overview"],
     queryFn: () => statsApi.overview(),
@@ -117,7 +183,6 @@ export default function DashboardPage() {
     queryFn: () => statsApi.recentEvents(5),
   });
 
-  // 現役教練/球經人數 — 用於 KPI 副標
   const { data: activeStaff } = useQuery({
     queryKey: ["players", "activeStaffCounts"],
     queryFn: () => playersApi.list({ activeOnly: true }),
@@ -129,7 +194,6 @@ export default function DashboardPage() {
     (p) => p.memberType === MEMBER_TYPE.Manager,
   ).length;
 
-  // 贊助榜前三名（僅在有「隊費贊助」頁面權限時查詢與顯示）
   const canSeeSponsors = useAuthStore((s) => s.canAccess)(PAGE.Sponsors);
   const { data: sponsorStats } = useQuery({
     queryKey: ["sponsor-stats", "dashboard-top3"],
@@ -139,8 +203,6 @@ export default function DashboardPage() {
   const topSponsors = sponsorStats?.topSponsors ?? [];
   const showSponsorKpi = canSeeSponsors && topSponsors.length > 0;
 
-  // 哭哭榜 TOP3（僅在有「哭哭榜」頁面權限時查詢與顯示）
-  // queryKey 與哭哭榜頁共用，可重用快取
   const canSeeCrying = useAuthStore((s) => s.canAccess)(PAGE.Crying);
   const { data: cryingStats } = useQuery({
     queryKey: ["crying-stats"],
@@ -155,76 +217,24 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">儀表板</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            球隊整體狀態與近期動態
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setGuideOpen(true)}
-          >
-            <BookOpen className="h-4 w-4 mr-1.5" />
-            使用說明
-          </Button>
-          <Chip tone="primary" size="lg" className="font-display">
-            <Calendar className="h-3.5 w-3.5" />
-            {yearLabel}
-          </Chip>
-        </div>
-      </div>
+      {/* === 1. Page Header（含 eyebrow 小標、學年度 chip） === */}
+      <PageHeader
+        yearLabel={yearLabel}
+        onGuideOpen={() => setGuideOpen(true)}
+      />
 
       <UserGuideDialog open={guideOpen} onClose={() => setGuideOpen(false)} />
 
-      {/* 社群連結 */}
-      <Card className="surface-soft border-primary/20 overflow-hidden">
-        <CardContent className="py-5">
-          <div className="flex items-start sm:items-center gap-3 mb-4">
-            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-primary/10 text-primary shrink-0">
-              <Volleyball className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold">社群連結</div>
-              <div className="text-sm text-muted-foreground">
-                訂閱頻道、追蹤動態
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <a
-              href={YT_CHANNEL_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-soft"
-            >
-              <YoutubeIcon className="h-4 w-4" />
-              YouTube 頻道
-            </a>
-            <a
-              href={IG_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-white bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 hover:opacity-90 transition-opacity shadow-soft"
-            >
-              <InstagramIcon className="h-4 w-4" />
-              Instagram
-            </a>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Hero KPI grid（有贊助榜時為 3 欄：贊助榜 / 現役選手 / 賽事統計） */}
-      <div
+      {/* === 2. Hero KPI strip（贊助榜 / 現役選手 / 賽事統計） === */}
+      <section
         className={cn(
-          "grid grid-cols-1 gap-3 lg:gap-4",
-          showSponsorKpi ? "sm:grid-cols-3" : "sm:grid-cols-2",
+          "grid gap-5",
+          showSponsorKpi
+            ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+            : "grid-cols-1 md:grid-cols-2",
         )}
       >
-        {showSponsorKpi && <SponsorKpiCard sponsors={topSponsors} />}
+        {showSponsorKpi && <SponsorTop3Card sponsors={topSponsors} />}
         {lo ? (
           <>
             <SkeletonCard />
@@ -232,140 +242,589 @@ export default function DashboardPage() {
           </>
         ) : (
           <>
-            <StatCard
-              title="現役選手"
-              value={overview?.activePlayerCount ?? "-"}
-              suffix="人"
-              icon={Users}
-              tone="primary"
-              subtitle={
-                coachCount + managerCount > 0
-                  ? `教練 ${coachCount} · 球經 ${managerCount}`
-                  : undefined
-              }
+            <ActivePlayersCard
+              count={overview?.activePlayerCount ?? 0}
+              coachCount={coachCount}
+              managerCount={managerCount}
             />
-            <MatchKpiCard
+            <MatchStatsCard
               official={overview?.officialEventCount ?? 0}
               friendly={overview?.friendlyEventCount ?? 0}
               yearLabel={yearLabel}
             />
           </>
         )}
-      </div>
+      </section>
 
-      {/* 哭哭榜 TOP3（哭哭王 / 加分王，各一張單清單卡） */}
+      {/* === 3. 社群連結（橫排式 Card） === */}
+      <SocialLinks />
+
+      {/* === 4. 哭哭/加分榜 並排 === */}
       {canSeeCrying && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
-          <CryingKpiCard
+        <section className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+          <LeaderboardCard
             title="哭哭王 TOP 3"
-            icon={Crown}
+            subtitle="本學年度累計次數"
             tone="info"
+            icon={Crown}
             rows={(cryingStats?.topCriers ?? []).map((r) => ({
               key: `${r.kind}-${r.playerId ?? r.name}`,
-              label: r.name,
+              name: r.name,
               sub: r.jerseyNo != null ? `#${r.jerseyNo}` : "",
               count: r.count,
             }))}
+            onOverflowClick={() => navigate("/crying")}
           />
-          <CryingKpiCard
+          <LeaderboardCard
             title="加分王 TOP 3"
-            icon={Trophy}
+            subtitle="本學年度累計次數"
             tone="warning"
-            rows={(cryingStats?.topScorers ?? []).map((r: CryingPlayerRank) => ({
-              key: `${r.kind}-${r.playerId ?? r.name}`,
-              label: r.name,
-              sub:
-                r.kind === "external"
-                  ? "(外)"
-                  : r.jerseyNo != null
-                    ? `#${r.jerseyNo}`
-                    : "",
-              count: r.count,
-            }))}
+            icon={Trophy}
+            rows={(cryingStats?.topScorers ?? []).map(
+              (r: CryingPlayerRank) => ({
+                key: `${r.kind}-${r.playerId ?? r.name}`,
+                name: r.name,
+                sub:
+                  r.kind === "external"
+                    ? "(外)"
+                    : r.jerseyNo != null
+                      ? `#${r.jerseyNo}`
+                      : "",
+                count: r.count,
+              }),
+            )}
+            onOverflowClick={() => navigate("/crying")}
           />
-        </div>
+        </section>
       )}
 
-      {/* 本月壽星 */}
+      {/* === 5. 本月壽星 === */}
       <BirthdayCard />
 
-      {/* 訓練分布 */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <CardTitle className="text-lg">訓練分布</CardTitle>
-              <CardDescription>技術面向比重（不含基礎、體能）</CardDescription>
-            </div>
-            <Select
-              className="h-9 w-28"
-              value={distMonths}
-              onChange={(e) => setDistMonths(Number(e.target.value))}
-            >
-              <option value={3}>近 3 個月</option>
-              <option value={6}>近 6 個月</option>
-              <option value={12}>近 12 個月</option>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent>
+      {/* === 6. 訓練分布（雷達左、詳情卡右；5/7 split on lg+） === */}
+      <Card className="surface-soft">
+        <CardContent className="p-5 lg:p-6">
+          <CardSectionHeader
+            tone="primary"
+            icon={Clock}
+            title="訓練分布"
+            subtitle="技術面向比重（不含基礎、體能）"
+            right={<PeriodPicker value={distMonths} onChange={setDistMonths} />}
+          />
           {ld ? (
             <Skeleton className="h-80 w-full" />
           ) : (
-            <DistributionRadar data={distribution} />
+            <DistributionBody data={distribution} />
           )}
         </CardContent>
       </Card>
 
-      {/* 戰績區 */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">戰績總覽</CardTitle>
-            <CardDescription>
-              {yearLabel} · 僅統計比賽（Official）
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {lm ? (
-              <Skeleton className="h-60 w-full" />
-            ) : matchSummary && matchSummary.eventCount > 0 ? (
-              <MatchSummaryBody summary={matchSummary} />
-            ) : (
-              <EmptyState title="本學年度尚無比賽紀錄" icon={Trophy} compact />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">近 5 場</CardTitle>
-            <CardDescription>最新 5 個賽事大項目（含友誼賽）</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {lr ? (
-              <div className="space-y-3">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-              </div>
-            ) : recentEvents && recentEvents.length > 0 ? (
-              <ul className="divide-y">
-                {recentEvents.map((e, i) => (
-                  <RecentEventRow
-                    key={i}
-                    e={e}
-                    onClick={() => navigate("/matchlogs")}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <EmptyState title="尚無比賽紀錄" icon={Trophy} compact />
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {/* === 7. 戰績區（7/5 split on xl） === */}
+      <section className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        <div className="xl:col-span-7">
+          <Card className="surface-soft h-full">
+            <CardContent className="p-5 lg:p-6 flex flex-col h-full">
+              <CardSectionHeader
+                tone="warning"
+                icon={Trophy}
+                title="戰績總覽"
+                subtitle={`${yearLabel} · 僅統計比賽（Official）`}
+                accent={
+                  matchSummary && matchSummary.eventCount > 0 ? (
+                    <Chip tone="warning" size="sm">
+                      共
+                      <span className="font-numeric font-semibold mx-0.5">
+                        {matchSummary.eventCount}
+                      </span>
+                      項
+                    </Chip>
+                  ) : null
+                }
+              />
+              {lm ? (
+                <Skeleton className="h-60 w-full" />
+              ) : matchSummary && matchSummary.eventCount > 0 ? (
+                <ResultsOverviewBody summary={matchSummary} />
+              ) : (
+                <EmptyState
+                  title="本學年度尚無比賽紀錄"
+                  icon={Trophy}
+                  compact
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+        <div className="xl:col-span-5">
+          <Card className="surface-soft h-full">
+            <CardContent className="p-5 lg:p-6 flex flex-col h-full">
+              <CardSectionHeader
+                tone="info"
+                icon={Clock}
+                title="近 5 場"
+                subtitle="最新 5 個賽事大項目（含友誼賽）"
+                accent={
+                  <Chip tone="info" size="sm">
+                    含友誼
+                  </Chip>
+                }
+              />
+              {lr ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : recentEvents && recentEvents.length > 0 ? (
+                <ul className="divide-y divide-border flex-1">
+                  {recentEvents.map((e, i) => (
+                    <RecentEventRow key={e.id ?? i} e={e} />
+                  ))}
+                </ul>
+              ) : (
+                <EmptyState title="尚無比賽紀錄" icon={Trophy} compact />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </section>
     </div>
+  );
+}
+
+/* ============== Page Header ============== */
+
+function PageHeader({
+  yearLabel,
+  onGuideOpen,
+}: {
+  yearLabel: string;
+  onGuideOpen: () => void;
+}) {
+  return (
+    <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+      <div className="min-w-0">
+        <h1 className="font-display text-[32px] sm:text-[40px] leading-[1.05] tracking-tight font-bold">
+          儀表板
+        </h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          球隊整體狀態與近期動態
+        </p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <Button variant="outline" size="sm" onClick={onGuideOpen}>
+          <BookOpen className="h-4 w-4 mr-1.5" />
+          使用說明
+        </Button>
+        <Chip tone="primary" size="lg" className="font-display">
+          <Calendar className="h-3.5 w-3.5" />
+          {yearLabel}
+        </Chip>
+      </div>
+    </header>
+  );
+}
+
+/* ============== 共用 CardSectionHeader（icon + title + subtitle + accent + right） ============== */
+
+type Tone = "primary" | "info" | "warning" | "success" | "navy";
+const TONE_ICON_BG: Record<Tone, string> = {
+  primary: "bg-primary/10 text-primary",
+  info: "bg-info/10 text-info",
+  warning: "bg-warning/15 text-warning",
+  success: "bg-success/10 text-success",
+  navy: "bg-navy/10 text-navy",
+};
+
+function CardSectionHeader({
+  icon: Icon,
+  title,
+  subtitle,
+  tone = "primary",
+  accent,
+  right,
+  className,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  subtitle?: string;
+  tone?: Tone;
+  accent?: React.ReactNode;
+  right?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn("flex items-start justify-between gap-4 mb-4", className)}
+    >
+      <div className="flex items-start gap-3 min-w-0 flex-1">
+        <div
+          className={cn(
+            "shrink-0 grid place-items-center w-9 h-9 rounded-lg",
+            TONE_ICON_BG[tone],
+          )}
+        >
+          <Icon className="h-[18px] w-[18px]" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
+              {title}
+            </h3>
+            {accent}
+          </div>
+          {subtitle && (
+            <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+              {subtitle}
+            </p>
+          )}
+        </div>
+      </div>
+      {right && <div className="shrink-0">{right}</div>}
+    </div>
+  );
+}
+
+/* ============== Hero KPI Cards ============== */
+
+function SponsorTop3Card({ sponsors }: { sponsors: SponsorRank[] }) {
+  return (
+    <Card className="surface-soft transition-all hover:shadow-lift hover:-translate-y-0.5">
+      <CardContent className="p-5 lg:p-6">
+        <CardSectionHeader
+          tone="warning"
+          icon={Crown}
+          title="贊助榜 TOP 3"
+          subtitle="本學年度累計金額"
+        />
+        <ul className="space-y-2.5">
+          {sponsors.slice(0, 3).map((s) => (
+            <li key={s.sponsorId} className="flex items-center gap-3 py-1.5">
+              <RankNumeral
+                rank={s.rank ?? 0}
+                className="text-[20px] w-6 text-center"
+              />
+              <div className="flex-1 min-w-0 flex items-baseline gap-2">
+                {s.jerseyNo != null && (
+                  <span className="font-numeric text-[11.5px] text-muted-foreground shrink-0">
+                    #{s.jerseyNo}
+                  </span>
+                )}
+                <span className="text-sm text-foreground truncate">
+                  {s.displayName}
+                </span>
+                <Chip tone="outline" size="sm" className="shrink-0">
+                  {SPONSOR_IDENTITY_LABEL[s.identity] ?? ""}
+                </Chip>
+              </div>
+              <span className="font-numeric font-semibold text-sm text-warning shrink-0">
+                {formatMoneyShort(s.totalAmount)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ActivePlayersCard({
+  count,
+  coachCount,
+  managerCount,
+}: {
+  count: number;
+  coachCount: number;
+  managerCount: number;
+}) {
+  return (
+    <Card className="surface-soft relative overflow-hidden transition-all hover:shadow-lift hover:-translate-y-0.5">
+      <div
+        className="absolute -right-8 -top-8 w-40 h-40 rounded-full opacity-[0.08] blur-2xl bg-primary pointer-events-none"
+        aria-hidden
+      />
+      <CardContent className="p-5 lg:p-6 relative">
+        <CardSectionHeader
+          tone="primary"
+          icon={Users}
+          title="現役選手"
+          subtitle="球隊核心成員"
+        />
+        <div className="flex items-end gap-2 mt-2">
+          <span className="font-display font-bold text-[56px] leading-none tracking-tight text-foreground">
+            <span className="font-numeric">
+              <AnimatedNumber value={count} />
+            </span>
+          </span>
+          <span className="text-sm text-muted-foreground mb-2">人</span>
+        </div>
+        {(coachCount > 0 || managerCount > 0) && (
+          <div className="flex items-center gap-2 mt-4">
+            <Chip tone="navy" size="md">
+              教練{" "}
+              <span className="font-numeric font-semibold ml-1">
+                {coachCount}
+              </span>
+            </Chip>
+            <Chip tone="info" size="md">
+              球經{" "}
+              <span className="font-numeric font-semibold ml-1">
+                {managerCount}
+              </span>
+            </Chip>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MatchStatsCard({
+  official,
+  friendly,
+  yearLabel,
+}: {
+  official: number;
+  friendly: number;
+  yearLabel: string;
+}) {
+  const lines: {
+    label: string;
+    value: number;
+    icon: React.ComponentType<{ className?: string }>;
+    tagLabel: string;
+    tagTone: "info" | "warning";
+  }[] = [
+    {
+      label: "比賽",
+      value: official,
+      icon: Trophy,
+      tagLabel: "Official",
+      tagTone: "info",
+    },
+    {
+      label: "友誼賽",
+      value: friendly,
+      icon: Handshake,
+      tagLabel: "Friendly",
+      tagTone: "warning",
+    },
+  ];
+  return (
+    <Card className="surface-soft transition-all hover:shadow-lift hover:-translate-y-0.5">
+      <CardContent className="p-5 lg:p-6">
+        <CardSectionHeader
+          tone="info"
+          icon={Trophy}
+          title="賽事統計"
+          subtitle="本學年度出賽次數"
+        />
+        <div className="space-y-3 mt-1">
+          {lines.map((ln, i) => (
+            <div key={ln.label}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={cn(
+                      "grid place-items-center w-7 h-7 rounded-md shrink-0",
+                      ln.tagTone === "info"
+                        ? "bg-info/10 text-info"
+                        : "bg-warning/15 text-warning",
+                    )}
+                  >
+                    <ln.icon className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-sm text-foreground">{ln.label}</span>
+                  <Chip tone={ln.tagTone} size="sm" className="shrink-0">
+                    {ln.tagLabel}
+                  </Chip>
+                </div>
+                <div className="font-numeric font-bold text-[22px] text-foreground">
+                  <AnimatedNumber value={ln.value} />
+                  <span className="text-xs font-normal text-muted-foreground ml-1">
+                    項
+                  </span>
+                </div>
+              </div>
+              {i === 0 && <div className="h-px bg-border mt-3" />}
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 pt-3 border-t border-dashed border-border flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+          <Calendar className="h-3 w-3" />
+          {yearLabel}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ============== 社群連結 ============== */
+
+function SocialLinks() {
+  return (
+    <Card className="surface-soft border-primary/20 overflow-hidden">
+      <CardContent className="p-5">
+        <div className="flex flex-col md:flex-row md:items-center gap-5">
+          <div className="flex items-center gap-3 md:w-[260px] shrink-0">
+            <div className="grid place-items-center w-10 h-10 rounded-lg bg-primary/10 text-primary shrink-0">
+              <Volleyball className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="font-semibold text-[15px]">社群連結</div>
+              <div className="text-[12.5px] text-muted-foreground mt-0.5">
+                訂閱頻道、追蹤動態
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 min-w-0">
+            <a
+              href={YT_CHANNEL_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2.5 h-12 px-4 rounded-lg text-sm font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-all hover:-translate-y-0.5 shadow-soft"
+            >
+              <YoutubeIcon className="h-5 w-5" />
+              YouTube 頻道
+            </a>
+            <a
+              href={IG_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2.5 h-12 px-4 rounded-lg text-sm font-medium text-white bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 hover:opacity-90 transition-all hover:-translate-y-0.5 shadow-soft"
+            >
+              <InstagramIcon className="h-5 w-5" />
+              Instagram
+            </a>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ============== 哭哭/加分榜 LeaderboardCard ============== */
+
+interface LeaderRow {
+  key: string;
+  name: string;
+  sub?: string;
+  count: number;
+}
+
+function LeaderboardCard({
+  title,
+  subtitle,
+  tone,
+  icon,
+  rows,
+  onOverflowClick,
+}: {
+  title: string;
+  subtitle: string;
+  tone: "info" | "warning";
+  icon: React.ComponentType<{ className?: string }>;
+  rows: LeaderRow[];
+  onOverflowClick?: () => void;
+}) {
+  // 標準競技排名（1224）：同分同名次、下一名次跳號
+  const ordered = [...rows].sort((a, b) => b.count - a.count);
+  const ranked: (LeaderRow & { rank: number })[] = [];
+  let prevCount: number | null = null;
+  let rank = 0;
+  ordered.forEach((r, i) => {
+    if (prevCount === null || r.count !== prevCount) rank = i + 1;
+    prevCount = r.count;
+    ranked.push({ ...r, rank });
+  });
+  const top = ranked.filter((r) => r.rank <= 3);
+
+  // 同名次並列 > 2 人時，僅顯示前 2 位，其餘累計到 overflow
+  const visible: (LeaderRow & { rank: number })[] = [];
+  const overflow: Record<number, number> = {};
+  const seenPerRank: Record<number, number> = {};
+  for (const r of top) {
+    seenPerRank[r.rank] = (seenPerRank[r.rank] || 0) + 1;
+    const totalAtRank = top.filter((t) => t.rank === r.rank).length;
+    if (totalAtRank > 2 && seenPerRank[r.rank] > 2) {
+      overflow[r.rank] = (overflow[r.rank] || 0) + 1;
+    } else {
+      visible.push(r);
+    }
+  }
+  const overflowRanks = Object.keys(overflow).map(Number);
+  const maxValue = Math.max(...rows.map((r) => r.count), 1);
+
+  return (
+    <Card className="surface-soft h-full">
+      <CardContent className="p-5 lg:p-6 flex flex-col h-full">
+        <CardSectionHeader
+          tone={tone}
+          icon={icon}
+          title={title}
+          subtitle={subtitle}
+          accent={
+            <Chip tone={tone} size="sm">
+              TOP 3
+            </Chip>
+          }
+        />
+        {visible.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-2">尚無資料</p>
+        ) : (
+          <ul className="space-y-0.5 flex-1">
+            {visible.map((r) => (
+              <li
+                key={r.key}
+                className="grid grid-cols-[28px_1fr_auto] items-center gap-3 py-2 px-1 rounded-md hover:bg-muted/60 transition-colors"
+              >
+                <RankNumeral
+                  rank={r.rank}
+                  className="text-[18px] text-center"
+                />
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm text-foreground truncate">
+                    {r.name}
+                  </span>
+                  {r.sub && (
+                    <span className="font-numeric text-[11.5px] text-muted-foreground shrink-0">
+                      {r.sub}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-16 hidden sm:block">
+                    <ProgressBar value={r.count} max={maxValue} tone={tone} />
+                  </div>
+                  <span className="font-numeric font-bold text-base text-foreground tabular-nums w-7 text-right">
+                    {r.count}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {overflowRanks.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-x-4 gap-y-1">
+            {overflowRanks.map((rk) => (
+              <button
+                key={rk}
+                type="button"
+                onClick={onOverflowClick}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors whitespace-nowrap"
+              >
+                並列第{rk} · 還有{" "}
+                <span className="font-numeric font-semibold">
+                  {overflow[rk]}
+                </span>{" "}
+                人
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -389,8 +848,8 @@ function BirthdayCard() {
   const curMonth = String(now.getMonth() + 1).padStart(2, "0");
   const curDay = String(now.getDate()).padStart(2, "0");
   const curYear = now.getFullYear();
+  const curMonthNum = Number(curMonth);
 
-  // 選手在前、教練/球經在後（同身份再依日期）
   const memberTypeOrder = (t: number) =>
     t === MEMBER_TYPE.Player ? 0 : t === MEMBER_TYPE.Coach ? 1 : 2;
 
@@ -422,17 +881,24 @@ function BirthdayCard() {
     });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Cake className="h-5 w-5 text-primary" />
-          本月壽星
-        </CardTitle>
-        <CardDescription>
-          {Number(curMonth)} 月過生日的現役隊員
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <Card className="surface-soft">
+      <CardContent className="p-5 lg:p-6">
+        <CardSectionHeader
+          tone="primary"
+          icon={Cake}
+          title="本月壽星"
+          subtitle={`${curMonthNum} 月過生日的現役隊員`}
+          accent={
+            stars.length > 0 ? (
+              <Chip tone="primary" size="sm">
+                <span className="font-numeric font-semibold">
+                  {stars.length}
+                </span>{" "}
+                位
+              </Chip>
+            ) : null
+          }
+        />
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <Skeleton className="h-20 w-full" />
@@ -461,38 +927,47 @@ function BirthdayRow({ star }: { star: BirthdayStar }) {
   return (
     <div
       className={cn(
-        "rounded-lg border bg-card p-3 transition-all hover:shadow-soft",
-        isToday ? "border-primary bg-primary/5" : "hover:border-primary/40",
+        "relative rounded-lg p-3.5 border transition-all hover:-translate-y-0.5",
+        isToday
+          ? "border-primary/50 bg-primary/5 shadow-glow"
+          : "border-border bg-card hover:shadow-soft hover:border-primary/40",
       )}
     >
-      <div className="flex items-center justify-between gap-2 mb-1.5">
-        <span className="font-medium truncate">
+      {isToday && (
+        <span className="absolute -top-2 left-3 text-[10.5px] font-semibold px-1.5 py-0.5 rounded bg-primary text-primary-foreground whitespace-nowrap">
+          今天 🎂
+        </span>
+      )}
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span
+          className={cn(
+            "text-[15px] font-semibold truncate min-w-0",
+            isToday ? "text-primary" : "text-foreground",
+          )}
+        >
           {isToday && <span className="mr-1">🎂</span>}
           {displayName}
         </span>
         {isPlayer && player.jerseyNo != null ? (
-          <Chip tone="neutral" size="sm" className="shrink-0">
-            #{player.jerseyNo}
+          <Chip tone="outline" size="sm" className="shrink-0">
+            <span className="font-numeric">#{player.jerseyNo}</span>
           </Chip>
         ) : !isPlayer ? (
-          <Chip
-            tone={isCoach ? "info" : "warning"}
-            size="sm"
-            className="shrink-0"
-          >
+          <Chip tone={isCoach ? "navy" : "info"} size="sm" className="shrink-0">
             {isCoach ? "教練" : "球經"}
           </Chip>
         ) : null}
       </div>
-      <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+      <div className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
         <Calendar className="h-3 w-3" />
-        <span className="font-numeric">
-          {monthNum} 月 {dayNum} 日
+        <span>
+          <span className="font-numeric">{monthNum}</span> 月{" "}
+          <span className="font-numeric">{dayNum}</span> 日
         </span>
-        <span>·</span>
+        <span className="opacity-50">·</span>
         <span>
           滿{" "}
-          <span className="font-numeric text-foreground font-medium">
+          <span className="font-numeric font-semibold text-foreground">
             {age}
           </span>{" "}
           歲
@@ -502,437 +977,219 @@ function BirthdayRow({ star }: { star: BirthdayStar }) {
   );
 }
 
-/* ============== StatCard ============== */
+/* ============== 訓練分布 ============== */
 
-type Tone = "primary" | "info" | "warning" | "success" | "destructive";
-const TONE_BG: Record<Tone, string> = {
-  primary: "bg-primary/10 text-primary",
-  info: "bg-info/10 text-info",
-  warning: "bg-warning/15 text-warning",
-  success: "bg-success/10 text-success",
-  destructive: "bg-destructive/10 text-destructive",
-};
-const TONE_ACCENT: Record<Tone, string> = {
-  primary: "from-primary/8 via-primary/0 to-transparent",
-  info: "from-info/8 via-info/0 to-transparent",
-  warning: "from-warning/10 via-warning/0 to-transparent",
-  success: "from-success/8 via-success/0 to-transparent",
-  destructive: "from-destructive/8 via-destructive/0 to-transparent",
-};
-
-interface StatCardProps {
-  title: string;
-  value: number | string;
-  suffix?: string;
-  subtitle?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  tone?: Tone;
-  trend?: number;
-  compact?: boolean;
-}
-
-function StatCard({
-  title,
+function PeriodPicker({
   value,
-  suffix,
-  subtitle,
-  icon: Icon,
-  tone = "primary",
-  trend,
-  compact,
-}: StatCardProps) {
-  return (
-    <Card
-      className={cn(
-        "relative overflow-hidden transition-all hover:shadow-lift hover:-translate-y-0.5",
-        "bg-gradient-to-br",
-        TONE_ACCENT[tone],
-      )}
-    >
-      <CardContent className="p-4 lg:p-5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground">{title}</p>
-            <p
-              className={cn(
-                "font-display font-bold tracking-tight mt-1.5 text-foreground",
-                compact ? "text-xl" : "text-3xl",
-              )}
-            >
-              <span className="font-numeric">
-                {typeof value === "number" ? (
-                  <AnimatedNumber value={value} />
-                ) : (
-                  value
-                )}
-              </span>
-              {suffix && (
-                <span className="text-sm font-normal text-muted-foreground ml-1">
-                  {suffix}
-                </span>
-              )}
-            </p>
-            {subtitle && (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                {subtitle}
-              </p>
-            )}
-            {trend != null && (
-              <p
-                className={cn(
-                  "text-xs mt-2 inline-flex items-center gap-1 font-medium",
-                  trend >= 0 ? "text-success" : "text-destructive",
-                )}
-              >
-                <TrendingUp
-                  className={cn("h-3 w-3", trend < 0 && "rotate-180")}
-                />
-                {Math.abs(trend)}%
-              </p>
-            )}
-          </div>
-          <div
-            className={cn(
-              "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-              TONE_BG[tone],
-            )}
-          >
-            <Icon className="h-5 w-5" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ============== 贊助榜 KPI 卡（StatCard 樣式，內含前三名三行） ============== */
-
-function SponsorKpiCard({ sponsors }: { sponsors: SponsorRank[] }) {
-  return (
-    <Card
-      className={cn(
-        "relative overflow-hidden transition-all hover:shadow-lift hover:-translate-y-0.5",
-        "bg-gradient-to-br",
-        TONE_ACCENT.warning,
-      )}
-    >
-      <CardContent className="p-4 lg:p-5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-muted-foreground">贊助榜</p>
-            <ol className="mt-1.5 space-y-1">
-              {sponsors.slice(0, 3).map((s, i) => (
-                <li
-                  key={s.sponsorId}
-                  className="flex items-baseline gap-1.5 text-sm"
-                >
-                  <span
-                    className={cn(
-                      "font-bold tabular-nums shrink-0 w-3",
-                      SPONSOR_RANK_COLOR[i] ?? "text-muted-foreground",
-                    )}
-                  >
-                    {i + 1}
-                  </span>
-                  <span className="font-medium truncate flex-1 min-w-0">
-                    {s.jerseyNo != null ? `#${s.jerseyNo} ` : ""}
-                    {s.displayName}
-                    <span className="ml-1 text-[11px] text-muted-foreground">
-                      {SPONSOR_IDENTITY_LABEL[s.identity] ?? ""}
-                    </span>
-                  </span>
-                  <span className="font-semibold tabular-nums text-warning shrink-0">
-                    {formatMoneyShort(s.totalAmount)}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <div
-            className={cn(
-              "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-              TONE_BG.warning,
-            )}
-          >
-            <Crown className="h-5 w-5" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ============== 賽事統計 KPI 卡（StatCard 樣式，比賽＋友誼賽兩行） ============== */
-
-function MatchKpiCard({
-  official,
-  friendly,
-  yearLabel,
+  onChange,
 }: {
-  official: number;
-  friendly: number;
-  yearLabel: string;
+  value: number;
+  onChange: (v: number) => void;
 }) {
-  const lines: { label: string; value: number; icon: typeof Trophy }[] = [
-    { label: "比賽", value: official, icon: Trophy },
-    { label: "友誼賽", value: friendly, icon: Handshake },
+  const opts = [
+    { v: 3, label: "近 3 個月" },
+    { v: 6, label: "近 6 個月" },
+    { v: 12, label: "近 12 個月" },
   ];
   return (
-    <Card
-      className={cn(
-        "relative overflow-hidden transition-all hover:shadow-lift hover:-translate-y-0.5",
-        "bg-gradient-to-br",
-        TONE_ACCENT.info,
-      )}
-    >
-      <CardContent className="p-4 lg:p-5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-muted-foreground">賽事統計</p>
-            <div className="mt-1.5 space-y-1.5">
-              {lines.map((ln) => (
-                <div
-                  key={ln.label}
-                  className="flex items-baseline justify-between gap-2"
-                >
-                  <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                    <ln.icon className="h-3.5 w-3.5" />
-                    {ln.label}
-                  </span>
-                  <span className="font-display font-bold tracking-tight text-foreground">
-                    <span className="font-numeric text-xl">
-                      <AnimatedNumber value={ln.value} />
-                    </span>
-                    <span className="text-xs font-normal text-muted-foreground ml-1">
-                      項
-                    </span>
-                  </span>
-                </div>
-              ))}
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-1.5">
-              {yearLabel}
-            </p>
-          </div>
-          <div
-            className={cn(
-              "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-              TONE_BG.info,
-            )}
-          >
-            <Trophy className="h-5 w-5" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
+      {opts.map((o) => (
+        <button
+          key={o.v}
+          type="button"
+          onClick={() => onChange(o.v)}
+          className={cn(
+            "h-7 px-2.5 text-[11.5px] font-medium rounded-md transition-colors whitespace-nowrap",
+            value === o.v
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
-/* ============== 哭哭榜 TOP3 KPI 卡（StatCard 樣式，單一清單 + 並列收合） ============== */
-
-interface CryRow {
-  key: string;
-  label: string;
-  sub?: string;
-  count: number;
-}
-
-// 名次配色（金 / 銀 / 銅）
-const CRY_RANK_COLOR = [
-  "text-warning",
-  "text-muted-foreground",
-  "text-foreground/50",
-];
-
-function CryingKpiCard({
-  title,
-  icon: Icon,
-  tone,
-  rows,
+function DistributionBody({
+  data,
 }: {
-  title: string;
-  icon: typeof Trophy;
-  tone: Tone;
-  rows: CryRow[];
+  data: CategoryDistribution | undefined;
 }) {
-  const navigate = useNavigate();
+  if (!data || data.total === 0)
+    return <EmptyState title="尚無訓練動作紀錄" icon={Activity} />;
 
-  // 標準競技排名（1224）：同分同名次、下一名次跳號；只取名次 ≤ 3 者
-  const ordered = [...rows].sort((a, b) => b.count - a.count);
-  const ranked: (CryRow & { rank: number })[] = [];
-  let prevCount: number | null = null;
-  let rank = 0;
-  ordered.forEach((r, i) => {
-    if (prevCount === null || r.count !== prevCount) rank = i + 1;
-    prevCount = r.count;
-    ranked.push({ ...r, rank });
-  });
-  const top = ranked.filter((r) => r.rank <= 3);
-
-  // 同名次並列 > 2 人時，僅顯示前 2 位，其餘收合成一行「並列第N・還有X人」
-  type Item =
-    | { type: "row"; data: CryRow & { rank: number } }
-    | { type: "overflow"; rank: number; more: number };
-  const items: Item[] = [];
-  for (let i = 0; i < top.length; ) {
-    const rk = top[i].rank;
-    const group = top.filter((r) => r.rank === rk);
-    if (group.length <= 2) {
-      group.forEach((g) => items.push({ type: "row", data: g }));
-    } else {
-      group.slice(0, 2).forEach((g) => items.push({ type: "row", data: g }));
-      items.push({ type: "overflow", rank: rk, more: group.length - 2 });
-    }
-    i += group.length;
-  }
+  const chartData = data.categories.map((c) => ({
+    label: c.label,
+    count: c.count,
+    percent: c.percent,
+  }));
+  const totalDrill = data.categories.reduce((s, c) => s + c.count, 0);
+  const totalMax = Math.max(...data.categories.map((c) => c.count), 1);
+  const topCat = [...data.categories].sort((a, b) => b.count - a.count)[0];
 
   return (
-    <Card
-      className={cn(
-        "relative overflow-hidden transition-all hover:shadow-lift hover:-translate-y-0.5",
-        "bg-gradient-to-br",
-        TONE_ACCENT[tone],
-      )}
-    >
-      <CardContent className="p-4 lg:p-5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-muted-foreground">{title}</p>
-            {items.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">尚無資料</p>
-            ) : (
-              <ol className="mt-1.5 space-y-1">
-                {items.map((it, idx) =>
-                  it.type === "row" ? (
-                    <li
-                      key={it.data.key}
-                      className="flex items-baseline gap-1.5 text-sm"
-                    >
-                      <span
-                        className={cn(
-                          "font-bold tabular-nums shrink-0 w-3",
-                          CRY_RANK_COLOR[it.data.rank - 1] ??
-                            "text-muted-foreground",
-                        )}
-                      >
-                        {it.data.rank}
-                      </span>
-                      <span className="font-medium truncate flex-1 min-w-0">
-                        {it.data.label}
-                        {it.data.sub && (
-                          <span className="ml-1 text-[11px] text-muted-foreground">
-                            {it.data.sub}
-                          </span>
-                        )}
-                      </span>
-                      <span className="font-semibold tabular-nums shrink-0">
-                        {it.data.count}
-                      </span>
-                    </li>
-                  ) : (
-                    <li key={`overflow-${idx}`}>
-                      <button
-                        type="button"
-                        onClick={() => navigate("/crying")}
-                        className="pl-[1.125rem] text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        並列第{it.rank}・還有 {it.more} 人 →
-                      </button>
-                    </li>
-                  ),
-                )}
-              </ol>
-            )}
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+        {/* 雷達圖 */}
+        <div className="lg:col-span-5 flex flex-col items-center">
+          <div style={{ width: "100%", height: 300 }}>
+            <ResponsiveContainer initialDimension={{ width: 300, height: 300 }}>
+              <RadarChart data={chartData} outerRadius="72%">
+                <PolarGrid stroke="hsl(var(--border))" />
+                <PolarAngleAxis
+                  dataKey="label"
+                  tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }}
+                />
+                <PolarRadiusAxis
+                  tick={{
+                    fontSize: 10,
+                    fill: "hsl(var(--muted-foreground))",
+                  }}
+                  allowDecimals={false}
+                  stroke="hsl(var(--border))"
+                />
+                <Radar
+                  name="次數"
+                  dataKey="count"
+                  stroke="hsl(var(--primary))"
+                  fill="hsl(var(--primary))"
+                  fillOpacity={0.35}
+                  strokeWidth={2}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "0.5rem",
+                    color: "hsl(var(--popover-foreground))",
+                    fontSize: "12px",
+                  }}
+                  formatter={(value, _name, item) => {
+                    const pct =
+                      (item?.payload as { percent?: number } | undefined)
+                        ?.percent ?? 0;
+                    return [`${value} 次（${pct}%）`, "訓練分布"];
+                  }}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
           </div>
-          <div
-            className={cn(
-              "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
-              TONE_BG[tone],
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+            <Chip tone="primary" size="md">
+              總計{" "}
+              <span className="font-numeric font-semibold ml-1">
+                {totalDrill}
+              </span>{" "}
+              次
+            </Chip>
+            {topCat && topCat.count > 0 && (
+              <Chip tone="warning" size="md">
+                最多 · {topCat.label}{" "}
+                <span className="font-numeric font-semibold ml-1">
+                  {Math.round(topCat.percent)}%
+                </span>
+              </Chip>
             )}
-          >
-            <Icon className="h-5 w-5" />
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        {/* 分類詳情卡 */}
+        <div className="lg:col-span-7">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {data.categories.map((c) => (
+              <CategoryDetailCard key={c.key} item={c} totalMax={totalMax} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {(data.basicCount > 0 || data.fitnessCount > 0) && (
+        <div className="pt-4 border-t border-dashed border-border text-center text-[12.5px] text-muted-foreground">
+          另含 基礎{" "}
+          <span className="font-numeric font-semibold text-foreground">
+            {data.basicCount}
+          </span>{" "}
+          次、體能{" "}
+          <span className="font-numeric font-semibold text-foreground">
+            {data.fitnessCount}
+          </span>{" "}
+          次（未計入分布）
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CategoryDetailCard({
+  item,
+  totalMax,
+}: {
+  item: CategoryItem;
+  totalMax: number;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-3.5 hover:border-primary/40 hover:shadow-soft transition-all">
+      <div className="flex items-baseline justify-between mb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-semibold text-foreground truncate">
+            {item.label}
+          </span>
+          {item.count === 0 && (
+            <Chip tone="outline" size="sm">
+              無動作
+            </Chip>
+          )}
+        </div>
+        <div className="flex items-baseline gap-1.5 shrink-0">
+          <span className="font-numeric font-bold text-[17px] text-foreground">
+            {item.count}
+          </span>
+          <span className="font-numeric text-[11.5px] text-muted-foreground">
+            ({item.percent}%)
+          </span>
+        </div>
+      </div>
+      <ProgressBar
+        value={item.count}
+        max={totalMax}
+        tone="primary"
+        className="mb-3"
+      />
+      {item.drills.length === 0 ? (
+        <p className="text-[12.5px] text-muted-foreground italic mt-3">
+          尚無動作
+        </p>
+      ) : (
+        <ul className="space-y-1.5">
+          {item.drills.slice(0, 5).map((d, i) => (
+            <li
+              key={i}
+              className="flex items-center justify-between text-[12.5px]"
+            >
+              <span className="text-foreground/80 truncate">{d.name}</span>
+              <span className="font-numeric font-medium text-muted-foreground tabular-nums">
+                {d.count}
+              </span>
+            </li>
+          ))}
+          {item.drills.length > 5 && (
+            <li className="text-[11.5px] text-muted-foreground italic pt-0.5">
+              還有{" "}
+              <span className="font-numeric font-semibold">
+                {item.drills.length - 5}
+              </span>{" "}
+              項…
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
   );
 }
 
 /* ============== 戰績總覽 ============== */
-
-function MatchSummaryBody({ summary }: { summary: MatchSummary }) {
-  return (
-    <div className="space-y-5">
-      <div className="space-y-2">
-        <p className="text-xs text-muted-foreground">
-          共{" "}
-          <span className="font-numeric font-bold text-foreground text-base mx-0.5">
-            {summary.eventCount}
-          </span>{" "}
-          項比賽
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {summary.events.map((e, i) => (
-            <RankingCard key={i} event={e} />
-          ))}
-        </div>
-      </div>
-
-      <ul className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1 -mr-1">
-        {summary.events.map((e, i) => (
-          <EventBlock key={i} event={e} />
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function RankingCard({ event }: { event: MatchEvent }) {
-  const title = event.matchName?.trim() || "（未命名賽事）";
-  const isSplit = event.squadCount >= 2;
-  return (
-    <div className="flex flex-col gap-2 rounded-lg border bg-card/50 p-3">
-      <p className="text-sm font-medium leading-snug line-clamp-2" title={title}>
-        {title}
-      </p>
-      {isSplit ? (
-        <div className="mt-auto flex flex-col gap-1">
-          <span className="inline-flex items-center gap-1 text-xs">
-            <span className="text-muted-foreground">A 名次</span>
-            {event.ranking ? (
-              <Chip tone="primary" size="sm">
-                {event.ranking}
-              </Chip>
-            ) : (
-              <span className="text-muted-foreground italic">未評定</span>
-            )}
-          </span>
-          <span className="inline-flex items-center gap-1 text-xs">
-            <span className="text-muted-foreground">B 名次</span>
-            {event.rankingB ? (
-              <Chip tone="info" size="sm">
-                {event.rankingB}
-              </Chip>
-            ) : (
-              <span className="text-muted-foreground italic">未評定</span>
-            )}
-          </span>
-        </div>
-      ) : (
-        <span className="mt-auto inline-flex items-center gap-1 text-xs">
-          <span className="text-muted-foreground">名次</span>
-          {event.ranking ? (
-            <Chip tone="navy" size="sm">
-              {event.ranking}
-            </Chip>
-          ) : (
-            <span className="text-muted-foreground italic">未評定</span>
-          )}
-        </span>
-      )}
-    </div>
-  );
-}
 
 function tallySquad(lines: MatchResultLine[], squad: string) {
   let w = 0,
@@ -947,96 +1204,244 @@ function tallySquad(lines: MatchResultLine[], squad: string) {
   return { w, l, d };
 }
 
-const SQUAD_TONE: Record<string, "primary" | "info"> = {
-  A: "primary",
-  B: "info",
-};
+function tallyAll(lines: MatchResultLine[]) {
+  let w = 0,
+    l = 0,
+    d = 0;
+  for (const ln of lines) {
+    if (ln.result === "W") w++;
+    else if (ln.result === "L") l++;
+    else if (ln.result === "D") d++;
+  }
+  return { w, l, d };
+}
 
-function EventBlock({ event }: { event: MatchEvent }) {
+function recordString(t: { w: number; l: number; d: number }) {
+  return t.d > 0 ? `${t.w}-${t.l}-${t.d}` : `${t.w}-${t.l}`;
+}
+
+function ResultsOverviewBody({ summary }: { summary: MatchSummary }) {
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Top: 名次小卡 grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mb-4">
+        {summary.events.map((e, i) => (
+          <EventRankingCard key={i} event={e} />
+        ))}
+      </div>
+      {/* 滾動列表 */}
+      <ul className="space-y-3 overflow-y-auto pr-1 -mr-1 flex-1 max-h-[420px]">
+        {summary.events.map((e, i) => (
+          <EventDetailBlock key={i} event={e} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function EventRankingCard({ event }: { event: MatchEvent }) {
+  const title = event.matchName?.trim() || "（未命名賽事）";
+  const isSplit = event.squadCount >= 2;
+  const shortDate = fmtShortDate(event.matchDate);
+  return (
+    <div className="rounded-lg border border-border bg-card p-3.5 hover:-translate-y-0.5 hover:shadow-soft transition-all">
+      <div className="flex items-start justify-between gap-2 mb-2.5">
+        <h4
+          className="text-sm font-semibold text-foreground leading-tight line-clamp-2"
+          title={title}
+        >
+          {title}
+        </h4>
+        <Chip tone="outline" size="sm" className="font-numeric shrink-0">
+          {shortDate}
+        </Chip>
+      </div>
+      {!isSplit ? (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            名次
+          </span>
+          {event.ranking ? (
+            <Chip tone={rankingTone(event.ranking)} size="md">
+              {event.ranking}
+            </Chip>
+          ) : (
+            <span className="text-xs text-muted-foreground italic">未評定</span>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-1.5">
+          <div className="rounded-md bg-muted/50 px-2 py-1.5 flex items-center justify-between gap-1.5 min-w-0">
+            <Chip tone="primary" size="sm" className="shrink-0">
+              A
+            </Chip>
+            {event.ranking ? (
+              <Chip
+                tone={rankingTone(event.ranking)}
+                size="sm"
+                className="truncate"
+              >
+                {event.ranking}
+              </Chip>
+            ) : (
+              <span className="text-[10px] text-muted-foreground italic">
+                未評定
+              </span>
+            )}
+          </div>
+          <div className="rounded-md bg-muted/50 px-2 py-1.5 flex items-center justify-between gap-1.5 min-w-0">
+            <Chip tone="info" size="sm" className="shrink-0">
+              B
+            </Chip>
+            {event.rankingB ? (
+              <Chip
+                tone={rankingTone(event.rankingB)}
+                size="sm"
+                className="truncate"
+              >
+                {event.rankingB}
+              </Chip>
+            ) : (
+              <span className="text-[10px] text-muted-foreground italic">
+                未評定
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EventDetailBlock({ event }: { event: MatchEvent }) {
   const title = event.matchName?.trim() || "（未命名賽事）";
   const isSplit = event.squadCount >= 2;
   return (
-    <li className="rounded-lg border bg-card/50 p-3 hover:bg-accent/30 transition-colors">
-      <div className="flex items-start justify-between gap-2 mb-2">
+    <li className="rounded-lg border border-border bg-card p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
-          <div className="font-medium truncate">{title}</div>
-          <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-            <Calendar className="h-3 w-3" />
-            <span className="font-numeric">{event.matchDate.slice(0, 10)}</span>
+          <h4 className="text-[15px] font-semibold text-foreground">{title}</h4>
+          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              <span className="font-numeric">{fmtDate(event.matchDate)}</span>
+            </span>
             {event.location && (
               <>
-                <span>·</span>
-                <MapPin className="h-3 w-3" />
-                <span className="truncate">{event.location}</span>
+                <span className="opacity-50">·</span>
+                <span className="inline-flex items-center gap-1 truncate">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{event.location}</span>
+                </span>
               </>
             )}
           </div>
         </div>
-        {!isSplit && event.ranking && (
-          <Chip tone="navy" className="shrink-0">
-            {event.ranking}
-          </Chip>
+        {!isSplit ? (
+          event.ranking && (
+            <Chip
+              tone={rankingTone(event.ranking)}
+              size="md"
+              className="shrink-0 font-semibold"
+            >
+              {event.ranking}
+            </Chip>
+          )
+        ) : (
+          <div className="flex gap-1.5 shrink-0">
+            {event.ranking && (
+              <Chip tone={rankingTone(event.ranking)} size="sm">
+                <span className="opacity-70 mr-0.5">A</span>
+                {event.ranking}
+              </Chip>
+            )}
+            {event.rankingB && (
+              <Chip tone={rankingTone(event.rankingB)} size="sm">
+                <span className="opacity-70 mr-0.5">B</span>
+                {event.rankingB}
+              </Chip>
+            )}
+          </div>
         )}
       </div>
 
+      {/* 分隊計分板（W-L-D 動態算） */}
       {isSplit && (
-        <div className="mb-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-          <SquadSummary squad="A" lines={event.lines} ranking={event.ranking} />
-          <SquadSummary
-            squad="B"
-            lines={event.lines}
-            ranking={event.rankingB}
-          />
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <SquadRecord squad="A" lines={event.lines} tone="primary" />
+          <SquadRecord squad="B" lines={event.lines} tone="info" />
+        </div>
+      )}
+      {!isSplit && (
+        <div className="mb-3">
+          <SingleRecord lines={event.lines} />
         </div>
       )}
 
-      <ul className="space-y-1">
-        {event.lines.map((line, i) => (
-          <ResultLine key={i} line={line} showSquad={isSplit} />
+      {/* 對戰結果列表 */}
+      <ul className="divide-y divide-border/70">
+        {event.lines.map((m, i) => (
+          <ResultLineRow key={i} line={m} showSquad={isSplit} />
         ))}
       </ul>
     </li>
   );
 }
 
-function SquadSummary({
+function SquadRecord({
   squad,
   lines,
-  ranking,
+  tone,
 }: {
   squad: "A" | "B";
   lines: MatchResultLine[];
-  ranking: string | null;
+  tone: "primary" | "info";
 }) {
   const t = tallySquad(lines, squad);
   const total = t.w + t.l + t.d;
-  if (total === 0 && !ranking) return null;
+  if (total === 0) return null;
   return (
-    <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background/40 px-2 py-1 text-xs">
-      <Chip tone={SQUAD_TONE[squad]} size="sm">
-        {squad} 隊
-      </Chip>
-      <span className="font-numeric text-muted-foreground">
-        <span className="text-success">{t.w}</span>
-        <span className="mx-0.5">·</span>
-        <span className="text-destructive">{t.l}</span>
-        {t.d > 0 && (
-          <>
-            <span className="mx-0.5">·</span>
-            <span>{t.d}</span>
-          </>
-        )}
-      </span>
-      {ranking && (
-        <Chip tone="navy" size="sm" className="ml-auto">
-          {ranking}
-        </Chip>
+    <div
+      className={cn(
+        "rounded-md px-2.5 py-1.5 flex items-center justify-between",
+        tone === "primary"
+          ? "bg-primary/10 text-primary"
+          : "bg-info/10 text-info",
       )}
+    >
+      <span className="text-[11.5px] font-semibold">{squad} 隊</span>
+      <span className="font-numeric font-bold text-sm tabular-nums">
+        {recordString(t)}
+      </span>
     </div>
   );
 }
 
-function ResultLine({
+function SingleRecord({ lines }: { lines: MatchResultLine[] }) {
+  const t = tallyAll(lines);
+  const total = t.w + t.l + t.d;
+  if (total === 0) return null;
+  return (
+    <div className="rounded-md bg-muted/50 px-2.5 py-1.5 flex items-center justify-between text-foreground">
+      <span className="text-[11.5px] font-semibold text-muted-foreground">
+        戰績
+      </span>
+      <span className="font-numeric font-bold text-sm tabular-nums">
+        <span className="text-success">{t.w}</span>
+        <span className="mx-0.5 text-muted-foreground">-</span>
+        <span className="text-destructive">{t.l}</span>
+        {t.d > 0 && (
+          <>
+            <span className="mx-0.5 text-muted-foreground">-</span>
+            <span className="text-muted-foreground">{t.d}</span>
+          </>
+        )}
+      </span>
+    </div>
+  );
+}
+
+function ResultLineRow({
   line,
   showSquad,
 }: {
@@ -1049,220 +1454,126 @@ function ResultLine({
       : "-";
   const result = line.result as ResultKey | null;
   return (
-    <li className="flex items-center justify-between gap-2 text-sm">
-      <span className="truncate text-muted-foreground flex items-center gap-1.5">
-        {showSquad && line.ourSquad && (
-          <Chip tone={SQUAD_TONE[line.ourSquad] ?? "neutral"} size="sm">
-            {line.ourSquad}
-          </Chip>
-        )}
-        <span>
-          vs <span className="text-foreground">{line.opponent}</span>
-        </span>
-      </span>
-      <div className="flex items-center gap-2 shrink-0">
+    <li className="flex items-center gap-3 py-2 text-[13px]">
+      {showSquad && line.ourSquad && (
         <span
           className={cn(
-            "font-numeric",
-            result ? RESULT_CLASS[result] : "text-muted-foreground",
+            "shrink-0 grid place-items-center w-5 h-5 rounded text-[10px] font-bold",
+            line.ourSquad === "A"
+              ? "bg-primary/10 text-primary"
+              : "bg-info/10 text-info",
           )}
         >
-          {score}
+          {line.ourSquad}
         </span>
-        {result && (
-          <Chip tone={RESULT_TONE[result]} size="sm">
-            {RESULT_LABEL[result]}
-          </Chip>
-        )}
-      </div>
-    </li>
-  );
-}
-
-function RecentEventRow({
-  e,
-  onClick,
-}: {
-  e: RecentEvent;
-  onClick?: () => void;
-}) {
-  const title = e.matchName?.trim() || "（未命名賽事）";
-  const typeKey = e.matchType ?? "";
-  const isSplit = e.squadCount >= 2;
-  return (
-    <li
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={(ev) => {
-        if (!onClick) return;
-        if (ev.key === "Enter" || ev.key === " ") {
-          ev.preventDefault();
-          onClick();
-        }
-      }}
-      className={cn(
-        "py-2.5 flex items-start justify-between gap-3 -mx-2 px-2 rounded-md transition-colors",
-        onClick
-          ? "cursor-pointer hover:bg-accent/40 focus:bg-accent/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-          : "hover:bg-accent/30",
       )}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-          {typeKey && (
-            <Chip tone={MATCH_TYPE_TONE[typeKey] ?? "neutral"} size="sm">
-              {MATCH_TYPE_LABEL[typeKey] ?? typeKey}
-            </Chip>
-          )}
-          {isSplit && (
-            <Chip tone="primary" size="sm">
-              分隊出賽
-            </Chip>
-          )}
-          <span className="text-xs text-muted-foreground font-numeric">
-            {e.matchDate.slice(0, 10)}
-          </span>
-        </div>
-        <div className="font-medium truncate">{title}</div>
-        {e.location && (
-          <div className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
-            <MapPin className="h-3 w-3" />
-            {e.location}
-          </div>
-        )}
-      </div>
-      {e.ranking && (
-        <Chip tone="navy" className="shrink-0 self-center">
-          {e.ranking}
+      <span className="flex-1 text-foreground truncate">
+        <span className="text-muted-foreground mr-1">vs</span>
+        {line.opponent}
+      </span>
+      <span className="font-numeric font-bold text-sm text-foreground tabular-nums shrink-0">
+        {score}
+      </span>
+      {result && (
+        <Chip tone={RESULT_TONE[result]} size="sm" className="shrink-0">
+          {RESULT_LABEL[result]}
         </Chip>
       )}
     </li>
   );
 }
 
-/* ============== 訓練分布 ============== */
+/* ============== 近 5 場 ============== */
 
-function DistributionRadar({
-  data,
-}: {
-  data: CategoryDistribution | undefined;
-}) {
-  if (!data || data.total === 0)
-    return <EmptyState title="尚無訓練動作紀錄" icon={Activity} />;
+function RecentEventRow({ e }: { e: RecentEvent }) {
+  const [open, setOpen] = useState(false);
+  const title = e.matchName?.trim() || "（未命名賽事）";
+  const typeKey = e.matchType ?? "";
+  const isSplit = e.squadCount >= 2;
+  const hasLines = e.lines && e.lines.length > 0;
 
-  const chartData = data.categories.map((c) => ({
-    label: c.label,
-    count: c.count,
-    percent: c.percent,
-  }));
   return (
-    <div className="space-y-4">
-      <div style={{ width: "100%", height: 320 }}>
-        <ResponsiveContainer initialDimension={{ width: 300, height: 320 }}>
-          <RadarChart data={chartData} outerRadius="75%">
-            <PolarGrid stroke="hsl(var(--border))" />
-            <PolarAngleAxis
-              dataKey="label"
-              tick={{ fontSize: 13, fill: "hsl(var(--foreground))" }}
-            />
-            <PolarRadiusAxis
-              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-              allowDecimals={false}
-              stroke="hsl(var(--border))"
-            />
-            <Radar
-              name="次數"
-              dataKey="count"
-              stroke="hsl(var(--primary))"
-              fill="hsl(var(--primary))"
-              fillOpacity={0.35}
-              strokeWidth={2}
-            />
-            <Tooltip
-              contentStyle={{
-                background: "hsl(var(--popover))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "0.5rem",
-                color: "hsl(var(--popover-foreground))",
-                fontSize: "12px",
-              }}
-              formatter={(value, _name, item) => {
-                const pct =
-                  (item?.payload as { percent?: number } | undefined)
-                    ?.percent ?? 0;
-                return [`${value} 次（${pct}%）`, "訓練分布"];
-              }}
-            />
-          </RadarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {data.categories.map((c) => (
-          <CategoryDetailCard key={c.key} item={c} />
-        ))}
-      </div>
-
-      {(data.basicCount > 0 || data.fitnessCount > 0) && (
-        <div className="text-xs text-muted-foreground text-center pt-2 border-t">
-          另含 基礎{" "}
-          <span className="text-foreground font-numeric font-medium">
-            {data.basicCount}
-          </span>{" "}
-          次、 體能{" "}
-          <span className="text-foreground font-numeric font-medium">
-            {data.fitnessCount}
-          </span>{" "}
-          次（未計入分布）
+    <li className="group">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={cn(
+          "w-full flex items-center gap-3 py-3.5 px-1 cursor-pointer transition-colors text-left",
+          "hover:bg-muted/50 rounded-md -mx-1",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+        )}
+      >
+        <div className="flex flex-col items-start gap-1 shrink-0 w-[110px]">
+          <div className="flex items-center gap-1 flex-wrap">
+            {typeKey && (
+              <Chip tone={MATCH_TYPE_TONE[typeKey] ?? "neutral"} size="sm">
+                {MATCH_TYPE_LABEL[typeKey] ?? typeKey}
+              </Chip>
+            )}
+            {isSplit && (
+              <Chip tone="warning" size="sm">
+                分隊
+              </Chip>
+            )}
+          </div>
+          <span className="font-numeric text-[11.5px] text-muted-foreground whitespace-nowrap">
+            {fmtDate(e.matchDate)}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="text-[14.5px] font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+            {title}
+          </h4>
+          {e.location && (
+            <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
+              <MapPin className="h-3 w-3 shrink-0" />
+              <span className="truncate">{e.location}</span>
+            </div>
+          )}
+        </div>
+        {e.ranking && (
+          <Chip
+            tone={rankingTone(e.ranking)}
+            size="md"
+            className="font-semibold shrink-0"
+          >
+            {e.ranking}
+          </Chip>
+        )}
+      </button>
+      {open && (
+        <div className="pl-3 pr-1 pb-3 -mt-1">
+          {hasLines ? (
+            <>
+              {isSplit ? (
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <SquadRecord squad="A" lines={e.lines} tone="primary" />
+                  <SquadRecord squad="B" lines={e.lines} tone="info" />
+                </div>
+              ) : (
+                <div className="mb-2">
+                  <SingleRecord lines={e.lines} />
+                </div>
+              )}
+              <ul className="divide-y divide-border/70">
+                {e.lines.map((m, i) => (
+                  <ResultLineRow key={i} line={m} showSquad={isSplit} />
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground italic py-2">
+              尚無對戰結果
+            </p>
+          )}
         </div>
       )}
-    </div>
+    </li>
   );
 }
 
-function CategoryDetailCard({ item }: { item: CategoryItem }) {
-  return (
-    <div className="rounded-lg border bg-card p-3 hover:border-primary/40 hover:shadow-soft transition-all">
-      <div className="flex items-baseline justify-between mb-2">
-        <span className="font-medium">{item.label}</span>
-        <span className="text-sm font-numeric">
-          <span className="font-bold">{item.count}</span>
-          <span className="text-xs text-muted-foreground ml-1">
-            ({item.percent}%)
-          </span>
-        </span>
-      </div>
-      {/* progress bar */}
-      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden mb-2.5">
-        <div
-          className="h-full bg-primary rounded-full transition-all"
-          style={{ width: `${Math.min(item.percent, 100)}%` }}
-        />
-      </div>
-      {item.drills.length > 0 ? (
-        <ul className="space-y-1">
-          {item.drills.slice(0, 5).map((d, i) => (
-            <li
-              key={i}
-              className="flex items-center justify-between gap-2 text-xs"
-            >
-              <span className="truncate text-muted-foreground">{d.name}</span>
-              <span className="shrink-0 font-numeric">{d.count}</span>
-            </li>
-          ))}
-          {item.drills.length > 5 && (
-            <li className="text-[10px] text-muted-foreground text-center pt-1">
-              還有 {item.drills.length - 5} 項…
-            </li>
-          )}
-        </ul>
-      ) : (
-        <div className="text-xs text-muted-foreground">尚無動作</div>
-      )}
-    </div>
-  );
-}
+/* ============== 社群圖示（自製 SVG，保留品牌色） ============== */
 
 function YoutubeIcon({ className }: { className?: string }) {
   return (

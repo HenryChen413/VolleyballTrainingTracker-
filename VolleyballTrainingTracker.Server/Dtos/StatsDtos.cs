@@ -64,10 +64,13 @@ public class MatchSummaryDto
 
 public class RecentEventDto
 {
+    public int Id { get; set; }
     public DateTime MatchDate { get; set; }
     public string? MatchType { get; set; }
     public string? MatchName { get; set; }
     public string? Ranking { get; set; }
+    public string? RankingB { get; set; }
     public string? Location { get; set; }
     public int SquadCount { get; set; }
+    public List<MatchResultLineDto> Lines { get; set; } = new();
 }

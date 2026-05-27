@@ -161,12 +161,22 @@ public class StatsController : ControllerBase
             .Take(take)
             .Select(e => new RecentEventDto
             {
+                Id = e.Id,
                 MatchDate = e.MatchDate,
                 MatchType = e.MatchType,
                 MatchName = e.MatchName,
                 Ranking = e.Ranking,
+                RankingB = e.RankingB,
                 Location = e.Location,
                 SquadCount = e.SquadCount,
+                Lines = e.Matches.OrderBy(x => x.Id).Select(x => new MatchResultLineDto
+                {
+                    Opponent = x.Opponent,
+                    OurSquad = x.OurSquad,
+                    OurScore = x.OurScore,
+                    OpponentScore = x.OpponentScore,
+                    Result = x.Result,
+                }).ToList(),
             })
             .ToListAsync();
 

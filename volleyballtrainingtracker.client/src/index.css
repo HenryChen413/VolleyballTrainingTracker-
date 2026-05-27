@@ -39,6 +39,11 @@
     --input: 220 13% 90%;
     --ring: 22 92% 52%;
 
+    /* 名次配色：金 / 銀 / 銅（用於排行榜 RankNumeral） */
+    --gold: 38 92% 50%;
+    --silver: 220 9% 60%;
+    --bronze: 25 60% 50%;
+
     --radius: 0.75rem;
   }
 
@@ -74,6 +79,10 @@
     --border: 222 25% 18%;
     --input: 222 25% 18%;
     --ring: 22 92% 56%;
+
+    --gold: 42 95% 60%;
+    --silver: 220 10% 70%;
+    --bronze: 25 70% 60%;
   }
 
   * { @apply border-border; }
@@ -113,6 +122,37 @@
     background: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--muted) / 0.4) 100%);
   }
   .ring-focus { @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background; }
+
+  /* 登入頁專用：blob 模糊光暈 + dot pattern */
+  .login-blob {
+    filter: blur(48px);
+    opacity: 0.55;
+  }
+  .login-dots {
+    background-image: radial-gradient(hsl(var(--foreground) / 0.08) 1.5px, transparent 1.5px);
+    background-size: 20px 20px;
+  }
+
+  /* 贊助榜冠軍裝飾：金光暈脈動 + 星星閃爍 */
+  @keyframes gold-pulse {
+    0%, 100% { opacity: 0.55; transform: scale(1); }
+    50%      { opacity: 0.85; transform: scale(1.04); }
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0; transform: scale(0.6); }
+    40%      { opacity: 0.9; transform: scale(1.1); }
+    60%      { opacity: 0.7; transform: scale(0.95); }
+  }
+  .anim-gold-pulse {
+    animation: gold-pulse 3.2s ease-in-out infinite;
+  }
+  .anim-twinkle {
+    animation: twinkle 2.4s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .anim-gold-pulse,
+    .anim-twinkle { animation: none; }
+  }
 
   /* skeleton */
   .skeleton {

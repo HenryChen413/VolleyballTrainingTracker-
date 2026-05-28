@@ -114,7 +114,9 @@
       "Bash(git -C \"c:/Users/apple/Desktop/VolleyballTrainingTracker\" add volleyballtrainingtracker.client/src/pages/Dashboard.tsx)",
       "Bash(git -C c:/Users/apple/Desktop/VolleyballTrainingTracker commit -m ' *)",
       "Bash(git -C \"c:/Users/apple/Desktop/VolleyballTrainingTracker\" push origin main)",
-      "Bash(tasklist //FI \"IMAGENAME eq dotnet.exe\")"
+      "Bash(tasklist //FI \"IMAGENAME eq dotnet.exe\")",
+      "Bash(echo \"TSC=$?\")",
+      "Bash(echo \"ESLINT=$?\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

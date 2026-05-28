@@ -90,6 +90,11 @@ public class RolesController : ControllerBase
         var role = await _db.Roles.FindAsync(id);
         if (role == null) return NotFound();
 
+        // Admin 為超級管理員角色，整體鎖死（名稱、描述、權限、頁面皆不可變更），
+        // 維持系統一定有「萬能 Admin」可救援，且避免被有 roles.manage 的人自鎖
+        if (role.IsSystem && role.Name == "Admin")
+            return BadRequest(new { message = "Admin 角色為系統內建，不可變更" });
+
         var (perms, pages) = Normalize(req);
 
         // 系統角色不允許改名，避免破壞 backfill 對應

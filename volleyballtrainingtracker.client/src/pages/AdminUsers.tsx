@@ -35,7 +35,7 @@ import {
   type UserListItem,
   type UserUpdatePayload,
 } from '@/api/users';
-import { useAuthStore } from '@/stores/authStore';
+import { PERM, useAuthStore } from '@/stores/authStore';
 import { confirmAction, showError, showSuccess } from '@/lib/swal';
 import { cn } from '@/lib/utils';
 
@@ -264,7 +264,8 @@ const isProtectedUser = (u: { userName: string }) =>
 export default function AdminUsersPage() {
   const qc = useQueryClient();
   const me = useAuthStore((s) => s.user);
-  const canManage = me?.userName?.toUpperCase() === SUPER_ADMIN_USERNAME;
+  const canManage = useAuthStore((s) => s.can(PERM.UsersManage));
+  const isMeSuperAdmin = me?.userName?.toUpperCase() === SUPER_ADMIN_USERNAME;
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
@@ -523,12 +524,12 @@ export default function AdminUsersPage() {
           <p className="text-sm text-muted-foreground">
             {canManage
               ? '指派角色、啟用/停用帳號、新增/編輯/刪除使用者'
-              : '檢視使用者清單（管理權限僅限超級管理員）'}
+              : '檢視使用者清單（需「使用者管理」權限才能進行管理操作）'}
           </p>
           {!canManage && (
             <Chip tone="warning" size="sm">
               <Shield className="h-3 w-3" />
-              僅 {SUPER_ADMIN_USERNAME} 可進行管理操作
+              無使用者管理權限
             </Chip>
           )}
         </div>
@@ -715,20 +716,24 @@ export default function AdminUsersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedUsers.map((u) => (
-                    <UserRow
-                      key={u.id}
-                      user={u}
-                      isSelf={me?.id === u.id}
-                      canManage={canManage}
-                      busy={busy}
-                      highlight={highlightId === u.id}
-                      rowRef={(el) => (rowRefs.current[u.id] = el)}
-                      onEdit={() => canManage && startEdit(u)}
-                      onToggleActive={() => onToggleActive(u)}
-                      onDelete={() => onDelete(u)}
-                    />
-                  ))}
+                  {sortedUsers.map((u) => {
+                    const lockedByProtected = isProtectedUser(u) && !isMeSuperAdmin;
+                    return (
+                      <UserRow
+                        key={u.id}
+                        user={u}
+                        isSelf={me?.id === u.id}
+                        canManage={canManage}
+                        lockedByProtected={lockedByProtected}
+                        busy={busy}
+                        highlight={highlightId === u.id}
+                        rowRef={(el) => (rowRefs.current[u.id] = el)}
+                        onEdit={() => canManage && !lockedByProtected && startEdit(u)}
+                        onToggleActive={() => onToggleActive(u)}
+                        onDelete={() => onDelete(u)}
+                      />
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -736,19 +741,23 @@ export default function AdminUsersPage() {
 
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
-            {sortedUsers.map((u) => (
-              <UserMobileCard
-                key={u.id}
-                user={u}
-                isSelf={me?.id === u.id}
-                canManage={canManage}
-                busy={busy}
-                highlight={highlightId === u.id}
-                onEdit={() => canManage && startEdit(u)}
-                onToggleActive={() => onToggleActive(u)}
-                onDelete={() => onDelete(u)}
-              />
-            ))}
+            {sortedUsers.map((u) => {
+              const lockedByProtected = isProtectedUser(u) && !isMeSuperAdmin;
+              return (
+                <UserMobileCard
+                  key={u.id}
+                  user={u}
+                  isSelf={me?.id === u.id}
+                  canManage={canManage}
+                  lockedByProtected={lockedByProtected}
+                  busy={busy}
+                  highlight={highlightId === u.id}
+                  onEdit={() => canManage && !lockedByProtected && startEdit(u)}
+                  onToggleActive={() => onToggleActive(u)}
+                  onDelete={() => onDelete(u)}
+                />
+              );
+            })}
           </div>
         </>
       )}
@@ -833,6 +842,8 @@ interface RowProps {
   user: UserListItem;
   isSelf: boolean;
   canManage: boolean;
+  /** 目標為 YUANHE 且當前使用者非 YUANHE：完全不可動 */
+  lockedByProtected: boolean;
   busy: boolean;
   highlight: boolean;
   rowRef?: (el: HTMLTableRowElement | null) => void;
@@ -845,6 +856,7 @@ function UserRow({
   user: u,
   isSelf,
   canManage,
+  lockedByProtected,
   busy,
   highlight,
   rowRef,
@@ -852,17 +864,18 @@ function UserRow({
   onToggleActive,
   onDelete,
 }: RowProps) {
+  const canRowEdit = canManage && !lockedByProtected;
   return (
     <tr
       ref={rowRef}
       className={cn(
         'border-b last:border-0 transition-colors',
-        canManage ? 'cursor-pointer hover:bg-muted/40' : '',
+        canRowEdit ? 'cursor-pointer hover:bg-muted/40' : '',
         highlight && 'bg-success/10',
       )}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('button')) return;
-        if (canManage) onEdit();
+        if (canRowEdit) onEdit();
       }}
     >
       <td className="px-4 py-3">
@@ -917,9 +930,9 @@ function UserRow({
               <Button
                 size="icon"
                 variant="ghost"
-                disabled={busy}
+                disabled={lockedByProtected || busy}
                 onClick={onEdit}
-                title="編輯"
+                title={lockedByProtected ? '僅超級管理員本人可修改' : '編輯'}
                 className="h-8 w-8"
               >
                 <Pencil className="h-4 w-4" />
@@ -965,22 +978,24 @@ function UserMobileCard({
   user: u,
   isSelf,
   canManage,
+  lockedByProtected,
   busy,
   highlight,
   onEdit,
   onToggleActive,
   onDelete,
 }: Omit<RowProps, 'rowRef'>) {
+  const canRowEdit = canManage && !lockedByProtected;
   return (
     <Card
       className={cn(
         'p-4 transition-colors',
-        canManage && 'cursor-pointer active:bg-muted/30',
+        canRowEdit && 'cursor-pointer active:bg-muted/30',
         highlight && 'ring-2 ring-success',
       )}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('button')) return;
-        if (canManage) onEdit();
+        if (canRowEdit) onEdit();
       }}
     >
       <div className="flex items-start gap-3">
@@ -1028,7 +1043,13 @@ function UserMobileCard({
       </div>
       {canManage && (
         <div className="flex items-center gap-1 justify-end mt-3 pt-3 border-t">
-          <Button size="sm" variant="outline" disabled={busy} onClick={onEdit}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={lockedByProtected || busy}
+            onClick={onEdit}
+            title={lockedByProtected ? '僅超級管理員本人可修改' : undefined}
+          >
             <span className="flex items-center gap-1">
               <Pencil className="h-3.5 w-3.5" /> 編輯
             </span>

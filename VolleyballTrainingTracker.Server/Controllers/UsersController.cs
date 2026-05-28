@@ -19,27 +19,30 @@ public class UsersController : ControllerBase
 
     private const string SuperAdminUserName = "YUANHE";
 
-    private async Task<bool> IsCallerSuperAdminAsync()
+    private static bool IsSuperAdminUser(User u) =>
+        string.Equals(u.UserName, SuperAdminUserName, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSuperAdminName(string? name) =>
+        string.Equals(name, SuperAdminUserName, StringComparison.OrdinalIgnoreCase);
+
+    // YUANHE 帳號的任何寫入動作都必須由 YUANHE 本人執行，
+    // 其他持有 users.manage 權限者不得編輯／停用／刪除 YUANHE。
+    private async Task<IActionResult?> EnsureCanModifySuperAdminAsync(User target)
     {
+        if (!IsSuperAdminUser(target)) return null;
         var selfId = GetUserId();
-        if (selfId == null) return false;
-        var name = await _db.Users
+        if (selfId == null)
+            return StatusCode(StatusCodes.Status403Forbidden,
+                new { message = $"僅 {SuperAdminUserName} 本人可修改此帳號" });
+        var callerName = await _db.Users
             .Where(u => u.Id == selfId.Value)
             .Select(u => u.UserName)
             .FirstOrDefaultAsync();
-        return string.Equals(name, SuperAdminUserName, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private async Task<IActionResult?> EnsureSuperAdminAsync()
-    {
-        if (!await IsCallerSuperAdminAsync())
+        if (!IsSuperAdminName(callerName))
             return StatusCode(StatusCodes.Status403Forbidden,
-                new { message = $"僅限超級管理員（{SuperAdminUserName}）可進行此操作" });
+                new { message = $"僅 {SuperAdminUserName} 本人可修改此帳號" });
         return null;
     }
-
-    private static bool IsSuperAdminUser(User u) =>
-        string.Equals(u.UserName, SuperAdminUserName, StringComparison.OrdinalIgnoreCase);
 
     [HttpGet]
     [RequirePermission(Permissions.UsersManage)]
@@ -68,11 +71,11 @@ public class UsersController : ControllerBase
     [RequirePermission(Permissions.UsersManage)]
     public async Task<IActionResult> SetRole(int id, [FromBody] UserRoleUpdateRequest req)
     {
-        var guard = await EnsureSuperAdminAsync();
-        if (guard != null) return guard;
-
         var user = await _db.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return NotFound();
+
+        var saGuard = await EnsureCanModifySuperAdminAsync(user);
+        if (saGuard != null) return saGuard;
 
         if (IsSuperAdminUser(user))
             return BadRequest(new { message = $"{SuperAdminUserName} 的角色不可變更" });
@@ -95,11 +98,11 @@ public class UsersController : ControllerBase
     [RequirePermission(Permissions.UsersManage)]
     public async Task<IActionResult> SetActive(int id, [FromBody] UserActiveUpdateRequest req)
     {
-        var guard = await EnsureSuperAdminAsync();
-        if (guard != null) return guard;
-
         var user = await _db.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return NotFound();
+
+        var saGuard = await EnsureCanModifySuperAdminAsync(user);
+        if (saGuard != null) return saGuard;
 
         // YUANHE 永遠不可停用
         if (IsSuperAdminUser(user) && !req.IsActive)
@@ -125,11 +128,9 @@ public class UsersController : ControllerBase
     [RequirePermission(Permissions.UsersManage)]
     public async Task<ActionResult<UserListItemDto>> Create([FromBody] UserCreateRequest req)
     {
-        if (!await IsCallerSuperAdminAsync())
-            return StatusCode(StatusCodes.Status403Forbidden,
-                new { message = $"僅限超級管理員（{SuperAdminUserName}）可進行此操作" });
-
         var userName = req.UserName.ToUpperInvariant();
+        if (IsSuperAdminName(userName))
+            return BadRequest(new { message = $"{SuperAdminUserName} 為保留帳號，無法建立" });
         if (await _db.Users.AnyAsync(u => u.UserName == userName))
             return Conflict(new { message = "帳號已被使用" });
 
@@ -169,11 +170,11 @@ public class UsersController : ControllerBase
     [RequirePermission(Permissions.UsersManage)]
     public async Task<IActionResult> Update(int id, [FromBody] UserUpdateRequest req)
     {
-        var guard = await EnsureSuperAdminAsync();
-        if (guard != null) return guard;
-
         var user = await _db.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return NotFound();
+
+        var saGuard = await EnsureCanModifySuperAdminAsync(user);
+        if (saGuard != null) return saGuard;
 
         if (req.RoleId.HasValue && req.RoleId.Value != user.RoleId)
         {
@@ -213,11 +214,11 @@ public class UsersController : ControllerBase
     [RequirePermission(Permissions.UsersManage)]
     public async Task<IActionResult> Delete(int id)
     {
-        var guard = await EnsureSuperAdminAsync();
-        if (guard != null) return guard;
-
         var user = await _db.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return NotFound();
+
+        var saGuard = await EnsureCanModifySuperAdminAsync(user);
+        if (saGuard != null) return saGuard;
 
         // YUANHE 永遠不可刪除
         if (IsSuperAdminUser(user))

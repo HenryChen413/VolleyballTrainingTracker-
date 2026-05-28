@@ -242,8 +242,12 @@ export default function AdminRolesPage() {
   });
 
   const isSystem = editing?.isSystem === true;
+  const isAdminRole = editing?.isSystem === true && editing?.name === "Admin";
   const isNewRole = editing === null;
-  const canSave = useMemo(() => draft.name.trim().length >= 2, [draft.name]);
+  const canSave = useMemo(
+    () => draft.name.trim().length >= 2 && !isAdminRole,
+    [draft.name, isAdminRole],
+  );
   const busy = saveMut.isPending || deleteMut.isPending;
 
   return (
@@ -445,11 +449,20 @@ export default function AdminRolesPage() {
                 </div>
               </div>
 
-              {isSystem && (
+              {isSystem && !isAdminRole && (
                 <div className="mt-3 flex items-start gap-2 text-xs text-muted-foreground bg-background/50 rounded-md px-3 py-2">
                   <Lock className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                   <span>
                     系統內建角色：名稱無法變更、無法刪除；權限與頁面仍可調整。
+                  </span>
+                </div>
+              )}
+              {isAdminRole && (
+                <div className="mt-3 flex items-start gap-2 text-xs text-warning bg-warning/10 rounded-md px-3 py-2">
+                  <Lock className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>
+                    Admin 為超級管理員角色，所有設定皆不可變更；
+                    系統永遠保留此角色作為救援用途。
                   </span>
                 </div>
               )}
@@ -476,7 +489,7 @@ export default function AdminRolesPage() {
                   <Input
                     id="roleDesc"
                     value={draft.description ?? ""}
-                    disabled={busy}
+                    disabled={busy || isAdminRole}
                     onChange={(e) =>
                       setDraft({ ...draft, description: e.target.value })
                     }
@@ -496,7 +509,7 @@ export default function AdminRolesPage() {
                     variant="ghost"
                     size="sm"
                     onClick={selectAll}
-                    disabled={busy}
+                    disabled={busy || isAdminRole}
                   >
                     全選
                   </Button>
@@ -505,7 +518,7 @@ export default function AdminRolesPage() {
                     variant="ghost"
                     size="sm"
                     onClick={clearAllSelections}
-                    disabled={busy}
+                    disabled={busy || isAdminRole}
                   >
                     全清
                   </Button>
@@ -529,7 +542,7 @@ export default function AdminRolesPage() {
                         key={p.key}
                         type="button"
                         onClick={() => togglePage(p.key)}
-                        disabled={busy}
+                        disabled={busy || isAdminRole}
                         className={cn(
                           "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm border transition-all",
                           "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -560,7 +573,7 @@ export default function AdminRolesPage() {
                       key={p.key}
                       meta={p}
                       checked={draft.permissions.includes(p.key)}
-                      disabled={busy || !knownPerms.has(p.key)}
+                      disabled={busy || isAdminRole || !knownPerms.has(p.key)}
                       onToggle={() => togglePerm(p.key)}
                     />
                   ))}
@@ -581,7 +594,7 @@ export default function AdminRolesPage() {
                       key={p.key}
                       meta={p}
                       checked={draft.permissions.includes(p.key)}
-                      disabled={busy || !knownPerms.has(p.key)}
+                      disabled={busy || isAdminRole || !knownPerms.has(p.key)}
                       onToggle={() => togglePerm(p.key)}
                     />
                   ))}

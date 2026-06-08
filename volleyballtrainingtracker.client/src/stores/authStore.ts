@@ -83,6 +83,7 @@ export const PAGE = {
   Crying: 'crying',
   Board: 'board',
   Sponsors: 'sponsors',
+  DrawCards: 'draw-cards',
   AdminRoles: 'admin-roles',
   AdminUsers: 'admin-users',
   Profile: 'profile',

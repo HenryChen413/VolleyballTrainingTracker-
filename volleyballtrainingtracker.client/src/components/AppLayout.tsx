@@ -39,7 +39,10 @@ export default function AppLayout() {
   const clear = useAuthStore((s) => s.clear);
   const allowedPages = user?.allowedPages ?? [];
 
-  const navItems = ALL_NAV.filter((n) => allowedPages.includes(n.page));
+  // 公開頁面（n.public）對所有登入者顯示，其餘依角色 AllowedPages 控管
+  const navItems = ALL_NAV.filter(
+    (n) => n.public || allowedPages.includes(n.page),
+  );
   const mainItems = navItems.filter((n) => n.group === "main" || !n.group);
   const accountItems = navItems.filter((n) => n.group === "account");
   const adminItems = navItems.filter((n) => n.group === "admin");

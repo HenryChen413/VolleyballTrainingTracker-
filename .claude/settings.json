@@ -116,7 +116,8 @@
       "Bash(git -C \"c:/Users/apple/Desktop/VolleyballTrainingTracker\" push origin main)",
       "Bash(tasklist //FI \"IMAGENAME eq dotnet.exe\")",
       "Bash(echo \"TSC=$?\")",
-      "Bash(echo \"ESLINT=$?\")"
+      "Bash(echo \"ESLINT=$?\")",
+      "Bash(grep -iE \"\\\\.md$|content/\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

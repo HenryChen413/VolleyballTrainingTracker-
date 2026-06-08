@@ -17,6 +17,7 @@ import DrillEditPage from '@/pages/DrillEdit';
 import CryingLogsPage from '@/pages/CryingLogs';
 import BoardPage from '@/pages/Board';
 import SponsorsPage from '@/pages/Sponsors';
+import DrawCardsPage from '@/pages/DrawCards';
 import ProfilePage from '@/pages/Profile';
 import AdminRolesPage from '@/pages/AdminRoles';
 import AdminUsersPage from '@/pages/AdminUsers';
@@ -69,6 +70,8 @@ export default function App() {
               <Route element={<ProtectedRoute requirePage={PAGE.Sponsors} />}>
                 <Route path="/sponsors" element={<SponsorsPage />} />
               </Route>
+              {/* 抽牌：純前端小工具，僅需登入、不套頁面權限 */}
+              <Route path="/draw-cards" element={<DrawCardsPage />} />
               <Route element={<ProtectedRoute requirePage={PAGE.Profile} />}>
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>

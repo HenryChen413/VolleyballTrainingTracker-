@@ -3,6 +3,7 @@ import {
   CalendarDays,
   Droplets,
   HandCoins,
+  Layers,
   LayoutDashboard,
   MessageSquare,
   Settings,
@@ -21,6 +22,11 @@ export interface NavItem {
   end?: boolean;
   icon: ComponentType<{ className?: string }>;
   group?: "main" | "admin" | "account";
+  /**
+   * 公開頁面：對所有登入者顯示，不受角色 AllowedPages 控管。
+   * 用於純前端、不涉及敏感資料的小工具（如抽牌）。
+   */
+  public?: boolean;
 }
 
 export const ALL_NAV: NavItem[] = [
@@ -87,6 +93,14 @@ export const ALL_NAV: NavItem[] = [
     page: PAGE.Sponsors,
     icon: HandCoins,
     group: "main",
+  },
+  {
+    to: "/draw-cards",
+    label: "抽牌",
+    page: PAGE.DrawCards,
+    icon: Layers,
+    group: "main",
+    public: true,
   },
   {
     to: "/profile",

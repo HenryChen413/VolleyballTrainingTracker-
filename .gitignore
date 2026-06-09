@@ -15,6 +15,8 @@ docs/db-backup/
 # ---- .NET 編譯產物 ----
 bin/
 obj/
+# 非標準命名的編譯輸出資料夾（曾誤入版控，例如 "binBuildCheck 2/"）
+binBuildCheck*/
 [Dd]ebug/
 [Rr]elease/
 *.user

@@ -117,7 +117,11 @@
       "Bash(tasklist //FI \"IMAGENAME eq dotnet.exe\")",
       "Bash(echo \"TSC=$?\")",
       "Bash(echo \"ESLINT=$?\")",
-      "Bash(grep -iE \"\\\\.md$|content/\")"
+      "Bash(grep -iE \"\\\\.md$|content/\")",
+      "PowerShell(cd volleyballtrainingtracker.client; npx tsc --noEmit -p tsconfig.app.json 2>&1 | Select-Object -First 30; \"exit=$LASTEXITCODE\")",
+      "PowerShell(cd volleyballtrainingtracker.client; npx eslint src/components/AppLayout.tsx 2>&1 | Select-Object -First 20; \"lint_exit=$LASTEXITCODE\")",
+      "PowerShell(cd volleyballtrainingtracker.client; npm run test 2>&1 | Select-Object -Last 30; \"test_exit=$LASTEXITCODE\")",
+      "PowerShell(npm --prefix C:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\volleyballtrainingtracker.client run build 2>&1 | Select-Object -Last 20; \"build_exit=$LASTEXITCODE\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

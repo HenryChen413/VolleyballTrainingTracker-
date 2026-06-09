@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   PolarAngleAxis,
   PolarGrid,
@@ -23,6 +23,7 @@ import {
   Crown,
   Clock,
   ArrowRight,
+  LayoutGrid,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
@@ -54,6 +55,7 @@ import {
 } from "@/api/sponsors";
 import { cryingApi, type CryingPlayerRank } from "@/api/crying";
 import { PAGE, useAuthStore } from "@/stores/authStore";
+import { ALL_NAV, BOTTOM_TAB_PAGES } from "@/config/nav";
 
 const YT_CHANNEL_URL = "https://youtube.com/channel/UCvONl3xCT8XLwoozldtsCcQ";
 const IG_URL = "https://www.instagram.com/kmumed_gvb/";
@@ -166,6 +168,8 @@ export default function DashboardPage() {
   const [distMonths, setDistMonths] = useState(6);
   const [guideOpen, setGuideOpen] = useState(false);
 
+  const allowedPages = useAuthStore((s) => s.user?.allowedPages) ?? [];
+
   const { data: overview, isLoading: lo } = useQuery({
     queryKey: ["stats", "overview"],
     queryFn: () => statsApi.overview(),
@@ -224,6 +228,9 @@ export default function DashboardPage() {
       />
 
       <UserGuideDialog open={guideOpen} onClose={() => setGuideOpen(false)} />
+
+      {/* === 快速入口（依權限顯示各頁面捷徑） === */}
+      <QuickLinks allowedPages={allowedPages} />
 
       {/* === 2. Hero KPI strip（贊助榜 / 現役選手 / 賽事統計） === */}
       <section
@@ -422,6 +429,68 @@ function PageHeader({
         </Chip>
       </div>
     </header>
+  );
+}
+
+/* ============== 快速入口 QuickLinks ============== */
+
+// 磁磚色票循環：沿用 TONE_ICON_BG 的色系，依索引輪替增加視覺層次
+const QUICK_TONES: Tone[] = ["primary", "info", "warning", "success", "navy"];
+
+function QuickLinks({ allowedPages }: { allowedPages: string[] }) {
+  // 複用側欄的 ALL_NAV 作為單一來源；過濾規則與 AppLayout 一致：
+  // 公開頁面對所有人顯示，其餘依權限。
+  // 排除：儀表板自己（人已在此頁）、底部列已有的 5 頁（手機一鍵可達，免重複）。
+  // 整個區塊僅在 <lg 顯示（lg+ 桌機側欄已展開列出全部），故此處只列「平常收在
+  // 漢堡選單裡」的頁面，補底部列之不足。
+  const items = ALL_NAV.filter(
+    (n) =>
+      n.page !== PAGE.Dashboard &&
+      !BOTTOM_TAB_PAGES.includes(n.page) &&
+      (n.public || allowedPages.includes(n.page)),
+  );
+
+  if (items.length === 0) return null;
+
+  return (
+    <Card className="surface-soft lg:hidden">
+      <CardContent className="p-5 lg:p-6">
+        <CardSectionHeader
+          tone="primary"
+          icon={LayoutGrid}
+          title="快速入口"
+          subtitle="點選前往各功能頁面"
+        />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {items.map((item, idx) => {
+            const tone = QUICK_TONES[idx % QUICK_TONES.length];
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  "group flex items-center gap-3 rounded-lg border border-border bg-card p-3.5",
+                  "transition-all hover:-translate-y-0.5 hover:shadow-soft hover:border-primary/40",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                )}
+              >
+                <span
+                  className={cn(
+                    "shrink-0 grid place-items-center w-9 h-9 rounded-lg",
+                    TONE_ICON_BG[tone],
+                  )}
+                >
+                  <item.icon className="h-[18px] w-[18px]" />
+                </span>
+                <span className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

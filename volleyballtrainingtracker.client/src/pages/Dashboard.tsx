@@ -229,6 +229,9 @@ export default function DashboardPage() {
 
       <UserGuideDialog open={guideOpen} onClose={() => setGuideOpen(false)} />
 
+      {/* === 本月壽星 === */}
+      <BirthdayCard />
+
       {/* === 快速入口（依權限顯示各頁面捷徑） === */}
       <QuickLinks allowedPages={allowedPages} />
 
@@ -304,9 +307,6 @@ export default function DashboardPage() {
           />
         </section>
       )}
-
-      {/* === 5. 本月壽星 === */}
-      <BirthdayCard />
 
       {/* === 6. 訓練分布（雷達左、詳情卡右；5/7 split on lg+） === */}
       <Card className="surface-soft">
@@ -949,6 +949,18 @@ function BirthdayCard() {
       return a.dayNum - b.dayNum;
     });
 
+  // 無壽星且載入完成時，收合成單行細條，避免占用版面
+  if (!isLoading && stars.length === 0) {
+    return (
+      <Card className="surface-soft">
+        <CardContent className="flex items-center gap-2.5 px-5 py-3 text-muted-foreground">
+          <Cake className="h-4 w-4 shrink-0 text-primary/70" />
+          <span className="text-sm">{curMonthNum} 月暫無壽星</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="surface-soft">
       <CardContent className="p-5 lg:p-6">
@@ -974,14 +986,12 @@ function BirthdayCard() {
             <Skeleton className="h-20 w-full" />
             <Skeleton className="h-20 w-full" />
           </div>
-        ) : stars.length > 0 ? (
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {stars.map((s) => (
               <BirthdayRow key={s.player.id} star={s} />
             ))}
           </div>
-        ) : (
-          <EmptyState title="本月沒有壽星" icon={Cake} compact />
         )}
       </CardContent>
     </Card>

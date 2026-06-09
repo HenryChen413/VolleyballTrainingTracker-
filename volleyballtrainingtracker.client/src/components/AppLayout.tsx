@@ -138,15 +138,22 @@ export default function AppLayout() {
       Date.now() - lastActivityRef.current >= IDLE_LOGOUT_MS ||
       !useAuthStore.getState().isAuthenticated();
 
-    // 動態 arm：依「距離上次活動還剩多久」設定 setTimeout。掛載時若 ref 取自
-    // localStorage 的舊值（非現在），remaining 會小於 IDLE_LOGOUT_MS，確保
-    // timer 在正確時點 fire 而非延後到全長後才判定。
+    // 動態 arm：timer 設在「閒置截止」與「token 絕對到期」兩者中較早的時點。
+    //  - 閒置截止：依「距離上次活動還剩多久」計算；掛載時若 ref 取自 localStorage
+    //    的舊值（非現在），idleRemaining 會小於 IDLE_LOGOUT_MS，確保在正確時點 fire。
+    //  - token 到期：JWT 為固定壽命（無 refresh token），使用者持續操作會一直把閒置
+    //    計時器往後推、卻擋不住 token 在伺服器端失效。把 expiresAt 一併納入，token 一到期
+    //    timer 立即 fire → check() 經 shouldLogout()（!isAuthenticated）主動登出，
+    //    避免之後的 refetch／換頁帶著過期 token 送出而收到一整排 401。
     const arm = () => {
       clearTimeout(timer);
-      const remaining = Math.max(
-        0,
-        IDLE_LOGOUT_MS - (Date.now() - lastActivityRef.current),
-      );
+      const idleRemaining =
+        IDLE_LOGOUT_MS - (Date.now() - lastActivityRef.current);
+      const expiresAt = useAuthStore.getState().expiresAt;
+      const tokenRemaining = expiresAt
+        ? new Date(expiresAt).getTime() - Date.now()
+        : Infinity;
+      const remaining = Math.max(0, Math.min(idleRemaining, tokenRemaining));
       timer = setTimeout(check, remaining);
     };
 

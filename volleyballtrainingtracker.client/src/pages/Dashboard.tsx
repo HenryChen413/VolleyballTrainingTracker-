@@ -564,7 +564,7 @@ function SponsorTop3Card({ sponsors }: { sponsors: SponsorRank[] }) {
           tone="warning"
           icon={Crown}
           title="贊助榜 TOP 3"
-          subtitle="本學年度累計金額"
+          subtitle="累計贊助金額"
         />
         <ul className="space-y-2.5">
           {sponsors.slice(0, 3).map((s, idx) => (

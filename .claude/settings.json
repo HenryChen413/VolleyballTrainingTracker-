@@ -133,7 +133,10 @@
       "PowerShell($pub = \"c:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\volleyballtrainingtracker.client\\\\public\"; npx -y sharp-cli -i \"$pub\\\\favicon.svg\" -o \"$pub\\\\favicon-32.png\" resize 32 32; npx -y sharp-cli -i \"$pub\\\\favicon.svg\" -o \"$pub\\\\favicon-16.png\" resize 16 16; Copy-Item \"$pub\\\\apple-touch-icon.png\" \"$pub\\\\apple-touch-icon-precomposed.png\")",
       "Bash(npx -y png-to-ico favicon-32.png favicon-16.png)",
       "Bash(file favicon.ico)",
-      "Bash(xxd -l 120 favicon.ico)"
+      "Bash(xxd -l 120 favicon.ico)",
+      "Bash(curl -sSI https://volleyball-training-tracker.vercel.app/favicon.ico)",
+      "Bash(curl -sSI https://volleyball-training-tracker.vercel.app/apple-touch-icon-precomposed.png)",
+      "PowerShell(git add .claude/settings.json volleyballtrainingtracker.client/index.html volleyballtrainingtracker.client/src/components/scoreboard/ScoreBoard.tsx volleyballtrainingtracker.client/public/manifest.webmanifest)"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

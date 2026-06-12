@@ -17,6 +17,7 @@ type FullscreenElement = HTMLElement & {
 type FullscreenDocument = Document & {
   webkitFullscreenElement?: Element | null;
   webkitExitFullscreen?: () => void;
+  webkitFullscreenEnabled?: boolean;
 };
 
 /**
@@ -72,12 +73,23 @@ export default function ScoreBoard() {
       setCssFullscreen(false);
       return;
     }
-    if (el.requestFullscreen) {
-      // 原生請求可能被拒（權限／嵌入環境），失敗時退回 CSS 全螢幕
-      el.requestFullscreen().catch(() => setCssFullscreen(true));
-    } else if (el.webkitRequestFullscreen) {
-      el.webkitRequestFullscreen();
-    } else {
+    // iPhone Safari 可能暴露 webkitRequestFullscreen 但呼叫後靜默無效，
+    // 不能只看函式存在與否，須以 fullscreenEnabled 特性偵測把關
+    const supported = document.fullscreenEnabled || doc.webkitFullscreenEnabled === true;
+    if (!supported) {
+      setCssFullscreen(true);
+      return;
+    }
+    try {
+      if (el.requestFullscreen) {
+        // 原生請求可能被拒（權限／嵌入環境），失敗時退回 CSS 全螢幕
+        el.requestFullscreen().catch(() => setCssFullscreen(true));
+      } else if (el.webkitRequestFullscreen) {
+        el.webkitRequestFullscreen();
+      } else {
+        setCssFullscreen(true);
+      }
+    } catch {
       setCssFullscreen(true);
     }
   };

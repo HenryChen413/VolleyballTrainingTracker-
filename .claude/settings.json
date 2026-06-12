@@ -124,7 +124,10 @@
       "PowerShell(dotnet build-server shutdown)",
       "PowerShell(dotnet build VolleyballTrainingTracker.sln -c Release -v q --nologo)",
       "PowerShell(dotnet test VolleyballTrainingTracker.Server.Tests -c Release -v q --nologo)",
-      "PowerShell(npm run lint)"
+      "PowerShell(npm run lint)",
+      "Bash(echo \"push_exit=$?\")",
+      "PowerShell(npx -y sharp-cli -i \"$env:TEMP\\\\apple-touch-icon.svg\" -o \"c:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\volleyballtrainingtracker.client\\\\public\\\\apple-touch-icon.png\" resize 180 180)",
+      "PowerShell(git add -A)"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

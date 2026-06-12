@@ -433,7 +433,9 @@ export default function AppLayout() {
         )}
 
         {/* === 主要內容區 === */}
-        <main className="flex-1 px-4 lg:px-6 py-5 pb-24 md:pb-5 max-w-[1400px] w-full mx-auto">
+        {/* 底部 padding 斷點須與 BottomTabBar 的 lg:hidden 一致：
+            手機橫放（md~lg 寬）導覽列仍在，padding 過早收掉會讓它蓋住頁面底部內容 */}
+        <main className="flex-1 px-4 lg:px-6 py-5 pb-24 lg:pb-5 max-w-[1400px] w-full mx-auto">
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0, y: 8 }}

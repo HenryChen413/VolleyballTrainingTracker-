@@ -25,15 +25,20 @@ export default function ScoreDisplay({
   const label = name.trim() || defaultLabel;
   return (
     <div className="flex flex-col items-center gap-[2vmin]">
-      {/* 透明 input：點隊名即可輸入；未輸入時 placeholder 呈灰底預設字 */}
+      {/* 透明 input：點隊名即可輸入；未輸入時 placeholder 呈灰底預設字。
+          字級下限 16px：iOS Safari 對小於 16px 的 input 聚焦會強制放大頁面 */}
       <input
         type="text"
         value={name}
         onChange={(e) => onNameChange(e.target.value)}
         placeholder={defaultLabel}
         maxLength={12}
+        enterKeyHint="done"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+        }}
         aria-label={`${defaultLabel} 隊名（可輸入自訂名稱）`}
-        className={`w-[26vmin] bg-transparent text-center text-[3.4vmin] font-bold tracking-[0.3em] outline-none placeholder:text-zinc-600 focus:rounded-md focus:bg-zinc-900 ${accentClassName}`}
+        className={`w-[max(26vmin,9rem)] bg-transparent text-center text-[max(3.4vmin,16px)] font-bold tracking-[0.3em] outline-none placeholder:text-zinc-600 focus:rounded-md focus:bg-zinc-900 ${accentClassName}`}
       />
       <GestureHandler onAdjust={onAdjust} label={`${label} 得分`} className="px-[2vmin] py-[2.4vmin]">
         <FlipCounter value={score} digits={2} label={`${label} 得分`} className="text-[22vmin]" />

@@ -1,0 +1,126 @@
+/*
+ * 翻牌（split-flap）數字的 3D 動畫。
+ * 每個數字由「上下兩個靜態半片」＋動畫期間的「兩個翻動半片」組成：
+ *   +1（fold down）：舊數字上半片向下闔（0 → -90°），新數字下半片接著落下（90° → 0）
+ *   -1（fold up） ：舊數字下半片向上掀（0 → 90°），新數字上半片接著蓋回（-90° → 0）
+ * 尺寸全部用 em，由外層 font-size 決定大小（比分大、小局數小共用同一元件）。
+ */
+
+.flip-digit {
+  position: relative;
+  display: inline-block;
+  width: 0.78em;
+  height: 1.16em;
+  perspective: 3.2em;
+  font-variant-numeric: tabular-nums;
+}
+
+.flip-half,
+.flip-flap {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  overflow: hidden;
+  background: linear-gradient(180deg, #27272a 0%, #18181b 100%);
+  color: #fafafa;
+}
+
+.flip-half.top,
+.flip-flap.top {
+  top: 0;
+  border-radius: 0.06em 0.06em 0 0;
+  /* 中縫：模擬實體翻牌的轉軸縫線 */
+  border-bottom: 1px solid rgba(0, 0, 0, 0.55);
+}
+
+.flip-half.bottom,
+.flip-flap.bottom {
+  top: 50%;
+  border-radius: 0 0 0.06em 0.06em;
+  background: linear-gradient(180deg, #1c1c1f 0%, #232327 100%);
+}
+
+/* 數字本體：高度撐滿整張牌（200% 半片高），上下半片各裁切一半 */
+.flip-half > span,
+.flip-flap > span {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 200%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.flip-half.top > span,
+.flip-flap.top > span {
+  top: 0;
+}
+
+.flip-half.bottom > span,
+.flip-flap.bottom > span {
+  top: -100%;
+}
+
+/* 翻動中的半片：壓在靜態半片上方做 3D 旋轉 */
+.flip-flap {
+  z-index: 2;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+.flip-flap.top {
+  transform-origin: bottom center;
+}
+
+.flip-flap.bottom {
+  transform-origin: top center;
+}
+
+/* +1：舊上半片向下闔（前半段），翻到 -90° 後維持隱沒 */
+.flip-flap.out-down {
+  animation: flip-out-down 360ms ease-in forwards;
+}
+
+/* +1：新下半片從 90° 落下（後半段） */
+.flip-flap.in-down {
+  animation: flip-in-down 360ms ease-out forwards;
+}
+
+/* -1：舊下半片向上掀（前半段） */
+.flip-flap.out-up {
+  animation: flip-out-up 360ms ease-in forwards;
+}
+
+/* -1：新上半片從 -90° 蓋回（後半段） */
+.flip-flap.in-up {
+  animation: flip-in-up 360ms ease-out forwards;
+}
+
+@keyframes flip-out-down {
+  0% { transform: rotateX(0); }
+  50%, 100% { transform: rotateX(-90deg); }
+}
+
+@keyframes flip-in-down {
+  0%, 50% { transform: rotateX(90deg); }
+  100% { transform: rotateX(0); }
+}
+
+@keyframes flip-out-up {
+  0% { transform: rotateX(0); }
+  50%, 100% { transform: rotateX(90deg); }
+}
+
+@keyframes flip-in-up {
+  0%, 50% { transform: rotateX(-90deg); }
+  100% { transform: rotateX(0); }
+}
+
+/* 翻動時加一點陰影層次，增強 3D 感 */
+.flip-flap.out-down > span,
+.flip-flap.out-up > span {
+  filter: brightness(0.82);
+}

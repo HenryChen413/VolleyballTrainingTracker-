@@ -119,7 +119,12 @@
       "PowerShell(npm --prefix C:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\volleyballtrainingtracker.client run build 2>&1 | Select-Object -Last 20; \"build_exit=$LASTEXITCODE\")",
       "PowerShell(cd C:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker; git push origin main; \"push_exit=$LASTEXITCODE\")",
       "Bash(rm -rf \"VolleyballTrainingTracker.Server/binBuildCheck 2\")",
-      "Bash(git grep *)"
+      "Bash(git grep *)",
+      "PowerShell(npm run build)",
+      "PowerShell(dotnet build-server shutdown)",
+      "PowerShell(dotnet build VolleyballTrainingTracker.sln -c Release -v q --nologo)",
+      "PowerShell(dotnet test VolleyballTrainingTracker.Server.Tests -c Release -v q --nologo)",
+      "PowerShell(npm run lint)"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

@@ -1,0 +1,149 @@
+import { ArrowUpRight, Eraser, MousePointer2, Pencil, Slash, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { confirmAction } from "@/lib/swal";
+import { cn } from "@/lib/utils";
+import {
+  DRAWING_COLORS,
+  DRAWING_WIDTHS,
+  type DrawingTool,
+} from "@/lib/drawing";
+import type { DrawingStyle } from "./useTacticsDrawings";
+
+const TOOLS: ReadonlyArray<{
+  value: DrawingTool;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [
+  { value: "select", label: "選取", icon: MousePointer2 },
+  { value: "line", label: "直線", icon: Slash },
+  { value: "arrow", label: "箭頭", icon: ArrowUpRight },
+  { value: "freehand", label: "曲線", icon: Pencil },
+  { value: "eraser", label: "橡皮擦", icon: Eraser },
+];
+
+interface Props {
+  tool: DrawingTool;
+  onToolChange: (tool: DrawingTool) => void;
+  style: DrawingStyle;
+  /** 變更顏色／粗細：套用到下一條線；有選取中的線時同步修改它 */
+  onStyleChange: (patch: Partial<DrawingStyle>) => void;
+  selectedId: string | null;
+  onDeleteSelected: () => void;
+  drawingCount: number;
+  onClearAll: () => void;
+}
+
+/** 戰術畫線工具列：工具切換、顏色、粗細、刪除選取、清除全部 */
+export default function DrawingToolbar({
+  tool,
+  onToolChange,
+  style,
+  onStyleChange,
+  selectedId,
+  onDeleteSelected,
+  drawingCount,
+  onClearAll,
+}: Props) {
+  const handleClearAll = async () => {
+    const res = await confirmAction(
+      "清除全部戰術線？",
+      `目前有 ${drawingCount} 條線，全部刪除（球員站位不受影響）。`,
+      "清除",
+      true,
+    );
+    if (res.isConfirmed) onClearAll();
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {/* 工具切換 */}
+      <div className="flex gap-1 rounded-lg border bg-muted/40 p-1">
+        {TOOLS.map(({ value, label, icon: Icon }) => (
+          <Button
+            key={value}
+            size="sm"
+            variant={tool === value ? "default" : "ghost"}
+            className="px-2.5"
+            onClick={() => onToolChange(value)}
+            title={label}
+            aria-label={label}
+            aria-pressed={tool === value}
+          >
+            <Icon className="h-4 w-4" />
+            <span className="ml-1 hidden sm:inline">{label}</span>
+          </Button>
+        ))}
+      </div>
+
+      {/* 顏色 */}
+      <div className="flex items-center gap-1.5" role="group" aria-label="線條顏色">
+        {DRAWING_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            className={cn(
+              "h-6 w-6 rounded-full border border-border/60 transition-transform",
+              style.color === c && "scale-110 ring-2 ring-ring ring-offset-1 ring-offset-background",
+            )}
+            style={{ backgroundColor: c }}
+            onClick={() => onStyleChange({ color: c })}
+            title={`線色 ${c}`}
+            aria-label={`線色 ${c}`}
+            aria-pressed={style.color === c}
+          />
+        ))}
+      </div>
+
+      {/* 粗細 */}
+      <div className="flex items-center gap-1" role="group" aria-label="線條粗細">
+        {DRAWING_WIDTHS.map((w) => (
+          <button
+            key={w.value}
+            type="button"
+            className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-md border transition-colors",
+              style.width === w.value
+                ? "border-primary bg-primary/10"
+                : "border-transparent hover:bg-accent",
+            )}
+            onClick={() => onStyleChange({ width: w.value })}
+            title={`粗細：${w.label}`}
+            aria-label={`粗細：${w.label}`}
+            aria-pressed={style.width === w.value}
+          >
+            <span
+              className="block w-5 rounded-full bg-foreground"
+              style={{ height: `${Math.max(2, Math.round(w.value / 1.8))}px` }}
+            />
+          </button>
+        ))}
+      </div>
+
+      {/* 刪除選取／清除全部 */}
+      {(selectedId || drawingCount > 0) && (
+        <div className="flex items-center gap-1 border-l pl-3">
+          {selectedId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDeleteSelected}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="mr-1 h-4 w-4" /> 刪除選取
+            </Button>
+          )}
+          {drawingCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearAll}
+              className="text-destructive hover:text-destructive"
+            >
+              <Eraser className="mr-1 h-4 w-4" /> 清除全部
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -45,6 +45,8 @@ public static class Pages
     public const string Players = "players";
     public const string Sessions = "sessions";
     public const string MatchLogs = "match-logs";
+    // 戰術板：全員可看可編（操作站位、儲存戰術），僅以頁面權限控管、無獨立 edit 權限。
+    public const string Tactics = "tactics";
     public const string Drills = "drills";
     public const string Crying = "crying";
     public const string Board = "board";
@@ -55,6 +57,6 @@ public static class Pages
 
     public static readonly string[] All =
     {
-        Dashboard, Calendar, Players, Sessions, MatchLogs, Drills, Crying, Board, Sponsors, AdminRoles, AdminUsers, Profile,
+        Dashboard, Calendar, Players, Sessions, MatchLogs, Tactics, Drills, Crying, Board, Sponsors, AdminRoles, AdminUsers, Profile,
     };
 }

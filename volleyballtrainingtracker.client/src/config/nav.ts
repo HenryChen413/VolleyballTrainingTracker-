@@ -1,11 +1,13 @@
 import type { ComponentType } from "react";
 import {
   CalendarDays,
+  ClipboardList,
   Droplets,
   HandCoins,
   Layers,
   LayoutDashboard,
   MessageSquare,
+  Monitor,
   Settings,
   Shield,
   Trophy,
@@ -67,6 +69,13 @@ export const ALL_NAV: NavItem[] = [
     group: "main",
   },
   {
+    to: "/tactics",
+    label: "戰術板",
+    page: PAGE.Tactics,
+    icon: ClipboardList,
+    group: "main",
+  },
+  {
     to: "/drills",
     label: "訓練項目",
     page: PAGE.Drills,
@@ -99,6 +108,14 @@ export const ALL_NAV: NavItem[] = [
     label: "抽牌",
     page: PAGE.DrawCards,
     icon: Layers,
+    group: "main",
+    public: true,
+  },
+  {
+    to: "/scoreboard",
+    label: "記分板",
+    page: PAGE.Scoreboard,
+    icon: Monitor,
     group: "main",
     public: true,
   },

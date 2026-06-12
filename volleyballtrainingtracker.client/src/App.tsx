@@ -12,12 +12,14 @@ import SessionsPage from '@/pages/Sessions';
 import SessionEditPage from '@/pages/SessionEdit';
 import MatchLogsPage from '@/pages/MatchLogs';
 import MatchLogEditPage from '@/pages/MatchLogEdit';
+import TacticsBoardPage from '@/pages/TacticsBoard';
 import DrillsPage from '@/pages/Drills';
 import DrillEditPage from '@/pages/DrillEdit';
 import CryingLogsPage from '@/pages/CryingLogs';
 import BoardPage from '@/pages/Board';
 import SponsorsPage from '@/pages/Sponsors';
 import DrawCardsPage from '@/pages/DrawCards';
+import FlipScoreboardPage from '@/pages/FlipScoreboard';
 import ProfilePage from '@/pages/Profile';
 import AdminRolesPage from '@/pages/AdminRoles';
 import AdminUsersPage from '@/pages/AdminUsers';
@@ -57,6 +59,9 @@ export default function App() {
                 <Route path="/match-logs" element={<MatchLogsPage />} />
                 <Route path="/match-logs/:id" element={<MatchLogEditPage />} />
               </Route>
+              <Route element={<ProtectedRoute requirePage={PAGE.Tactics} />}>
+                <Route path="/tactics" element={<TacticsBoardPage />} />
+              </Route>
               <Route element={<ProtectedRoute requirePage={PAGE.Drills} />}>
                 <Route path="/drills" element={<DrillsPage />} />
                 <Route path="/drills/:id" element={<DrillEditPage />} />
@@ -70,8 +75,9 @@ export default function App() {
               <Route element={<ProtectedRoute requirePage={PAGE.Sponsors} />}>
                 <Route path="/sponsors" element={<SponsorsPage />} />
               </Route>
-              {/* 抽牌：純前端小工具，僅需登入、不套頁面權限 */}
+              {/* 抽牌、記分板：純前端小工具，僅需登入、不套頁面權限 */}
               <Route path="/draw-cards" element={<DrawCardsPage />} />
+              <Route path="/scoreboard" element={<FlipScoreboardPage />} />
               <Route element={<ProtectedRoute requirePage={PAGE.Profile} />}>
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>

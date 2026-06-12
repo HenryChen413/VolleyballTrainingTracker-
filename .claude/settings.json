@@ -127,7 +127,13 @@
       "PowerShell(npm run lint)",
       "Bash(echo \"push_exit=$?\")",
       "PowerShell(npx -y sharp-cli -i \"$env:TEMP\\\\apple-touch-icon.svg\" -o \"c:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\volleyballtrainingtracker.client\\\\public\\\\apple-touch-icon.png\" resize 180 180)",
-      "PowerShell(git add -A)"
+      "PowerShell(git add -A)",
+      "PowerShell(git push)",
+      "Bash(curl -sSI https://volleyball-training-tracker.vercel.app/apple-touch-icon.png)",
+      "PowerShell($pub = \"c:\\\\Users\\\\apple\\\\Desktop\\\\VolleyballTrainingTracker\\\\volleyballtrainingtracker.client\\\\public\"; npx -y sharp-cli -i \"$pub\\\\favicon.svg\" -o \"$pub\\\\favicon-32.png\" resize 32 32; npx -y sharp-cli -i \"$pub\\\\favicon.svg\" -o \"$pub\\\\favicon-16.png\" resize 16 16; Copy-Item \"$pub\\\\apple-touch-icon.png\" \"$pub\\\\apple-touch-icon-precomposed.png\")",
+      "Bash(npx -y png-to-ico favicon-32.png favicon-16.png)",
+      "Bash(file favicon.ico)",
+      "Bash(xxd -l 120 favicon.ico)"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

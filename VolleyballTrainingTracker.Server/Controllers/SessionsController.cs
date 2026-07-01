@@ -36,6 +36,31 @@ public class SessionsController : ControllerBase
         return Ok(list);
     }
 
+    /// <summary>
+    /// 最近常用地點：取近期場次中出現過的地點，去重後回傳前幾筆，
+    /// 供新增/編輯訓練時快速點選（比照哭哭榜「最近常用原因」做法）。
+    /// </summary>
+    [HttpGet("recent-locations")]
+    public async Task<ActionResult<IEnumerable<string>>> RecentLocations()
+    {
+        // 取近 50 筆場次的地點，於記憶體去重（保留最新出現順序）後取前 5 筆
+        var recent = await _db.TrainingSessions
+            .Where(s => s.Location != null && s.Location != "")
+            .OrderByDescending(s => s.SessionDate).ThenByDescending(s => s.Id)
+            .Select(s => s.Location!)
+            .Take(50)
+            .ToListAsync();
+
+        var distinct = recent
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .Take(5)
+            .ToList();
+
+        return Ok(distinct);
+    }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<SessionDto>> Get(int id)
     {

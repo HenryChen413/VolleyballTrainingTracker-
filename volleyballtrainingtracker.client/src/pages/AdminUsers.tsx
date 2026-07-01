@@ -470,8 +470,8 @@ export default function AdminUsersPage() {
       });
     } else {
       const payload: UserUpdatePayload = {
-        displayName: draft.displayName,
-        email: draft.email,
+        displayName: draft.displayName.trim(),
+        email: draft.email.trim(),
         roleId: draft.roleId,
       };
       if (changePwd && draft.password) {

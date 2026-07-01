@@ -43,11 +43,18 @@ export default function SessionEditPage() {
     enabled: !isNew,
   });
 
+  // 最近常用地點：供快速點選（比照哭哭榜「最近常用原因」）
+  const { data: recentLocations } = useQuery({
+    queryKey: ["sessions", "recent-locations"],
+    queryFn: () => sessionsApi.recentLocations(),
+  });
+
   const {
     register,
     handleSubmit,
     reset,
     control,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<Inputs, unknown, Outputs>({
     resolver: zodResolver(schema),
@@ -138,6 +145,25 @@ export default function SessionEditPage() {
               <div className="space-y-2">
                 <Label htmlFor="location">地點</Label>
                 <Input id="location" {...register("location")} />
+                {canSave && (recentLocations?.length ?? 0) > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    <span className="text-xs text-muted-foreground py-0.5">
+                      最近常用：
+                    </span>
+                    {recentLocations!.map((loc) => (
+                      <button
+                        key={loc}
+                        type="button"
+                        onClick={() =>
+                          setValue("location", loc, { shouldDirty: true })
+                        }
+                        className="rounded-full border px-2 py-0.5 text-xs hover:bg-accent transition-colors"
+                      >
+                        {loc}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

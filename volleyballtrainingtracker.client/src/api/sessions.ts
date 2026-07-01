@@ -40,4 +40,6 @@ export const sessionsApi = {
   create: (data: SessionUpsert) => api.post<SessionDetail>('/Sessions', data).then((r) => r.data),
   update: (id: number, data: SessionUpsert) => api.put<SessionDetail>(`/Sessions/${id}`, data).then((r) => r.data),
   remove: (id: number) => api.delete(`/Sessions/${id}`).then(() => {}),
+  recentLocations: () =>
+    api.get<string[]>('/Sessions/recent-locations').then((r) => r.data),
 };

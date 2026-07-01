@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using VolleyballTrainingTracker.Server.Validation;
 
 namespace VolleyballTrainingTracker.Server.Dtos;
 
@@ -37,7 +38,7 @@ public class UserCreateRequest
     [StringLength(64)]
     public string? DisplayName { get; set; }
 
-    [EmailAddress, StringLength(256)]
+    [OptionalEmailAddress, StringLength(256)]
     public string? Email { get; set; }
 
     [Required]
@@ -51,7 +52,7 @@ public class UserUpdateRequest
     [StringLength(64)]
     public string? DisplayName { get; set; }
 
-    [EmailAddress, StringLength(256)]
+    [OptionalEmailAddress, StringLength(256)]
     public string? Email { get; set; }
 
     /// <summary>留空代表不變更密碼</summary>

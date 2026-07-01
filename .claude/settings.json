@@ -136,7 +136,10 @@
       "Bash(xxd -l 120 favicon.ico)",
       "Bash(curl -sSI https://volleyball-training-tracker.vercel.app/favicon.ico)",
       "Bash(curl -sSI https://volleyball-training-tracker.vercel.app/apple-touch-icon-precomposed.png)",
-      "PowerShell(git add .claude/settings.json volleyballtrainingtracker.client/index.html volleyballtrainingtracker.client/src/components/scoreboard/ScoreBoard.tsx volleyballtrainingtracker.client/public/manifest.webmanifest)"
+      "PowerShell(git add .claude/settings.json volleyballtrainingtracker.client/index.html volleyballtrainingtracker.client/src/components/scoreboard/ScoreBoard.tsx volleyballtrainingtracker.client/public/manifest.webmanifest)",
+      "PowerShell(dotnet build VolleyballTrainingTracker.Server/VolleyballTrainingTracker.Server.csproj -nologo -v q)",
+      "PowerShell(dotnet build VolleyballTrainingTracker.Server/VolleyballTrainingTracker.Server.csproj -nologo -v q -o \"$env:TEMP\\\\vtt_build_check\")",
+      "Bash(git commit -m ' *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\apple\\AppData\\Local\\Temp\\vtt_check",

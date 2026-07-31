@@ -23,3 +23,5 @@ services:
         sync: false   # 至少 32 字元隨機字串，產生方式：openssl rand -base64 48
       - key: Cors__AllowedOrigins__0
         sync: false   # Vercel 前端網址，例如 https://vbtt.vercel.app
+      - key: Maintenance__Secret
+        sync: false   # /api/maintenance/keepalive 的存取密鑰；未設定時該端點一律回 503

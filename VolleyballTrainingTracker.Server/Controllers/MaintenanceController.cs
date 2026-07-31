@@ -1,26 +1,28 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using VolleyballTrainingTracker.Server.Data;
+using VolleyballTrainingTracker.Server.Maintenance;
 
 namespace VolleyballTrainingTracker.Server.Controllers;
 
 /// <summary>
-/// 維護端點：供外部排程服務（cron-job.org）每日呼叫一次。
+/// 維護端點：供外部排程服務（cron-job.org）呼叫。
 /// 一次呼叫同時達成：
 ///   1. 對資料庫下一次 DELETE → 算「活動」，解除 Supabase 免費方案的閒置暫停
 ///   2. 喚醒 Render 免費方案休眠中的後端
-///   3. 清除 DeletedAt 超過 1 年的 AuditDeletes 稽核紀錄
+///   3. 清除 DeletedAt 超過保留期限的 AuditDeletes 稽核紀錄
 /// 匿名存取，靠 X-Maintenance-Key 標頭比對環境變數 Maintenance__Secret 保護。
+///
+/// 注意：第 3 項已改由 <see cref="AuditCleanupService"/> 背景服務自行排程，
+/// 本端點不再是稽核清理的唯一途徑。因為 Render 免費方案休眠後的喚醒會失敗
+/// （路由層直接回 503 <c>x-render-routing: hibernate-wake-error</c>，請求進不到這裡），
+/// 排程呼叫本端點失敗時，資料清理仍會照常進行。
 /// </summary>
 [ApiController]
 [AllowAnonymous]
 [Route("api/[controller]")]
 public class MaintenanceController : ControllerBase
 {
-    /// <summary>AuditDeletes 保留期限：超過此年數的紀錄會被清除。</summary>
-    private const int AuditRetentionYears = 1;
-
     private const string KeyHeader = "X-Maintenance-Key";
 
     private readonly AppDbContext _db;
@@ -46,18 +48,14 @@ public class MaintenanceController : ControllerBase
         if (string.IsNullOrEmpty(provided) || provided != expected)
             return NotFound();
 
-        // 清除一年以上的稽核紀錄。ExecuteDeleteAsync 直接下 SQL，
-        // 繞過 SaveChangesAsync，不會把這次刪除本身又寫成一筆 AuditDelete。
-        var cutoff = DateTime.UtcNow.AddYears(-AuditRetentionYears);
-        var deleted = await _db.AuditDeletes
-            .Where(a => a.DeletedAt < cutoff)
-            .ExecuteDeleteAsync(ct);
+        // 與背景服務共用同一份清理邏輯，保留期限只定義在一處。
+        var deleted = await AuditCleanupService.PurgeExpiredAsync(_db, ct);
 
         return Ok(new
         {
             status = "ok",
             deletedAuditRows = deleted,
-            auditRetentionYears = AuditRetentionYears,
+            auditRetentionYears = AuditCleanupService.RetentionYears,
             dbTimeUtc = DateTime.UtcNow,
         });
     }

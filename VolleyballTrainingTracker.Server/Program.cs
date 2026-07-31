@@ -12,6 +12,7 @@ using Serilog;
 using VolleyballTrainingTracker.Server.Auth;
 using VolleyballTrainingTracker.Server.Data;
 using VolleyballTrainingTracker.Server.Entities;
+using VolleyballTrainingTracker.Server.Maintenance;
 using VolleyballTrainingTracker.Server.Observability;
 using VolleyballTrainingTracker.Server.Tools;
 
@@ -123,6 +124,12 @@ builder.Services.Configure<ForwardedHeadersOptions>(o =>
     o.KnownNetworks.Clear();
     o.KnownProxies.Clear();
 });
+
+// ----- 背景維護作業 -----
+// 定期清除過期稽核紀錄，不依賴外部排程呼叫 /api/maintenance/keepalive
+// （Render 免費方案休眠喚醒失敗時，該請求根本進不到應用程式）。
+// CLI 模式不呼叫 app.Run()，背景服務不會啟動。
+builder.Services.AddHostedService<AuditCleanupService>();
 
 // ----- MVC + Swagger -----
 builder.Services.AddControllers();

@@ -70,6 +70,7 @@ dotnet run --project VolleyballTrainingTracker.Server -- seed-user YUANHE "你�
    | `ConnectionStrings__Default` | 步驟 1 的 Supabase 連線字串 |
    | `Jwt__SecretKey` | 至少 32 字元隨機字串（`openssl rand -base64 48`） |
    | `Cors__AllowedOrigins__0` | 先暫填 `https://localhost`，步驟 4 後再回來改 |
+   | `Maintenance__Secret` | 維護端點密鑰（隨機長字串），用途見步驟 6 |
 
    > `DOTNET_hostBuilder__reloadConfigOnChange=false` 已寫死在 `Dockerfile.api`，
    > 不需手動設定（用途見下方備註）。
@@ -113,6 +114,51 @@ dotnet run --project VolleyballTrainingTracker.Server -- seed-user YUANHE "你�
 
 ---
 
+## 步驟 6：排程保活（避免 Supabase 閒置暫停）
+
+Supabase 免費版閒置 7 天會自動暫停，需要外部排程定期產生資料庫活動。
+
+### 排程要打哪裡？
+
+**建議直接打 Supabase，不要透過 Render。**
+
+Render 免費版閒置 15 分鐘就休眠。若排程每天只跑一次，等於**每次都必定打在休眠狀態上**，
+每次都要走冷啟喚醒；喚醒失敗時 Render 路由層會直接回 **503**，回應標頭帶
+`x-render-routing: hibernate-wake-error`、且沒有 `x-render-origin-server: Kestrel`
+—— 代表請求根本沒進到後端。把保活成功率押在平台最不可靠的路徑上，失敗會很頻繁。
+
+在 cron-job.org（或任何排程服務）建立 job：
+
+- **URL**：`https://<projectref>.supabase.co/rest/v1/Roles?select=Id&limit=1`
+- **Header**：`apikey: <Supabase publishable / anon key>`
+- **頻率**：每天 1 次即可（暫停門檻是 7 天，留足冗餘）
+
+> 設定後先手動執行一次，**看 HTTP 狀態是 200 就成功；回傳 `[]` 空陣列是正常且理想的結果**。
+> 空陣列代表 PostgREST 確實查了資料庫（產生保活所需的活動），但 RLS 擋住了資料不外洩 ——
+> 本專案所有資料表都是這個狀態，前端是走後端 API 讀資料，不經過 PostgREST。
+>
+> 若回 401 `No API key found` 是標頭沒帶對；**若真的回傳了資料列，代表該表對 `anon` 開放讀取，
+> 那是資安問題**，要去檢查 RLS，而不是拿來當保活目標。
+
+### 替代方案：仍打 Render 維護端點
+
+若你想沿用 `/api/maintenance/keepalive`（它會對資料庫下一次 DELETE，是確實的 DB 活動）：
+
+- **URL**：`https://<你的 Render 網址>/api/maintenance/keepalive`
+- **Header**：`X-Maintenance-Key: <Maintenance__Secret 的值>`
+- **逾時**：設到上限 **30 秒**。冷啟需 30～60 秒，逾時設太短會把成功的喚醒誤判為失敗。
+- **重試**：cron-job.org 沒有自動重試功能，改用「**建第二個 job、時間錯開 10 分鐘**」達成。
+  喚醒失敗多半是暫時性的，且第一次呼叫已把服務叫醒，第二次是熱的會秒回。
+
+未設定 `Maintenance__Secret` 時該端點一律回 503（避免無保護裸奔）；
+密鑰錯誤則回 404（隱蔽端點存在）。這兩種 503／404 都來自應用程式本身，
+回應會帶 `x-render-origin-server: Kestrel`，可據此和上述平台層 503 區分。
+
+> 稽核紀錄清理（清除超過 1 年的 `AuditDeletes`）已由後端的 `AuditCleanupService`
+> 背景服務每 24 小時自行執行，**不再依賴這個排程**。排程失敗只影響保活，不影響資料清理。
+
+---
+
 ## 環境變數對照表
 
 | 變數 | 設在哪 | 用途 |
@@ -120,6 +166,7 @@ dotnet run --project VolleyballTrainingTracker.Server -- seed-user YUANHE "你�
 | `ConnectionStrings__Default` | Render | Supabase 連線字串 |
 | `Jwt__SecretKey` | Render | JWT 簽章金鑰（≥32 字元） |
 | `Cors__AllowedOrigins__0` | Render | 允許的前端來源（Vercel 網址） |
+| `Maintenance__Secret` | Render | 維護端點 `/api/maintenance/keepalive` 的存取密鑰 |
 | `VITE_API_URL` | Vercel | 前端呼叫的後端 API 網址 |
 
 本機開發不需任何上述變數：連線字串與金鑰已在 `appsettings.Development.json`，

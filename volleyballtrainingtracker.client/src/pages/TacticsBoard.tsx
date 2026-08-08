@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ClipboardList, Users } from "lucide-react";
+import { ClipboardList, Expand, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MEMBER_TYPE, playersApi } from "@/api/players";
 import { matchEventsApi } from "@/api/matchLogs";
 import type { RosterPlayer } from "@/lib/court";
 import type { DrawingTool } from "@/lib/drawing";
+import { toast } from "@/lib/toast";
+import { useFullscreen } from "@/lib/useFullscreen";
 import DrawingToolbar from "@/components/tactics/DrawingToolbar";
 import MatchEventSelector, { type TacticsMode } from "@/components/tactics/MatchEventSelector";
 import PlayerRoster from "@/components/tactics/PlayerRoster";
+import TacticsFocusMode from "@/components/tactics/TacticsFocusMode";
 import TacticsToolbar from "@/components/tactics/TacticsToolbar";
 import VolleyballCourt from "@/components/tactics/VolleyballCourt";
 import { useTacticsBoard } from "@/components/tactics/useTacticsBoard";
@@ -24,6 +28,14 @@ export default function TacticsBoardPage() {
   const [mode, setMode] = useState<TacticsMode>("all");
   const [eventId, setEventId] = useState<number | null>(null);
   const [tool, setTool] = useState<DrawingTool>("select");
+  const [arrowEnabled, setArrowEnabled] = useState(true);
+  const {
+    ref: focusRef,
+    isFullscreen: focusIsFullscreen,
+    cssFullscreen: focusCssFullscreen,
+    toggle: toggleFocusMode,
+    exit: exitFocusMode,
+  } = useFullscreen<HTMLDivElement>();
 
   // 場地與名單區容器 ref：跨元件做拖曳落點判定（名單拖入場地／token 拖回名單）
   const courtRef = useRef<HTMLDivElement | null>(null);
@@ -78,6 +90,17 @@ export default function TacticsBoardPage() {
     if (next !== "select") drawingsBoard.selectDrawing(null);
   };
 
+  // 專注模式的清除不跳確認框 —— 場邊一次說明要清很多次，
+  // 改成先清、再給 3 秒的復原機會，保護力反而優於確認框。
+  const handleClearDrawingsWithUndo = () => {
+    const snapshot = drawingsBoard.drawings;
+    if (snapshot.length === 0) return;
+    drawingsBoard.clearDrawings();
+    toast.undoable(`已清除 ${snapshot.length} 條戰術線`, "復原", () => {
+      snapshot.forEach((d) => drawingsBoard.addDrawing(d));
+    });
+  };
+
   // Delete / Backspace 刪除選取中的戰術線（輸入框內不攔截）
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -113,6 +136,36 @@ export default function TacticsBoardPage() {
           ? "目前沒有現役球員。"
           : "這場賽事沒有報名球員。";
 
+  if (focusIsFullscreen) {
+    return (
+      <div ref={focusRef} className="relative">
+        <TacticsFocusMode
+          onExit={exitFocusMode}
+          cssFullscreen={focusCssFullscreen}
+          courtPlayers={courtPlayers}
+          courtRef={courtRef}
+          rosterRef={rosterRef}
+          onMovePlayer={board.movePlayer}
+          onSwapPlayers={board.swapPlayers}
+          onRemovePlayer={board.removePlayer}
+          tool={tool}
+          onToolChange={handleToolChange}
+          drawings={drawingsBoard.drawings}
+          drawStyle={drawingsBoard.style}
+          onStyleChange={drawingsBoard.applyStyle}
+          arrowEnabled={arrowEnabled}
+          onArrowEnabledChange={setArrowEnabled}
+          selectedDrawingId={selectedId}
+          onAddDrawing={drawingsBoard.addDrawing}
+          onUpdateDrawing={drawingsBoard.updateDrawing}
+          onRemoveDrawing={removeDrawing}
+          onSelectDrawing={drawingsBoard.selectDrawing}
+          onClearAll={handleClearDrawingsWithUndo}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -144,13 +197,25 @@ export default function TacticsBoardPage() {
           <CardHeader className="pb-3">
             <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
               <span>場地</span>
-              <TacticsToolbar
-                onCourtCount={courtPlayers.length}
-                totalCount={roster?.length ?? 0}
-                onClear={board.clearCourt}
-                drawingCount={drawingsBoard.drawings.length}
-                onClearDrawings={drawingsBoard.clearDrawings}
-              />
+              <div className="flex items-center gap-1">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-9 w-9"
+                  onClick={toggleFocusMode}
+                  title="專注模式"
+                  aria-label="專注模式"
+                >
+                  <Expand className="h-5 w-5" />
+                </Button>
+                <TacticsToolbar
+                  onCourtCount={courtPlayers.length}
+                  totalCount={roster?.length ?? 0}
+                  onClear={board.clearCourt}
+                  drawingCount={drawingsBoard.drawings.length}
+                  onClearDrawings={drawingsBoard.clearDrawings}
+                />
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -177,7 +242,7 @@ export default function TacticsBoardPage() {
               onUpdateDrawing={drawingsBoard.updateDrawing}
               onRemoveDrawing={removeDrawing}
               onSelectDrawing={drawingsBoard.selectDrawing}
-              arrowEnabled
+              arrowEnabled={arrowEnabled}
             />
           </CardContent>
         </Card>

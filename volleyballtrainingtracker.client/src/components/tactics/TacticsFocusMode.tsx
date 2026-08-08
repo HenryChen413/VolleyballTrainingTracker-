@@ -207,15 +207,22 @@ export default function TacticsFocusMode({
           border-box 尺寸即為此 calc 結果，TacticsFocusMode 直接讀 toolbarRef 的
           實測值來算 availW／availH，不會跟這裡的 calc 兜不起來）：
           - 置底模式：height = 基準 68px + safe-area-inset-bottom；同時保留
-            pb-[env(...)] 把安全區的份量從「內容可用高度」扣掉、推到最下面當
-            留白，兩者相減後 FocusModeToolbar 實際可用的內容高度仍是原本設計
-            的 68px，不會因為安全區變大就把橫向工具列擠得只剩沒幾 px（此為
-            本次要修的 I-2 缺陷：先前只加高度沒同時加 padding，也沒把兩者的
-            量對齊）。
-          - 直欄模式：width = 基準 104px + safe-area-inset-right；同時
-            pr-[calc(0.5rem+env(...))] 把安全區從內容寬度扣掉、推到最右邊，
-            兩者相減後內容寬度固定是 104-8(pl-2)-8(pr 基準)=88px，
-            足夠放下「清除」按鈕（量得約 76px）＋左右內距，不會左右溢出。 */}
+            下方 padding-bottom（值同樣是 safe-area-inset-bottom）把安全區的
+            份量從「內容可用高度」扣掉、推到最下面當留白，兩者相減後
+            FocusModeToolbar 實際可用的內容高度仍是原本設計的 68px，
+            不會因為安全區變大就把橫向工具列擠得只剩沒幾 px（此為本次要修
+            的 I-2 缺陷：先前只加高度沒同時加 padding，也沒把兩者的量對齊）。
+          - 直欄模式：width = 基準 104px + safe-area-inset-right；同時右側
+            padding 疊加 0.5rem 基準值與 safe-area-inset-right 把安全區從
+            內容寬度扣掉、推到最右邊，兩者相減後內容寬度固定是
+            104-8(pl-2)-8(pr 基準)=88px，足夠放下「清除」按鈕（量得約 76px）
+            ＋左右內距，不會左右溢出。
+            （註：本段落刻意避免在註解中寫出方括號包住 env(...) 的縮寫，
+            Tailwind 的 class 掃描器是純文字正則比對、不分辨程式碼或註解，
+            會把註解裡長得像 `xxx-[...]` 的縮寫誤判成任意值 class 並產生
+            對應但無效的 CSS，導致正式建置的 CSS 壓縮失敗；下方 20-30 行內
+            實際使用的 className 字串不受影響，仍是完整、合法的 Tailwind
+            任意值語法。） */}
       <div
         ref={toolbarRef}
         className={cn(

@@ -124,7 +124,7 @@ export default function FocusModeToolbar({
                 key={c}
                 type="button"
                 className={cn(
-                  "h-9 w-9 rounded-full border border-border/60",
+                  "h-11 w-11 rounded-full border border-border/60",
                   style.color === c && "ring-2 ring-ring ring-offset-2 ring-offset-card",
                 )}
                 style={{ backgroundColor: c }}

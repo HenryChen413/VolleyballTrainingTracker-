@@ -136,9 +136,16 @@ export default function TacticsBoardPage() {
           ? "目前沒有現役球員。"
           : "這場賽事沒有報名球員。";
 
-  if (focusIsFullscreen) {
-    return (
-      <div ref={focusRef} className="relative">
+  // focusRef 必須恆常掛在同一個常駐容器上（而不是只存在早退分支裡）——
+  // 初始渲染時 focusIsFullscreen 一定是 false，若 ref 只掛在「isFullscreen
+  // 為真」的那個分支，第一次點進入鈕時 focusRef.current 還是 null，
+  // useFullscreen().toggle() 開頭的 `if (!el) return;` 會直接短路，
+  // 專注模式永遠進不去。改成外層容器恆常渲染、只切換裡面的兩棵子樹，
+  // 兩個 VolleyballCourt 仍然互斥（不會同時掛載搶同一個 courtRef），
+  // 但 ref 本身在任何時候都指向同一個真實存在的 DOM 節點。
+  return (
+    <div ref={focusRef} className="relative">
+      {focusIsFullscreen ? (
         <TacticsFocusMode
           onExit={exitFocusMode}
           cssFullscreen={focusCssFullscreen}
@@ -162,118 +169,116 @@ export default function TacticsBoardPage() {
           onSelectDrawing={drawingsBoard.selectDrawing}
           onClearAll={handleClearDrawingsWithUndo}
         />
-      </div>
-    );
-  }
+      ) : (
+        <div className="space-y-4">
+          {/* Header */}
+          <div>
+            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+              <ClipboardList className="h-6 w-6 text-primary" />
+              戰術板
+            </h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              點選或拖曳名單球員到場地排陣；場上球員可拖曳移動、拖到另一人身上交換、拖回名單區（或雙擊）移出。
+              場地上方工具列選「畫」即可拖曳畫出戰術路線，切回「選取」可點選線條移動、改色或刪除。
+              草稿自動保存在這台裝置。
+            </p>
+          </div>
 
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-          <ClipboardList className="h-6 w-6 text-primary" />
-          戰術板
-        </h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          點選或拖曳名單球員到場地排陣；場上球員可拖曳移動、拖到另一人身上交換、拖回名單區（或雙擊）移出。
-          場地上方工具列選「畫」即可拖曳畫出戰術路線，切回「選取」可點選線條移動、改色或刪除。
-          草稿自動保存在這台裝置。
-        </p>
-      </div>
+          {/* 名單來源（全部球員 / 友誼賽 / 正式比賽 → 選一場賽事） */}
+          <MatchEventSelector
+            mode={mode}
+            eventId={eventId}
+            events={eventsQuery.data}
+            eventsLoading={eventsQuery.isLoading}
+            onModeChange={setMode}
+            onEventChange={setEventId}
+          />
 
-      {/* 名單來源（全部球員 / 友誼賽 / 正式比賽 → 選一場賽事） */}
-      <MatchEventSelector
-        mode={mode}
-        eventId={eventId}
-        events={eventsQuery.data}
-        eventsLoading={eventsQuery.isLoading}
-        onModeChange={setMode}
-        onEventChange={setEventId}
-      />
-
-      <div className="space-y-4 xl:grid xl:grid-cols-[2fr_3fr] xl:items-start xl:gap-6 xl:space-y-0">
-        {/* 場地（手機在上、xl 在右側） */}
-        <Card className="xl:order-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
-              <span>場地</span>
-              <div className="flex items-center gap-1">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-9 w-9"
-                  onClick={toggleFocusMode}
-                  title="專注模式"
-                  aria-label="專注模式"
-                >
-                  <Expand className="h-5 w-5" />
-                </Button>
-                <TacticsToolbar
-                  onCourtCount={courtPlayers.length}
-                  totalCount={roster?.length ?? 0}
-                  onClear={board.clearCourt}
-                  drawingCount={drawingsBoard.drawings.length}
-                  onClearDrawings={drawingsBoard.clearDrawings}
+          <div className="space-y-4 xl:grid xl:grid-cols-[2fr_3fr] xl:items-start xl:gap-6 xl:space-y-0">
+            {/* 場地（手機在上、xl 在右側） */}
+            <Card className="xl:order-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
+                  <span>場地</span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-9 w-9 shrink-0"
+                      onClick={toggleFocusMode}
+                      title="專注模式"
+                      aria-label="專注模式"
+                    >
+                      <Expand className="h-5 w-5" />
+                    </Button>
+                    <TacticsToolbar
+                      onCourtCount={courtPlayers.length}
+                      totalCount={roster?.length ?? 0}
+                      onClear={board.clearCourt}
+                      drawingCount={drawingsBoard.drawings.length}
+                      onClearDrawings={drawingsBoard.clearDrawings}
+                    />
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <DrawingToolbar
+                  tool={tool}
+                  onToolChange={handleToolChange}
+                  style={drawingsBoard.style}
+                  onStyleChange={drawingsBoard.applyStyle}
+                  selectedId={selectedId}
+                  onDeleteSelected={() => selectedId && removeDrawing(selectedId)}
                 />
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <DrawingToolbar
-              tool={tool}
-              onToolChange={handleToolChange}
-              style={drawingsBoard.style}
-              onStyleChange={drawingsBoard.applyStyle}
-              selectedId={selectedId}
-              onDeleteSelected={() => selectedId && removeDrawing(selectedId)}
-            />
-            <VolleyballCourt
-              courtPlayers={courtPlayers}
-              courtRef={courtRef}
-              rosterRef={rosterRef}
-              onMovePlayer={board.movePlayer}
-              onSwapPlayers={board.swapPlayers}
-              onRemovePlayer={board.removePlayer}
-              tool={tool}
-              drawings={drawingsBoard.drawings}
-              drawStyle={drawingsBoard.style}
-              selectedDrawingId={selectedId}
-              onAddDrawing={drawingsBoard.addDrawing}
-              onUpdateDrawing={drawingsBoard.updateDrawing}
-              onRemoveDrawing={removeDrawing}
-              onSelectDrawing={drawingsBoard.selectDrawing}
-              arrowEnabled={arrowEnabled}
-            />
-          </CardContent>
-        </Card>
+                <VolleyballCourt
+                  courtPlayers={courtPlayers}
+                  courtRef={courtRef}
+                  rosterRef={rosterRef}
+                  onMovePlayer={board.movePlayer}
+                  onSwapPlayers={board.swapPlayers}
+                  onRemovePlayer={board.removePlayer}
+                  tool={tool}
+                  drawings={drawingsBoard.drawings}
+                  drawStyle={drawingsBoard.style}
+                  selectedDrawingId={selectedId}
+                  onAddDrawing={drawingsBoard.addDrawing}
+                  onUpdateDrawing={drawingsBoard.updateDrawing}
+                  onRemoveDrawing={removeDrawing}
+                  onSelectDrawing={drawingsBoard.selectDrawing}
+                  arrowEnabled={arrowEnabled}
+                />
+              </CardContent>
+            </Card>
 
-        {/* 球員名單（手機在下、xl 在左側） */}
-        <div ref={rosterRef} className="xl:order-1">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="h-5 w-5 text-muted-foreground" />
-                球員名單
-                <span className="text-sm font-normal text-muted-foreground tabular-nums">
-                  {benchPlayers.length} 人
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PlayerRoster
-                players={benchPlayers}
-                loading={rosterLoading}
-                emptyHint={emptyHint}
-                courtRef={courtRef}
-                onDropToCourt={board.placePlayer}
-                onQuickAdd={(p) =>
-                  board.quickAddPlayer(p, courtRef.current?.getBoundingClientRect() ?? null)
-                }
-              />
-            </CardContent>
-          </Card>
+            {/* 球員名單（手機在下、xl 在左側） */}
+            <div ref={rosterRef} className="xl:order-1">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                    球員名單
+                    <span className="text-sm font-normal text-muted-foreground tabular-nums">
+                      {benchPlayers.length} 人
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PlayerRoster
+                    players={benchPlayers}
+                    loading={rosterLoading}
+                    emptyHint={emptyHint}
+                    courtRef={courtRef}
+                    onDropToCourt={board.placePlayer}
+                    onQuickAdd={(p) =>
+                      board.quickAddPlayer(p, courtRef.current?.getBoundingClientRect() ?? null)
+                    }
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

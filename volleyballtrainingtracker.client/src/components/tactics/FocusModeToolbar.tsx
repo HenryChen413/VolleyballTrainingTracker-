@@ -128,7 +128,13 @@ export default function FocusModeToolbar({
                   style.color === c && "ring-2 ring-ring ring-offset-2 ring-offset-card",
                 )}
                 style={{ backgroundColor: c }}
-                onClick={() => onStyleChange({ color: c })}
+                onClick={() => {
+                  onStyleChange({ color: c });
+                  // 選色後自動收合：場邊高頻流程是「換色→立刻畫」，樣式面板
+                  // 是 absolute 蓋在場地上方（見下方註解），不收合會吃掉下一筆
+                  // 畫線的 pointer 事件，等於選色後畫不了線。
+                  setStyleOpen(false);
+                }}
                 aria-label={`線色 ${c}`}
                 aria-pressed={style.color === c}
               />
@@ -146,7 +152,11 @@ export default function FocusModeToolbar({
                     ? "border-primary bg-primary/10"
                     : "border-transparent hover:bg-accent",
                 )}
-                onClick={() => onStyleChange({ width: w.value })}
+                onClick={() => {
+                  onStyleChange({ width: w.value });
+                  // 理由同色盤 onClick：選完粗細應立刻能畫線，不留面板擋路。
+                  setStyleOpen(false);
+                }}
                 aria-label={`粗細：${w.label}`}
                 aria-pressed={style.width === w.value}
               >

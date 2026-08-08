@@ -1,7 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToastStore, type ToastItem, type ToastTone } from '@/lib/toast';
+
+/** iOS 舊版 iPad 只認 webkit 前綴，寫法比照 src/lib/useFullscreen.ts 的型別補丁。 */
+type FullscreenDocument = Document & {
+  webkitFullscreenElement?: Element | null;
+};
+
+/** 目前全螢幕元素（原生全螢幕才有值），沒有全螢幕時退回 document.body。 */
+function getFullscreenTarget(): HTMLElement {
+  const doc = document as FullscreenDocument;
+  return (document.fullscreenElement as HTMLElement | null) ?? (doc.webkitFullscreenElement as HTMLElement | null) ?? document.body;
+}
 
 const ICONS: Record<ToastTone, React.ComponentType<{ className?: string }>> = {
   success: CheckCircle2,
@@ -64,15 +76,43 @@ function ToastCard({ item }: { item: ToastItem }) {
 
 export function Toaster() {
   const items = useToastStore((s) => s.items);
-  return (
+
+  // 戰術板專注模式期間，toast 容器必須 portal 到「目前的全螢幕元素」，
+  // 否則兩條全螢幕路徑都會蓋掉／遮住 toast：
+  // - 原生全螢幕：全螢幕元素被瀏覽器提升到 top layer，其餘文件（含掛在
+  //   document.body 的原本容器）直接被遮蔽，toast 根本不會被畫出來。
+  // - CSS 假全螢幕：overlay 是 fixed inset-0 z-[100] 的不透明底色，
+  //   若 toast 容器 z-index 比它低就會被完全蓋住看不到
+  //   （下面把容器提到 z-[110] 蓋過 z-[100] 來因應這條路徑）。
+  // 用 state 存目標節點，fullscreenchange／webkitfullscreenchange 觸發時
+  // 重新讀取，確保進出全螢幕都能即時切換 portal 目標。
+  const [target, setTarget] = useState<HTMLElement>(() =>
+    typeof document === 'undefined' ? (null as unknown as HTMLElement) : getFullscreenTarget(),
+  );
+
+  useEffect(() => {
+    const sync = () => setTarget(getFullscreenTarget());
+    sync();
+    document.addEventListener('fullscreenchange', sync);
+    document.addEventListener('webkitfullscreenchange', sync);
+    return () => {
+      document.removeEventListener('fullscreenchange', sync);
+      document.removeEventListener('webkitfullscreenchange', sync);
+    };
+  }, []);
+
+  if (!target) return null;
+
+  return createPortal(
     <div
       aria-live="polite"
-      className="fixed left-1/2 -translate-x-1/2 z-[60] w-80 max-w-[calc(100vw-2rem)] flex flex-col items-center gap-2 pointer-events-none"
+      className="fixed left-1/2 -translate-x-1/2 z-[110] w-80 max-w-[calc(100vw-2rem)] flex flex-col items-center gap-2 pointer-events-none"
       style={{ top: 'max(1rem, env(safe-area-inset-top))' }}
     >
       {items.map((t) => (
         <ToastCard key={t.id} item={t} />
       ))}
-    </div>
+    </div>,
+    target,
   );
 }

@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/Toaster";
 import TacticsBoardPage from "./TacticsBoard";
 
 vi.mock("@/api/players", async () => {
@@ -41,8 +42,12 @@ function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  // <Toaster /> 在正式環境是掛在 App.tsx 根層，與頁面是「同層兄弟」而非
+  // 子元件（見 src/App.tsx）；這裡比照同樣的結構掛上去，
+  // 這樣「清除→復原 toast」那類測試才測得到真實的 DOM 樹關係。
   return render(
     <QueryClientProvider client={queryClient}>
+      <Toaster />
       <TacticsBoardPage />
     </QueryClientProvider>,
   );
@@ -79,5 +84,66 @@ describe("TacticsBoardPage 專注模式進出", () => {
     // 退出後應回到一般模式：名單卡重新出現、退出鈕消失
     expect(await screen.findByText("球員名單")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "退出專注模式" })).not.toBeInTheDocument();
+  });
+});
+
+describe("TacticsBoardPage 專注模式清除→復原 toast（回歸 C-1）", () => {
+  it("按『清除』後，復原 toast 可見且『復原』鈕能救回被清除的戰術線", async () => {
+    // C-1 缺陷：Toaster 原本固定掛在 App 根層的 document.body，z-[60]。
+    // 戰術板專注模式的 overlay 走 CSS 假全螢幕時是 fixed inset-0 z-[100]
+    // 的不透明底色（會蓋過 z-[60]）；走原生全螢幕時整個文件被瀏覽器提升
+    // 到 top layer 之外（Toaster 根本畫不出來）。兩條路徑都會讓「清除
+    // 全部」後唯一的復原入口完全不可見 —— 靜默破壞性操作。
+    //
+    // jsdom 沒有原生 Fullscreen API（document.fullscreenEnabled 是
+    // undefined），因此測不出「原生全螢幕 top layer 遮蔽」這條路徑，
+    // Toaster 的 portal 目標在這裡一定會退回 document.body；這部分只能
+    // 真機（或有 Fullscreen API 的瀏覽器）驗證。這裡改為直接釘住「使用者
+    // 可觀察到的行為」：清除後 toast 確實渲染、文案正確、且『復原』鈕
+    // 點下去真的能救回線條 —— 這正是 C-1 要保護的核心使用者流程。
+
+    // 預先塞一條戰術線草稿（sourceKey "all" 對應預設「全部球員」模式），
+    // 讓一進入專注模式，工具列的「清除」按鈕就已經可見（drawingCount > 0）。
+    localStorage.setItem(
+      "vbtt-tactics-drawings",
+      JSON.stringify({
+        version: 1,
+        boards: {
+          all: [
+            {
+              id: "d1",
+              kind: "arrow",
+              color: "#ef4444",
+              width: 5.4,
+              points: [
+                { x: 0.2, y: 0.2 },
+                { x: 0.8, y: 0.8 },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "專注模式" }));
+    await screen.findByRole("button", { name: "退出專注模式" });
+
+    const clearButton = await screen.findByRole("button", { name: "清除" });
+    fireEvent.click(clearButton);
+
+    // 清除後：drawingCount 歸零，「清除」鈕應暫時消失
+    expect(screen.queryByRole("button", { name: "清除" })).not.toBeInTheDocument();
+
+    // 復原 toast 必須出現，且「復原」鈕必須存在、可點擊
+    expect(await screen.findByText("已清除 1 條戰術線")).toBeInTheDocument();
+    const undoButton = screen.getByRole("button", { name: "復原" });
+    expect(undoButton).toBeInTheDocument();
+
+    fireEvent.click(undoButton);
+
+    // 按下復原後戰術線應救回：「清除」鈕重新出現（drawingCount > 0）
+    expect(await screen.findByRole("button", { name: "清除" })).toBeInTheDocument();
   });
 });

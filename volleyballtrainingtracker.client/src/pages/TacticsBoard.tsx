@@ -90,16 +90,36 @@ export default function TacticsBoardPage() {
     if (next !== "select") drawingsBoard.selectDrawing(null);
   };
 
+  // 記下最近一則「清除全部」復原 toast 的 id，供頁面卸載時收掉——
+  // 見下方 useEffect：換頁後這則復原提示已經沒有意義（草稿頁面已經卸載，
+  // 按下去也救不回來），留著只會誤導使用者以為還能復原。多筆時只需記最後
+  // 一筆：更早的那些已經被使用者操作或逾時清掉，不會同時存在多筆。
+  const pendingUndoToastIdRef = useRef<number | null>(null);
+
   // 專注模式的清除不跳確認框 —— 場邊一次說明要清很多次，
   // 改成先清、再給 3 秒的復原機會，保護力反而優於確認框。
   const handleClearDrawingsWithUndo = () => {
     const snapshot = drawingsBoard.drawings;
     if (snapshot.length === 0) return;
     drawingsBoard.clearDrawings();
-    toast.undoable(`已清除 ${snapshot.length} 條戰術線`, "復原", () => {
-      snapshot.forEach((d) => drawingsBoard.addDrawing(d));
-    });
+    pendingUndoToastIdRef.current = toast.undoable(
+      `已清除 ${snapshot.length} 條戰術線`,
+      "復原",
+      () => {
+        snapshot.forEach((d) => drawingsBoard.addDrawing(d));
+      },
+    );
   };
+
+  // 頁面卸載時收掉還掛著的復原提示，避免使用者換頁後看到一個按下去
+  // 也沒有作用的「復原」鈕（M-4：跨頁按復原靜默失效）。
+  useEffect(() => {
+    return () => {
+      if (pendingUndoToastIdRef.current != null) {
+        toast.dismiss(pendingUndoToastIdRef.current);
+      }
+    };
+  }, []);
 
   // Delete / Backspace 刪除選取中的戰術線（輸入框內不攔截）
   useEffect(() => {

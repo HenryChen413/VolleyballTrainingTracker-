@@ -114,8 +114,20 @@ export default function TacticsFocusMode({
         <Shrink className="h-5 w-5" />
       </Button>
 
-      {/* 場地：尺寸由 JS 算好，確保整場可見 */}
-      <div className="flex flex-1 items-center justify-center overflow-hidden">
+      {/* 場地：尺寸由 JS 算好，確保整場可見。
+          isolate（isolation: isolate）在此建立獨立堆疊脈絡，把 VolleyballCourt
+          內部的 z-[15]／z-20／z-[25]／z-30（線身／閒置 token／端點／拖曳中 token
+          與繪圖捕捉層）整組封裝在這層之內，不再與外層退出鈕的 z-10 比較。
+          這層外側的 div（courtRef 根節點）本身只有 position:relative、
+          z-index:auto，並不會自動形成堆疊脈絡，場地內部的 z 值會直接外洩到
+          shellRef 這個脈絡跟退出鈕比大小——尤其畫線／橡皮擦模式下 z-30 的
+          全覆蓋繪圖捕捉層會蓋過退出鈕的 z-10，導致重疊區域點不到退出鈕
+          （CSS 假全螢幕下 iOS 沒有系統手勢或 ESC 可退出，會讓使用者卡住）。
+          刻意選 isolate 而非把退出鈕拉高到比 30 大的 z-index：
+          後者只解決「這一顆」按鈕，未來這層 overlay 再加任何新元素
+          都要重新意識到同一個坑；isolate 從根本阻止場地內部的 z 值外洩，
+          之後場地內部想怎麼疊都不會再影響到 overlay 的其他元素。 */}
+      <div className="isolate flex flex-1 items-center justify-center overflow-hidden">
         <div style={{ width: size.width, height: size.height }}>
           {size.width > 0 && (
             <VolleyballCourt

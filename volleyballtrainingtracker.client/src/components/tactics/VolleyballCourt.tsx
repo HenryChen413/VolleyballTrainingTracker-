@@ -22,7 +22,7 @@ import {
   type DrawingTool,
 } from "@/lib/drawing";
 import CourtPlayerToken from "./CourtPlayerToken";
-import DrawingLayer from "./DrawingLayer";
+import DrawingLayer, { DrawingHandlesLayer } from "./DrawingLayer";
 import type { DrawingStyle } from "./useTacticsDrawings";
 
 interface Props {
@@ -499,8 +499,9 @@ export default function VolleyballCourt({
         />
       ))}
 
-      {/* 戰術線疊層：z 介於一般 token（10）與拖曳中 token（20）之間，
-          根 SVG 不收事件，只有線條命中區／端點在選取模式下開啟 */}
+      {/* 戰術線「線身」疊層：z-15，在閒置 token（20）之下，根 SVG 不收事件，
+          只有線條命中區在選取模式下開啟。命中帶寬達螢幕 44px，故意留在 token
+          之下，不然會蓋住球員讓人拖不動（見 CourtPlayerToken 的 z-index 註解）。 */}
       <svg
         viewBox={`0 0 ${COURT_VIEW.w} ${COURT_VIEW.h}`}
         className="absolute inset-0 z-[15] h-full w-full"
@@ -512,8 +513,25 @@ export default function VolleyballCourt({
           selectedId={selectedDrawingId}
           interactive={tool === "select"}
           hitStrokeWidth={hitStrokeWidthFor(courtWidthPx)}
-          handleHitRadius={handleHitRadiusFor(courtWidthPx)}
           onDrawingPointerDown={handleDrawingPointerDown}
+          onDrawingPointerMove={handleDrawingPointerMove}
+          onDrawingPointerUp={handleDrawingPointerUp}
+        />
+      </svg>
+
+      {/* 戰術線「端點控制點」疊層：z-25，故意疊在閒置 token（20）之上——端點是
+          選取後要明確拖曳的目標，即使剛好落在球員身上也必須拖得到，優先權比
+          球員高；拖曳中的 token 仍是 30，蓋過端點與其他閒置 token。 */}
+      <svg
+        viewBox={`0 0 ${COURT_VIEW.w} ${COURT_VIEW.h}`}
+        className="absolute inset-0 z-[25] h-full w-full"
+        style={{ pointerEvents: "none" }}
+      >
+        <DrawingHandlesLayer
+          drawings={drawings}
+          selectedId={selectedDrawingId}
+          interactive={tool === "select"}
+          handleHitRadius={handleHitRadiusFor(courtWidthPx)}
           onHandlePointerDown={handleHandlePointerDown}
           onDrawingPointerMove={handleDrawingPointerMove}
           onDrawingPointerUp={handleDrawingPointerUp}

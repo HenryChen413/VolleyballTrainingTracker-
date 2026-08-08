@@ -13,21 +13,20 @@ interface Props {
   interactive: boolean;
   /** 線條隱形命中區描邊寬度（viewBox 單位），由場地實際寬度換算 */
   hitStrokeWidth: number;
-  /** 端點控制點命中半徑（viewBox 單位），由場地實際寬度換算 */
-  handleHitRadius: number;
   onDrawingPointerDown: (e: React.PointerEvent<SVGPathElement>, d: Drawing) => void;
-  onHandlePointerDown: (e: React.PointerEvent<SVGCircleElement>, d: Drawing, idx: number) => void;
   /** 拖曳中／放開：pointer capture 後事件會回到按下的元素上，統一轉發 */
   onDrawingPointerMove: (e: React.PointerEvent<SVGElement>) => void;
   onDrawingPointerUp: (e: React.PointerEvent<SVGElement>) => void;
 }
 
 /**
- * 戰術線渲染層（掛在球員 token 之上的獨立 SVG 內）：
- * 每條線 = 可見線身（path）＋箭頭三角（path）＋隱形加粗命中區（path）；
- * 選取中再加高亮描邊與端點控制點（僅 points.length === 2 的線顯示；
- * 舊草稿的多點曲線退化為折線渲染後不提供端點拖曳）。
- * 根 SVG 為 pointer-events:none，只有命中區／控制點在選取模式下開啟事件，
+ * 戰術線「線身」渲染層：可見線身（path）＋箭頭三角（path）＋隱形加粗命中區（path）
+ * ＋選取中的高亮描邊。**不含端點控制點**——端點另由 {@link DrawingHandlesLayer}
+ * 負責，兩者故意分成兩個獨立 SVG 疊層渲染（見 VolleyballCourt 的 z-index 安排）：
+ * 命中帶寬達螢幕 44px，若跟球員 token 疊在同一層就會蓋住 token 讓人拖不動；
+ * 但端點是使用者選取後明確要拖的目標，即使端點剛好落在球員身上也必須拖得到，
+ * 因此端點層需要疊在 token 之上，線身層則必須留在 token 之下。
+ * 根 SVG 為 pointer-events:none，只有命中區在選取模式下開啟事件，
  * 因此繪圖層不會干擾球員拖曳。
  */
 export default function DrawingLayer({
@@ -36,9 +35,7 @@ export default function DrawingLayer({
   selectedId,
   interactive,
   hitStrokeWidth,
-  handleHitRadius,
   onDrawingPointerDown,
-  onHandlePointerDown,
   onDrawingPointerMove,
   onDrawingPointerUp,
 }: Props) {
@@ -91,36 +88,6 @@ export default function DrawingLayer({
               onPointerUp={onDrawingPointerUp}
               onPointerCancel={onDrawingPointerUp}
             />
-            {/* 端點控制點（僅兩點的線；舊草稿退化的多點折線不顯示）：拖曳改起點／終點 */}
-            {selected &&
-              d.points.length === 2 &&
-              d.points.map((p, i) => (
-                <g key={i}>
-                  <circle
-                    cx={p.x * COURT_VIEW.w}
-                    cy={p.y * COURT_VIEW.h}
-                    r={HANDLE_RADIUS}
-                    className="fill-background"
-                    stroke={d.color}
-                    strokeWidth={5}
-                  />
-                  <circle
-                    cx={p.x * COURT_VIEW.w}
-                    cy={p.y * COURT_VIEW.h}
-                    r={handleHitRadius}
-                    fill="transparent"
-                    style={{
-                      pointerEvents: interactive ? "auto" : "none",
-                      cursor: "grab",
-                      touchAction: "none",
-                    }}
-                    onPointerDown={(e) => onHandlePointerDown(e, d, i)}
-                    onPointerMove={onDrawingPointerMove}
-                    onPointerUp={onDrawingPointerUp}
-                    onPointerCancel={onDrawingPointerUp}
-                  />
-                </g>
-              ))}
           </g>
         );
       })}
@@ -142,6 +109,70 @@ export default function DrawingLayer({
           })()}
         </g>
       )}
+    </>
+  );
+}
+
+interface HandlesProps {
+  drawings: Drawing[];
+  selectedId: string | null;
+  /** 僅選取模式下端點可被拖曳 */
+  interactive: boolean;
+  /** 端點控制點命中半徑（viewBox 單位），由場地實際寬度換算 */
+  handleHitRadius: number;
+  onHandlePointerDown: (e: React.PointerEvent<SVGCircleElement>, d: Drawing, idx: number) => void;
+  /** 拖曳中／放開：pointer capture 後事件會回到按下的元素上，統一轉發 */
+  onDrawingPointerMove: (e: React.PointerEvent<SVGElement>) => void;
+  onDrawingPointerUp: (e: React.PointerEvent<SVGElement>) => void;
+}
+
+/**
+ * 戰術線「端點控制點」渲染層：只畫目前選取中的線（`points.length === 2`
+ * 才有端點；舊草稿退化的多點折線不提供端點拖曳）。獨立於 {@link DrawingLayer}
+ * 之外是刻意設計——見上方線身層註解；由 VolleyballCourt 疊在球員 token 之上，
+ * 端點落在球員身上時仍優先可拖。同一份 `drawings`／`selectedId` 只在此找出選取
+ * 中的那一筆（O(n) 查找，不涉及路徑字串計算），不會與線身層重算 pathD／arrowD。
+ */
+export function DrawingHandlesLayer({
+  drawings,
+  selectedId,
+  interactive,
+  handleHitRadius,
+  onHandlePointerDown,
+  onDrawingPointerMove,
+  onDrawingPointerUp,
+}: HandlesProps) {
+  const selected = drawings.find((d) => d.id === selectedId);
+  if (!selected || selected.points.length !== 2) return null;
+  return (
+    <>
+      {selected.points.map((p, i) => (
+        <g key={i}>
+          <circle
+            cx={p.x * COURT_VIEW.w}
+            cy={p.y * COURT_VIEW.h}
+            r={HANDLE_RADIUS}
+            className="fill-background"
+            stroke={selected.color}
+            strokeWidth={5}
+          />
+          <circle
+            cx={p.x * COURT_VIEW.w}
+            cy={p.y * COURT_VIEW.h}
+            r={handleHitRadius}
+            fill="transparent"
+            style={{
+              pointerEvents: interactive ? "auto" : "none",
+              cursor: "grab",
+              touchAction: "none",
+            }}
+            onPointerDown={(e) => onHandlePointerDown(e, selected, i)}
+            onPointerMove={onDrawingPointerMove}
+            onPointerUp={onDrawingPointerUp}
+            onPointerCancel={onDrawingPointerUp}
+          />
+        </g>
+      ))}
     </>
   );
 }

@@ -139,13 +139,24 @@ describe('translatePoints', () => {
 
   it('位移會被夾住，所有點不出界', () => {
     const out = translatePoints([{ x: 0.5, y: 0.5 }, { x: 0.7, y: 0.5 }], 0.9, 0);
-    // maxX=0.7 → 最多再 +0.29（含 0.01 邊距）
-    expect(out[1].x).toBeCloseTo(0.99);
-    expect(out[0].x).toBeCloseTo(0.79);
+    // pad 預設 0（與畫線的 clampToView 一致）：maxX=0.7 → 最多再 +0.3
+    expect(out[1].x).toBeCloseTo(1);
+    expect(out[0].x).toBeCloseTo(0.8);
+  });
+
+  it('可平移到 viewBox 邊緣（畫得到的位置就拖得到）', () => {
+    const out = translatePoints([{ x: 0.99, y: 0.5 }], 0.5, 0);
+    expect(out[0].x).toBeCloseTo(1);
+  });
+
+  it('仍可用 pad 保留邊距', () => {
+    const out = translatePoints([{ x: 0.5, y: 0.5 }], 0.9, 0, 0.01);
+    expect(out[0].x).toBeCloseTo(0.99);
   });
 
   it('無有效位移時回傳原陣列（identity）', () => {
-    const pts = [{ x: 0.99, y: 0.5 }];
+    // 已貼齊右緣，再往右推不動 → 同一個陣列參考
+    const pts = [{ x: 1, y: 0.5 }];
     expect(translatePoints(pts, 0.5, 0)).toBe(pts);
   });
 });

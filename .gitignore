@@ -37,3 +37,4 @@ Thumbs.db
 # ---- Caddy / 部署執行期資料 ----
 caddy-data/
 caddy-config/
+.claude/settings.json

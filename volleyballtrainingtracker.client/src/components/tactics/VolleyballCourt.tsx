@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   ATTACK_LINE_OPP,
@@ -14,7 +14,8 @@ import {
 import {
   arrowSizeFor,
   distanceToDrawing,
-  simplifyPoints,
+  handleHitRadiusFor,
+  hitStrokeWidthFor,
   translatePoints,
   type Drawing,
   type DrawingPoint,
@@ -46,6 +47,8 @@ interface Props {
   onUpdateDrawing: (id: string, patch: Partial<Omit<Drawing, "id">>) => void;
   onRemoveDrawing: (id: string) => void;
   onSelectDrawing: (id: string | null) => void;
+  /** 新線條是否加箭頭（樣式面板可關） */
+  arrowEnabled: boolean;
 }
 
 /** token 放開時，與另一名球員的距離小於此像素值即視為「交換位置」 */
@@ -54,8 +57,6 @@ const SWAP_RADIUS_PX = 40;
 const TAP_MOVE_THRESHOLD_PX = 6;
 /** 兩次輕點間隔（ms）以內視為雙點 → 移出場地 */
 const DOUBLE_TAP_MS = 350;
-/** 自由曲線取樣間距（px）：移動超過此距離才記一點 */
-const MIN_SAMPLE_PX = 6;
 /** 線條最短長度（px）：低於此視為誤觸，不產生線 */
 const MIN_COMMIT_PX = 12;
 /** 橡皮擦命中半徑（px） */
@@ -86,6 +87,7 @@ export default function VolleyballCourt({
   onUpdateDrawing,
   onRemoveDrawing,
   onSelectDrawing,
+  arrowEnabled,
 }: Props) {
   // ── 球員拖曳 ──
   const [draggingId, setDraggingId] = useState<number | null>(null);
@@ -113,6 +115,18 @@ export default function VolleyballCourt({
     lastY: number;
   } | null>(null);
   const erasing = useRef(false);
+
+  // 命中區要以螢幕實際大小為準，需知道場地當前像素寬
+  const [courtWidthPx, setCourtWidthPx] = useState(0);
+  useEffect(() => {
+    const el = courtRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const update = () => setCourtWidthPx(el.getBoundingClientRect().width);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [courtRef]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>, p: CourtPlayer) => {
     const rect = courtRef.current?.getBoundingClientRect();
@@ -231,14 +245,14 @@ export default function VolleyballCourt({
       eraseAt(pt, rect);
       return;
     }
-    if (tool === "line" || tool === "arrow" || tool === "freehand") {
+    if (tool === "draw") {
       setDraft({
         id: crypto.randomUUID(),
-        kind: tool,
+        kind: arrowEnabled ? "arrow" : "line",
         color: drawStyle.color,
         width: drawStyle.width,
-        arrowSize: tool === "arrow" ? arrowSizeFor(drawStyle.width) : undefined,
-        points: tool === "freehand" ? [pt] : [pt, pt],
+        arrowSize: arrowEnabled ? arrowSizeFor(drawStyle.width) : undefined,
+        points: [pt, pt],
       });
     }
   };
@@ -252,14 +266,7 @@ export default function VolleyballCourt({
       return;
     }
     if (!draft) return;
-    if (draft.kind === "freehand") {
-      const last = draft.points[draft.points.length - 1];
-      const distPx = Math.hypot((pt.x - last.x) * rect.width, (pt.y - last.y) * rect.height);
-      if (distPx < MIN_SAMPLE_PX) return;
-      setDraft({ ...draft, points: [...draft.points, pt] });
-    } else {
-      setDraft({ ...draft, points: [draft.points[0], pt] });
-    }
+    setDraft({ ...draft, points: [draft.points[0], pt] });
   };
 
   const handleCanvasPointerUp = () => {
@@ -271,17 +278,9 @@ export default function VolleyballCourt({
     const rect = courtRef.current?.getBoundingClientRect();
     setDraft(null);
     if (!rect) return;
-
-    if (draft.kind === "freehand") {
-      const pts = simplifyPoints(draft.points);
-      if (pts.length >= 2 && polylineLengthPx(pts, rect) >= MIN_COMMIT_PX) {
-        onAddDrawing({ ...draft, points: pts });
-      }
-    } else {
-      const [a, b] = draft.points;
-      const lenPx = Math.hypot((b.x - a.x) * rect.width, (b.y - a.y) * rect.height);
-      if (lenPx >= MIN_COMMIT_PX) onAddDrawing(draft);
-    }
+    const [a, b] = draft.points;
+    const lenPx = Math.hypot((b.x - a.x) * rect.width, (b.y - a.y) * rect.height);
+    if (lenPx >= MIN_COMMIT_PX) onAddDrawing(draft);
   };
 
   const handleCanvasPointerCancel = () => {
@@ -512,6 +511,8 @@ export default function VolleyballCourt({
           draft={draft}
           selectedId={selectedDrawingId}
           interactive={tool === "select"}
+          hitStrokeWidth={hitStrokeWidthFor(courtWidthPx)}
+          handleHitRadius={handleHitRadiusFor(courtWidthPx)}
           onDrawingPointerDown={handleDrawingPointerDown}
           onHandlePointerDown={handleHandlePointerDown}
           onDrawingPointerMove={handleDrawingPointerMove}
@@ -534,16 +535,4 @@ export default function VolleyballCourt({
       )}
     </div>
   );
-}
-
-/** 折線總長（px），用於過濾過短的自由曲線 */
-function polylineLengthPx(points: DrawingPoint[], rect: DOMRect): number {
-  let len = 0;
-  for (let i = 0; i < points.length - 1; i++) {
-    len += Math.hypot(
-      (points[i + 1].x - points[i].x) * rect.width,
-      (points[i + 1].y - points[i].y) * rect.height,
-    );
-  }
-  return len;
 }

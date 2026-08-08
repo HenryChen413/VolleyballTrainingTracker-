@@ -17,7 +17,7 @@ import { useTacticsDrawings } from "@/components/tactics/useTacticsDrawings";
 /**
  * 排球戰術板：
  * 名單來源二段式（全部現役球員／某場賽事的報名球員）＋ SVG 場地拖曳排陣
- * ＋ 戰術畫線（直線／箭頭／自由曲線、選取編輯、橡皮擦）。
+ * ＋ 戰術畫線（拖曳畫直線／箭頭、選取編輯、橡皮擦）。
  * 站位與戰術線以草稿形式存在本機（localStorage），Phase 2 再加入後端儲存戰術。
  */
 export default function TacticsBoardPage() {
@@ -123,7 +123,7 @@ export default function TacticsBoardPage() {
         </h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
           點選或拖曳名單球員到場地排陣；場上球員可拖曳移動、拖到另一人身上交換、拖回名單區（或雙擊）移出。
-          場地上方工具列可畫戰術路線（直線／箭頭／曲線），切回「選取」可點選線條移動、改色或刪除。
+          場地上方工具列選「畫」即可拖曳畫出戰術路線，切回「選取」可點選線條移動、改色或刪除。
           草稿自動保存在這台裝置。
         </p>
       </div>
@@ -177,6 +177,7 @@ export default function TacticsBoardPage() {
               onUpdateDrawing={drawingsBoard.updateDrawing}
               onRemoveDrawing={removeDrawing}
               onSelectDrawing={drawingsBoard.selectDrawing}
+              arrowEnabled
             />
           </CardContent>
         </Card>

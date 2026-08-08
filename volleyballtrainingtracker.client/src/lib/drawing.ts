@@ -5,9 +5,9 @@
 
 import { COURT_VIEW } from "@/lib/court";
 
-export type DrawingKind = "line" | "arrow" | "freehand";
-/** 戰術板工具模式：選取（球員拖曳＋線條編輯）／三種畫線／橡皮擦 */
-export type DrawingTool = "select" | DrawingKind | "eraser";
+export type DrawingKind = "line" | "arrow";
+/** 戰術板工具模式：選取（球員拖曳＋線條編輯）／畫線／橡皮擦 */
+export type DrawingTool = "select" | "draw" | "eraser";
 
 export interface DrawingPoint {
   x: number;
@@ -24,7 +24,7 @@ export interface Drawing {
   width: number;
   /** 箭頭大小（viewBox 單位，僅 arrow；未指定時依線寬推算） */
   arrowSize?: number;
-  /** line/arrow 固定 [起點, 終點]；freehand 為取樣點序列 */
+  /** 固定為 [起點, 終點]；舊草稿可能含更多點，會以折線渲染 */
   points: DrawingPoint[];
 }
 
@@ -61,21 +61,12 @@ const fmt = (p: DrawingPoint) => `${Math.round(p.x * 10) / 10} ${Math.round(p.y 
 
 /**
  * 產生線身的 SVG path d 字串（viewBox 單位）。
- * line/arrow＝直線段；freehand ≥3 點時用「中點二次貝茲」平滑折線。
+ * 一律為折線；新線條固定兩點，舊草稿的多點曲線會退化成折線渲染（視覺幾乎相同）。
  */
 export function drawingPathD(d: Drawing): string {
   const pts = d.points.map(toView);
   if (pts.length === 0) return "";
-  if (d.kind !== "freehand" || pts.length < 3) {
-    return `M ${fmt(pts[0])}` + pts.slice(1).map((p) => ` L ${fmt(p)}`).join("");
-  }
-  let s = `M ${fmt(pts[0])}`;
-  for (let i = 1; i < pts.length - 1; i++) {
-    const mid = { x: (pts[i].x + pts[i + 1].x) / 2, y: (pts[i].y + pts[i + 1].y) / 2 };
-    s += ` Q ${fmt(pts[i])} ${fmt(mid)}`;
-  }
-  s += ` L ${fmt(pts[pts.length - 1])}`;
-  return s;
+  return `M ${fmt(pts[0])}` + pts.slice(1).map((p) => ` L ${fmt(p)}`).join("");
 }
 
 /**
@@ -129,33 +120,6 @@ export function distanceToDrawing(d: Drawing, viewPt: DrawingPoint): number {
     if (dd < min) min = dd;
   }
   return min;
-}
-
-/** Douglas-Peucker 簡化（在 viewBox 空間量距離，回傳原始正規化點的子集） */
-export function simplifyPoints(points: DrawingPoint[], epsilonView = 4): DrawingPoint[] {
-  if (points.length <= 2) return points;
-  const view = points.map(toView);
-  const keep = new Set<number>([0, points.length - 1]);
-
-  const recurse = (first: number, last: number) => {
-    let maxDist = 0;
-    let idx = -1;
-    for (let i = first + 1; i < last; i++) {
-      const dd = distToSegment(view[i], view[first], view[last]);
-      if (dd > maxDist) {
-        maxDist = dd;
-        idx = i;
-      }
-    }
-    if (idx > 0 && maxDist > epsilonView) {
-      keep.add(idx);
-      recurse(first, idx);
-      recurse(idx, last);
-    }
-  };
-  recurse(0, points.length - 1);
-
-  return points.filter((_, i) => keep.has(i));
 }
 
 /**

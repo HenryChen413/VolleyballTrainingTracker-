@@ -1,4 +1,4 @@
-import { ArrowUpRight, Eraser, MousePointer2, Pencil, Slash, Trash2 } from "lucide-react";
+import { Eraser, MousePointer2, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -14,9 +14,7 @@ const TOOLS: ReadonlyArray<{
   icon: React.ComponentType<{ className?: string }>;
 }> = [
   { value: "select", label: "選取", icon: MousePointer2 },
-  { value: "line", label: "直線", icon: Slash },
-  { value: "arrow", label: "箭頭", icon: ArrowUpRight },
-  { value: "freehand", label: "曲線", icon: Pencil },
+  { value: "draw", label: "畫", icon: Pencil },
   { value: "eraser", label: "橡皮擦", icon: Eraser },
 ];
 

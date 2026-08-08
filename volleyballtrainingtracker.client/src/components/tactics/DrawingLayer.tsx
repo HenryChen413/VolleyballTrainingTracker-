@@ -1,11 +1,8 @@
 import { COURT_VIEW } from "@/lib/court";
 import { arrowHeadPathD, drawingPathD, type Drawing } from "@/lib/drawing";
 
-/** 隱形加粗命中描邊寬度（viewBox 單位，約 16px）：細線與手指都點得到 */
-const HIT_STROKE_WIDTH = 28;
-/** 端點控制點：顯示半徑與（更大的）隱形命中半徑 */
+/** 端點控制點：顯示半徑（固定值，非命中區） */
 const HANDLE_RADIUS = 18;
-const HANDLE_HIT_RADIUS = 36;
 
 interface Props {
   drawings: Drawing[];
@@ -14,6 +11,10 @@ interface Props {
   selectedId: string | null;
   /** 僅選取模式下線條可被點選／拖曳 */
   interactive: boolean;
+  /** 線條隱形命中區描邊寬度（viewBox 單位），由場地實際寬度換算 */
+  hitStrokeWidth: number;
+  /** 端點控制點命中半徑（viewBox 單位），由場地實際寬度換算 */
+  handleHitRadius: number;
   onDrawingPointerDown: (e: React.PointerEvent<SVGPathElement>, d: Drawing) => void;
   onHandlePointerDown: (e: React.PointerEvent<SVGCircleElement>, d: Drawing, idx: number) => void;
   /** 拖曳中／放開：pointer capture 後事件會回到按下的元素上，統一轉發 */
@@ -33,6 +34,8 @@ export default function DrawingLayer({
   draft,
   selectedId,
   interactive,
+  hitStrokeWidth,
+  handleHitRadius,
   onDrawingPointerDown,
   onHandlePointerDown,
   onDrawingPointerMove,
@@ -73,7 +76,7 @@ export default function DrawingLayer({
             <path
               d={pathD}
               stroke="transparent"
-              strokeWidth={HIT_STROKE_WIDTH}
+              strokeWidth={hitStrokeWidth}
               strokeLinecap="round"
               strokeLinejoin="round"
               fill="none"
@@ -89,7 +92,7 @@ export default function DrawingLayer({
             />
             {/* 端點控制點（選取中的直線／箭頭）：拖曳改起點／終點 */}
             {selected &&
-              d.kind !== "freehand" &&
+              d.points.length === 2 &&
               d.points.map((p, i) => (
                 <g key={i}>
                   <circle
@@ -103,7 +106,7 @@ export default function DrawingLayer({
                   <circle
                     cx={p.x * COURT_VIEW.w}
                     cy={p.y * COURT_VIEW.h}
-                    r={HANDLE_HIT_RADIUS}
+                    r={handleHitRadius}
                     fill="transparent"
                     style={{
                       pointerEvents: interactive ? "auto" : "none",

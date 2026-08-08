@@ -1,24 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
 import { Expand, RotateCcw, Shrink, Trash2 } from 'lucide-react';
 import { useScoreboardStore } from '@/stores/scoreboardStore';
+import { useFullscreen } from '@/lib/useFullscreen';
 import { confirmAction } from '@/lib/swal';
 import { cn } from '@/lib/utils';
 import ScoreDisplay from './ScoreDisplay';
 import SetScoreDisplay from './SetScoreDisplay';
-
-/**
- * iOS Safari 的 Fullscreen API 支援度補丁型別：
- * - iPhone：完全不支援（requestFullscreen 為 undefined）
- * - 舊版 iPad：只認 webkit 前綴
- */
-type FullscreenElement = HTMLElement & {
-  webkitRequestFullscreen?: () => void;
-};
-type FullscreenDocument = Document & {
-  webkitFullscreenElement?: Element | null;
-  webkitExitFullscreen?: () => void;
-  webkitFullscreenEnabled?: boolean;
-};
 
 /**
  * 翻牌記分板主畫面：兩隊比分 + 小局數 + 目前局數。
@@ -41,58 +27,12 @@ export default function ScoreBoard() {
   } = useScoreboardStore();
   const labelA = nameA.trim() || 'TEAM A';
   const labelB = nameB.trim() || 'TEAM B';
-  const boardRef = useRef<HTMLDivElement>(null);
-  // CSS 假全螢幕：原生 Fullscreen API 不可用時（iPhone Safari）的退路
-  const [cssFullscreen, setCssFullscreen] = useState(false);
-  const [nativeFullscreen, setNativeFullscreen] = useState(false);
-  const isFullscreen = nativeFullscreen || cssFullscreen;
-
-  // 同步原生全螢幕狀態（含 ESC／系統手勢退出），webkit 前綴事件給舊 iPad
-  useEffect(() => {
-    const doc = document as FullscreenDocument;
-    const sync = () =>
-      setNativeFullscreen(Boolean(document.fullscreenElement ?? doc.webkitFullscreenElement));
-    document.addEventListener('fullscreenchange', sync);
-    document.addEventListener('webkitfullscreenchange', sync);
-    return () => {
-      document.removeEventListener('fullscreenchange', sync);
-      document.removeEventListener('webkitfullscreenchange', sync);
-    };
-  }, []);
-
-  const toggleFullscreen = () => {
-    const doc = document as FullscreenDocument;
-    const el = boardRef.current as FullscreenElement | null;
-    if (!el) return;
-    if (document.fullscreenElement ?? doc.webkitFullscreenElement) {
-      if (document.exitFullscreen) void document.exitFullscreen();
-      else doc.webkitExitFullscreen?.();
-      return;
-    }
-    if (cssFullscreen) {
-      setCssFullscreen(false);
-      return;
-    }
-    // iPhone Safari 可能暴露 webkitRequestFullscreen 但呼叫後靜默無效，
-    // 不能只看函式存在與否，須以 fullscreenEnabled 特性偵測把關
-    const supported = document.fullscreenEnabled || doc.webkitFullscreenEnabled === true;
-    if (!supported) {
-      setCssFullscreen(true);
-      return;
-    }
-    try {
-      if (el.requestFullscreen) {
-        // 原生請求可能被拒（權限／嵌入環境），失敗時退回 CSS 全螢幕
-        el.requestFullscreen().catch(() => setCssFullscreen(true));
-      } else if (el.webkitRequestFullscreen) {
-        el.webkitRequestFullscreen();
-      } else {
-        setCssFullscreen(true);
-      }
-    } catch {
-      setCssFullscreen(true);
-    }
-  };
+  const {
+    ref: boardRef,
+    isFullscreen,
+    cssFullscreen,
+    toggle: toggleFullscreen,
+  } = useFullscreen<HTMLDivElement>();
 
   const onResetScores = async () => {
     const r = await confirmAction('歸零本局比分？', '只清除目前比分，小局數保留。', '歸零');

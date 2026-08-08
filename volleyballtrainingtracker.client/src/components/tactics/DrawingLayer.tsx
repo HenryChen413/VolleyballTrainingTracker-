@@ -25,7 +25,8 @@ interface Props {
 /**
  * 戰術線渲染層（掛在球員 token 之上的獨立 SVG 內）：
  * 每條線 = 可見線身（path）＋箭頭三角（path）＋隱形加粗命中區（path）；
- * 選取中再加高亮描邊與端點控制點（line/arrow）。
+ * 選取中再加高亮描邊與端點控制點（僅 points.length === 2 的線顯示；
+ * 舊草稿的多點曲線退化為折線渲染後不提供端點拖曳）。
  * 根 SVG 為 pointer-events:none，只有命中區／控制點在選取模式下開啟事件，
  * 因此繪圖層不會干擾球員拖曳。
  */
@@ -90,7 +91,7 @@ export default function DrawingLayer({
               onPointerUp={onDrawingPointerUp}
               onPointerCancel={onDrawingPointerUp}
             />
-            {/* 端點控制點（選取中的直線／箭頭）：拖曳改起點／終點 */}
+            {/* 端點控制點（僅兩點的線；舊草稿退化的多點折線不顯示）：拖曳改起點／終點 */}
             {selected &&
               d.points.length === 2 &&
               d.points.map((p, i) => (

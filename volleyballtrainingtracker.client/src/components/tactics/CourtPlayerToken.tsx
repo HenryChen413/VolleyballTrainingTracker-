@@ -5,7 +5,11 @@ import { roleTokenClass } from "./tokenStyle";
 interface Props {
   player: CourtPlayer;
   dragging: boolean;
-  /** false＝畫線模式中：完全停用 pointer 事件，避免畫線誤拖球員（捕捉層之外的雙保險） */
+  /**
+   * false＝畫線模式中：完全停用 pointer 事件，避免畫線誤拖球員（捕捉層之外的雙保險）。
+   * true＝選取模式：另外把 token 疊到戰術線層之上（見下方 z-index），
+   * 讓命中帶加寬後仍被線條穿過的球員可以被點中。
+   */
   interactive: boolean;
   onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => void;
   onPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => void;
@@ -32,11 +36,19 @@ export default function CourtPlayerToken({
       type="button"
       // touch-action: none 只加在 token 本身，場地空白處仍可正常捲動頁面
       className={cn(
-        "absolute z-10 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 touch-none select-none",
+        "absolute flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 touch-none select-none",
         "flex-col items-center justify-center rounded-full shadow-lift cursor-grab",
         roleTokenClass(player.role),
+        // 選取模式下 token 疊到戰術線層（VolleyballCourt 的 z-[15]）之上：
+        // 命中帶在螢幕上固定為 44px（見 hitStrokeWidthFor），比 token 直徑（48px）
+        // 還寬，線條穿過 token 中心時幾乎完全覆蓋它，選取模式下若疊層順序不變，
+        // 使用者按下球員會被線條的命中區搶走、變成選取到線。
+        // 取捨：戰術線因此會畫在球員圓標下方，可接受（球員是操作主體）。
+        // 畫線／橡皮擦模式維持原疊層即可：token 此時已 pointer-events-none，
+        // 疊層順序不影響「畫線絕不誤拖球員」的既有保證。
+        interactive ? "z-20" : "z-10",
         dragging
-          ? "z-20 scale-110 cursor-grabbing ring-2 ring-ring"
+          ? "z-30 scale-110 cursor-grabbing ring-2 ring-ring"
           : "transition-[left,top] duration-150 ease-out",
         !interactive && "pointer-events-none",
       )}

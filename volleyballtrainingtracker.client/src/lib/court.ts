@@ -54,7 +54,7 @@ export const ROTATION_ANCHORS: ReadonlyArray<{ pos: number; x: number; y: number
   { pos: 1, x: col(5 / 6), y: row(NET_Y + 650) },
 ];
 
-/** 把正規化座標夾在場地可視範圍內（留 token 半徑的邊距） */
+/** 把正規化座標夾在場線範圍內（球員用，留 token 半徑的邊距） */
 export function clampToCourt(x: number, y: number): { x: number; y: number } {
   return {
     x: Math.min(0.95, Math.max(0.05, x)),
@@ -62,13 +62,34 @@ export function clampToCourt(x: number, y: number): { x: number; y: number } {
   };
 }
 
-/** 瀏覽器座標（clientX/Y）→ 場地容器內的正規化座標 */
+/**
+ * 把正規化座標夾在整個 viewBox 內（戰術線用）。
+ * 相對 clampToCourt 多出場地四周的 0.5m 緩衝區 —— 發球（端線後起跳）、
+ * 界外球路線等戰術本來就發生在場線之外，線條不該被夾在場內。
+ */
+export function clampToView(x: number, y: number): { x: number; y: number } {
+  return {
+    x: Math.min(1, Math.max(0, x)),
+    y: Math.min(1, Math.max(0, y)),
+  };
+}
+
+/** 瀏覽器座標（clientX/Y）→ 正規化座標，夾在場線內（球員 token 用） */
 export function clientToNorm(
   rect: DOMRect,
   clientX: number,
   clientY: number,
 ): { x: number; y: number } {
   return clampToCourt((clientX - rect.left) / rect.width, (clientY - rect.top) / rect.height);
+}
+
+/** 瀏覽器座標（clientX/Y）→ 正規化座標，可及緩衝區邊緣（戰術線用） */
+export function clientToViewNorm(
+  rect: DOMRect,
+  clientX: number,
+  clientY: number,
+): { x: number; y: number } {
+  return clampToView((clientX - rect.left) / rect.width, (clientY - rect.top) / rect.height);
 }
 
 /** 兩名場上球員在「畫面像素」上的距離（用於交換/碰撞判定，避免正規化座標被長寬比扭曲） */

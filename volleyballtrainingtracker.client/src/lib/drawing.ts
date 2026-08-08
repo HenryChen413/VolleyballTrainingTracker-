@@ -159,14 +159,15 @@ export function simplifyPoints(points: DrawingPoint[], epsilonView = 4): Drawing
 }
 
 /**
- * 整條線平移（正規化位移），位移量會被夾住使所有點維持在場地內，
- * 避免線被拖出邊界後拿不回來。
+ * 整條線平移（正規化位移），位移量會被夾住使所有點維持在 viewBox 內
+ * （含場地四周緩衝區），避免線被拖出邊界後拿不回來。
+ * pad 預設 0：與畫線時的 clampToView 一致，畫得到的位置就拖得到。
  */
 export function translatePoints(
   points: DrawingPoint[],
   dx: number,
   dy: number,
-  pad = 0.01,
+  pad = 0,
 ): DrawingPoint[] {
   if (points.length === 0) return points;
   let minX = 1;

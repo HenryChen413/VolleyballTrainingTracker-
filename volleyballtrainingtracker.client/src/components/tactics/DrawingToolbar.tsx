@@ -1,6 +1,5 @@
 import { ArrowUpRight, Eraser, MousePointer2, Pencil, Slash, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { confirmAction } from "@/lib/swal";
 import { cn } from "@/lib/utils";
 import {
   DRAWING_COLORS,
@@ -29,11 +28,13 @@ interface Props {
   onStyleChange: (patch: Partial<DrawingStyle>) => void;
   selectedId: string | null;
   onDeleteSelected: () => void;
-  drawingCount: number;
-  onClearAll: () => void;
 }
 
-/** 戰術畫線工具列：工具切換、顏色、粗細、刪除選取、清除全部 */
+/**
+ * 戰術畫線工具列：工具切換、顏色、粗細、刪除選取。
+ * 「清除全部畫線」不放這裡 —— 它與選取狀態無關，且排在 5 工具＋6 色＋3 粗細
+ * 之後會被擠到換行而難以發現，改與「清空場地」一起放在場地標題列（TacticsToolbar）。
+ */
 export default function DrawingToolbar({
   tool,
   onToolChange,
@@ -41,19 +42,7 @@ export default function DrawingToolbar({
   onStyleChange,
   selectedId,
   onDeleteSelected,
-  drawingCount,
-  onClearAll,
 }: Props) {
-  const handleClearAll = async () => {
-    const res = await confirmAction(
-      "清除全部戰術線？",
-      `目前有 ${drawingCount} 條線，全部刪除（球員站位不受影響）。`,
-      "清除",
-      true,
-    );
-    if (res.isConfirmed) onClearAll();
-  };
-
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       {/* 工具切換 */}
@@ -119,29 +108,17 @@ export default function DrawingToolbar({
         ))}
       </div>
 
-      {/* 刪除選取／清除全部 */}
-      {(selectedId || drawingCount > 0) && (
+      {/* 刪除選取（僅在有選取線條時出現） */}
+      {selectedId && (
         <div className="flex items-center gap-1 border-l pl-3">
-          {selectedId && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDeleteSelected}
-              className="text-destructive hover:text-destructive"
-            >
-              <Trash2 className="mr-1 h-4 w-4" /> 刪除選取
-            </Button>
-          )}
-          {drawingCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClearAll}
-              className="text-destructive hover:text-destructive"
-            >
-              <Eraser className="mr-1 h-4 w-4" /> 清除全部
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDeleteSelected}
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="mr-1 h-4 w-4" /> 刪除選取
+          </Button>
         </div>
       )}
     </div>

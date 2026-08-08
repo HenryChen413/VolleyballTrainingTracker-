@@ -142,12 +142,14 @@ export default function TacticsBoardPage() {
         {/* 場地（手機在上、xl 在右側） */}
         <Card className="xl:order-2">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center justify-between gap-2 text-base">
+            <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
               <span>場地</span>
               <TacticsToolbar
                 onCourtCount={courtPlayers.length}
                 totalCount={roster?.length ?? 0}
                 onClear={board.clearCourt}
+                drawingCount={drawingsBoard.drawings.length}
+                onClearDrawings={drawingsBoard.clearDrawings}
               />
             </CardTitle>
           </CardHeader>
@@ -159,8 +161,6 @@ export default function TacticsBoardPage() {
               onStyleChange={drawingsBoard.applyStyle}
               selectedId={selectedId}
               onDeleteSelected={() => selectedId && removeDrawing(selectedId)}
-              drawingCount={drawingsBoard.drawings.length}
-              onClearAll={drawingsBoard.clearDrawings}
             />
             <VolleyballCourt
               courtPlayers={courtPlayers}

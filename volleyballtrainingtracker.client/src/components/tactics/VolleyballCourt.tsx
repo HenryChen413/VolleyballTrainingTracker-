@@ -8,6 +8,7 @@ import {
   NET_Y,
   ROTATION_ANCHORS,
   clientToNorm,
+  clientToViewNorm,
   type CourtPlayer,
 } from "@/lib/court";
 import {
@@ -224,7 +225,7 @@ export default function VolleyballCourt({
     const rect = courtRef.current?.getBoundingClientRect();
     if (!rect) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    const pt = clientToNorm(rect, e.clientX, e.clientY);
+    const pt = clientToViewNorm(rect, e.clientX, e.clientY);
     if (tool === "eraser") {
       erasing.current = true;
       eraseAt(pt, rect);
@@ -245,7 +246,7 @@ export default function VolleyballCourt({
   const handleCanvasPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const rect = courtRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const pt = clientToNorm(rect, e.clientX, e.clientY);
+    const pt = clientToViewNorm(rect, e.clientX, e.clientY);
     if (tool === "eraser") {
       if (erasing.current) eraseAt(pt, rect);
       return;
@@ -295,7 +296,7 @@ export default function VolleyballCourt({
     const rect = courtRef.current?.getBoundingClientRect();
     if (!rect) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    const pt = clientToNorm(rect, e.clientX, e.clientY);
+    const pt = clientToViewNorm(rect, e.clientX, e.clientY);
     drawingDrag.current = { id: d.id, mode: "move", lastX: pt.x, lastY: pt.y };
     onSelectDrawing(d.id);
   };
@@ -310,7 +311,7 @@ export default function VolleyballCourt({
     const rect = courtRef.current?.getBoundingClientRect();
     if (!rect) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    const pt = clientToNorm(rect, e.clientX, e.clientY);
+    const pt = clientToViewNorm(rect, e.clientX, e.clientY);
     drawingDrag.current = { id: d.id, mode: "endpoint", pointIndex: idx, lastX: pt.x, lastY: pt.y };
   };
 
@@ -319,7 +320,7 @@ export default function VolleyballCourt({
     if (!drag) return;
     const rect = courtRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const pt = clientToNorm(rect, e.clientX, e.clientY); // 已夾在場地內
+    const pt = clientToViewNorm(rect, e.clientX, e.clientY); // 已夾在 viewBox 內
     const d = drawings.find((x) => x.id === drag.id);
     if (!d) return;
     if (drag.mode === "move") {

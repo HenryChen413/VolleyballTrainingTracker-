@@ -10,10 +10,14 @@ import type { DrawingStyle } from "./useTacticsDrawings";
 
 /** 寬螢幕改用側邊直欄的門檻（px），對應 Tailwind md 斷點 */
 const VERTICAL_TOOLBAR_MIN_WIDTH = 768;
-/** 手機置底工具列預留高度（px） */
+/** 手機置底工具列的基準高度（px）；螢幕的 safe-area-inset-bottom 疊加在這之上（見下方 calc），
+ *  可用空間計算改用實測後的工具列尺寸，不在這裡重複扣一次安全區。 */
 const HORIZONTAL_TOOLBAR_HEIGHT = 68;
-/** 側欄工具列預留寬度（px） */
-const VERTICAL_TOOLBAR_WIDTH = 76;
+/** 側欄工具列的基準寬度（px）；safe-area-inset-right 疊加在這之上（見下方 calc）。
+ *  數字來源：「清除」按鈕（h-11 px-3、Eraser 圖示 20px + mr-1 4px + 全形「清除」二字約 28px、
+ *  兩側 padding 各 12px）量得最小寬度約 76px，容器再留左右內距，抓 104px（含約 12px 餘裕，
+ *  抵銷不同平台中文字型量測誤差），iPad 等寬螢幕裝置多這幾十 px 沒有代價。 */
+const VERTICAL_TOOLBAR_WIDTH = 104;
 
 interface Props {
   onExit: () => void;
@@ -69,37 +73,67 @@ export default function TacticsFocusMode({
   ...courtProps
 }: Props) {
   const shellRef = useRef<HTMLDivElement | null>(null);
+  // 工具列容器：量它「實際渲染出來的」尺寸（含 safe-area），而不是重複在 JS 端
+  // 算一次 CSS 的 calc() 結果——兩邊各算一次容易兜不起來（本次修正前的缺陷）。
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  // 隱形探測元素：高度純粹是 env(safe-area-inset-bottom)，讓 JS 能讀到這個
+  // CSS 環境變數目前解析出的實際像素值（JS 端沒有原生方式直接讀 env()）。
+  // 直欄模式下工具列在右側、不會自動扣掉底部安全區，得靠這個數字自己扣。
+  const safeBottomRef = useRef<HTMLDivElement | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
+  const [toolbarSize, setToolbarSize] = useState({ w: 0, h: 0 });
+  const [safeBottomPx, setSafeBottomPx] = useState(0);
 
   useEffect(() => {
-    const el = shellRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
+    if (typeof ResizeObserver === "undefined") return;
+    const shellEl = shellRef.current;
+    const toolbarEl = toolbarRef.current;
+    const safeBottomEl = safeBottomRef.current;
+    if (!shellEl || !toolbarEl || !safeBottomEl) return;
     const update = () => {
-      const r = el.getBoundingClientRect();
-      setBox({ w: r.width, h: r.height });
+      const s = shellEl.getBoundingClientRect();
+      setBox({ w: s.width, h: s.height });
+      const t = toolbarEl.getBoundingClientRect();
+      setToolbarSize({ w: t.width, h: t.height });
+      setSafeBottomPx(safeBottomEl.getBoundingClientRect().height);
     };
     update();
     const ro = new ResizeObserver(update);
-    ro.observe(el);
+    ro.observe(shellEl);
+    ro.observe(toolbarEl);
+    ro.observe(safeBottomEl);
     return () => ro.disconnect();
   }, []);
 
   const vertical = box.w >= VERTICAL_TOOLBAR_MIN_WIDTH;
-  const availW = box.w - (vertical ? VERTICAL_TOOLBAR_WIDTH : 0);
-  const availH = box.h - (vertical ? 0 : HORIZONTAL_TOOLBAR_HEIGHT);
+  // 直欄模式：可用寬度扣掉工具列實測寬度（已含 safe-area-inset-right）；
+  // 可用高度扣掉底部安全區實測值（工具列在右側，不會幫忙擋掉 home indicator）。
+  // 置底模式：可用寬度不扣；可用高度扣掉工具列實測高度（已含 safe-area-inset-bottom，
+  // 不需要再另外扣一次，見 toolbarRef 的量測方式）。
+  const availW = box.w - (vertical ? toolbarSize.w : 0);
+  const availH = box.h - (vertical ? safeBottomPx : toolbarSize.h);
   const size = fitCourtSize(availW, availH);
 
   return (
     <div
       ref={shellRef}
       className={cn(
-        "flex bg-background",
+        // relative：兩個分支都需要，讓退出鈕的 absolute 有正確的定位祖先。
+        // cssFullscreen=true 時 fixed 已隱含定位，relative 會被 cn/twMerge
+        // 自動去重（同一組 position 工具類，後面的 fixed 蓋過 relative，無副作用）；
+        // cssFullscreen=false（原生全螢幕，Android／桌機的主要路徑）時這裡原本
+        // 是 static，退出鈕的 absolute 會一路往上找到「使用 useFullscreen()
+        // 的呼叫端包住 TacticsFocusMode 的那層元素」（原生全螢幕會被瀏覽器
+        // UA 樣式強制設成 position:fixed）而不是這個 shell，若中間還有捲動
+        // 偏移，退出鈕座標會跑掉、甚至被畫到畫面外，等於卡在專注模式退不出來。
+        "relative flex bg-background",
         vertical ? "flex-row items-center" : "flex-col items-center",
         // 原生全螢幕時瀏覽器已把元素放大到整個螢幕，只需填滿；
-        // CSS 假全螢幕要自己蓋掉 header 與 BottomTabBar，h-dvh 避開網址列造成的跳動
-        cssFullscreen
-          ? "fixed inset-0 z-[100] h-dvh w-screen"
-          : "h-dvh w-full",
+        // CSS 假全螢幕要自己蓋掉 header 與 BottomTabBar，h-dvh 避開網址列造成的跳動。
+        // 不用 w-screen：inset-0 的 right:0 已經精準對齊「實際可視視窗」右緣，
+        // w-screen（100vw）在有傳統捲軸的桌機瀏覽器會比可視寬多出捲軸寬度，
+        // 導致 right 被重新推算、直欄工具列的最右側被裁到視窗外。
+        cssFullscreen ? "fixed inset-0 z-[100] h-dvh" : "h-dvh w-full",
       )}
     >
       <Button
@@ -109,10 +143,24 @@ export default function TacticsFocusMode({
         title="退出專注模式"
         aria-label="退出專注模式"
         className="absolute left-2 top-2 z-10 h-11 w-11"
-        style={{ top: "max(0.5rem, env(safe-area-inset-top))" }}
+        style={{
+          top: "max(0.5rem, env(safe-area-inset-top))",
+          // 左側同理：橫向大螢幕手機（如 iPhone 轉橫向）瀏海／圓角可能吃掉
+          // 左側 8px，退出鈕不能只用固定的 left-2。
+          left: "max(0.5rem, env(safe-area-inset-left))",
+        }}
       >
         <Shrink className="h-5 w-5" />
       </Button>
+
+      {/* 隱形探測元素：高度=env(safe-area-inset-bottom)，純粹讓 JS 能讀到這個
+          安全區距離目前解析出的實際像素值（見上方 safeBottomRef 註解）。 */}
+      <div
+        ref={safeBottomRef}
+        aria-hidden
+        className="pointer-events-none absolute h-0 w-0 opacity-0"
+        style={{ height: "env(safe-area-inset-bottom)" }}
+      />
 
       {/* 場地：尺寸由 JS 算好，確保整場可見。
           isolate（isolation: isolate）在此建立獨立堆疊脈絡，把 VolleyballCourt
@@ -127,7 +175,16 @@ export default function TacticsFocusMode({
           後者只解決「這一顆」按鈕，未來這層 overlay 再加任何新元素
           都要重新意識到同一個坑；isolate 從根本阻止場地內部的 z 值外洩，
           之後場地內部想怎麼疊都不會再影響到 overlay 的其他元素。 */}
-      <div className="isolate flex flex-1 items-center justify-center overflow-hidden">
+      <div
+        className={cn(
+          "isolate flex flex-1 items-center justify-center overflow-hidden",
+          // 直欄模式（工具列在右側）沒有底部工具列幫忙擋掉安全區，場地本身要留
+          // 底部 padding，否則我方底線／畫線會壓進 home indicator 手勢區——
+          // 這裡只負責「視覺上」留白，JS 端 availH 另外用 safeBottomPx 扣減，
+          // 兩者算的是同一個 env(safe-area-inset-bottom)，數值必然一致。
+          vertical && "pb-[env(safe-area-inset-bottom)]",
+        )}
+      >
         <div style={{ width: size.width, height: size.height }}>
           {size.width > 0 && (
             <VolleyballCourt
@@ -145,13 +202,33 @@ export default function TacticsFocusMode({
         </div>
       </div>
 
-      {/* 工具列：手機置底、寬螢幕靠右直欄 */}
+      {/* 工具列：手機置底、寬螢幕靠右直欄。
+          寬高都用 calc() 把對應的 safe-area 疊加在基準值上（border-box 下量到的
+          border-box 尺寸即為此 calc 結果，TacticsFocusMode 直接讀 toolbarRef 的
+          實測值來算 availW／availH，不會跟這裡的 calc 兜不起來）：
+          - 置底模式：height = 基準 68px + safe-area-inset-bottom；同時保留
+            pb-[env(...)] 把安全區的份量從「內容可用高度」扣掉、推到最下面當
+            留白，兩者相減後 FocusModeToolbar 實際可用的內容高度仍是原本設計
+            的 68px，不會因為安全區變大就把橫向工具列擠得只剩沒幾 px（此為
+            本次要修的 I-2 缺陷：先前只加高度沒同時加 padding，也沒把兩者的
+            量對齊）。
+          - 直欄模式：width = 基準 104px + safe-area-inset-right；同時
+            pr-[calc(0.5rem+env(...))] 把安全區從內容寬度扣掉、推到最右邊，
+            兩者相減後內容寬度固定是 104-8(pl-2)-8(pr 基準)=88px，
+            足夠放下「清除」按鈕（量得約 76px）＋左右內距，不會左右溢出。 */}
       <div
+        ref={toolbarRef}
         className={cn(
           "flex shrink-0 items-center justify-center",
-          vertical ? "h-full px-2" : "w-full pb-[env(safe-area-inset-bottom)]",
+          vertical
+            ? "h-full pl-2 pr-[calc(0.5rem+env(safe-area-inset-right))]"
+            : "w-full pb-[env(safe-area-inset-bottom)]",
         )}
-        style={vertical ? { width: VERTICAL_TOOLBAR_WIDTH } : { height: HORIZONTAL_TOOLBAR_HEIGHT }}
+        style={
+          vertical
+            ? { width: `calc(${VERTICAL_TOOLBAR_WIDTH}px + env(safe-area-inset-right))` }
+            : { height: `calc(${HORIZONTAL_TOOLBAR_HEIGHT}px + env(safe-area-inset-bottom))` }
+        }
       >
         <FocusModeToolbar
           orientation={vertical ? "vertical" : "horizontal"}

@@ -7,6 +7,9 @@ import {
   drawingPathD,
   simplifyPoints,
   translatePoints,
+  handleHitRadiusFor,
+  hitStrokeWidthFor,
+  MIN_TOUCH_TARGET_PX,
   type Drawing,
 } from './drawing';
 
@@ -158,5 +161,35 @@ describe('translatePoints', () => {
     // 已貼齊右緣，再往右推不動 → 同一個陣列參考
     const pts = [{ x: 1, y: 0.5 }];
     expect(translatePoints(pts, 0.5, 0)).toBe(pts);
+  });
+});
+
+describe('命中區換算', () => {
+  /** viewBox 單位換算回螢幕 px */
+  const toPx = (viewUnits: number, courtWidthPx: number) => (viewUnits * courtWidthPx) / 1000;
+
+  it('端點命中直徑在各種場地寬度下都不小於 44px', () => {
+    for (const widthPx of [295, 308, 342, 368, 560]) {
+      const r = handleHitRadiusFor(widthPx);
+      expect(toPx(r, widthPx) * 2).toBeCloseTo(MIN_TOUCH_TARGET_PX);
+    }
+  });
+
+  it('線條命中寬度在各種場地寬度下都不小於 44px', () => {
+    for (const widthPx of [295, 308, 342, 368, 560]) {
+      const w = hitStrokeWidthFor(widthPx);
+      expect(toPx(w, widthPx)).toBeCloseTo(MIN_TOUCH_TARGET_PX);
+    }
+  });
+
+  it('場地越小，換算出的 viewBox 命中值越大', () => {
+    expect(handleHitRadiusFor(295)).toBeGreaterThan(handleHitRadiusFor(560));
+  });
+
+  it('尚未量到版面（0 或 NaN）時回傳保底值，不產生 Infinity', () => {
+    expect(handleHitRadiusFor(0)).toBe(36);
+    expect(hitStrokeWidthFor(0)).toBe(28);
+    expect(handleHitRadiusFor(Number.NaN)).toBe(36);
+    expect(hitStrokeWidthFor(Number.NaN)).toBe(28);
   });
 });

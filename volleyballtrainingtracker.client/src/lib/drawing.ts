@@ -185,3 +185,26 @@ export function translatePoints(
   if (cdx === 0 && cdy === 0) return points;
   return points.map((p) => ({ x: p.x + cdx, y: p.y + cdy }));
 }
+
+/** 觸控目標最小尺寸（px）；Apple HIG 與 Material 的共同建議值 */
+export const MIN_TOUCH_TARGET_PX = 44;
+
+/**
+ * 端點控制點的命中半徑（viewBox 單位）。
+ * 命中區必須以「螢幕上的實際大小」為準 —— 固定的 viewBox 值在小場地上
+ * 會縮成十幾 px，手指點不到。故由場地實際像素寬回推。
+ * 場地尚未量到（0 / NaN）時回傳改動前的固定值當保底，避免 Infinity。
+ */
+export function handleHitRadiusFor(courtWidthPx: number): number {
+  if (!(courtWidthPx > 0)) return 36;
+  return (MIN_TOUCH_TARGET_PX / 2) * (COURT_VIEW.w / courtWidthPx);
+}
+
+/**
+ * 線條隱形命中區的描邊寬度（viewBox 單位）。
+ * 與端點不同，描邊寬度即完整命中寬度（不是半徑），故不除以 2。
+ */
+export function hitStrokeWidthFor(courtWidthPx: number): number {
+  if (!(courtWidthPx > 0)) return 28;
+  return MIN_TOUCH_TARGET_PX * (COURT_VIEW.w / courtWidthPx);
+}

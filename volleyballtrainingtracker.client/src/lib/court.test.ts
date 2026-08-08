@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampToCourt, clampToView, clientToNorm, clientToViewNorm } from './court';
+import { clampToCourt, clampToView, clientToNorm, clientToViewNorm, fitCourtSize } from './court';
 
 /** 場地容器：aspect-[10/19]，取 500×950 對應 viewBox 1000×1900 */
 const rect = { left: 100, top: 200, width: 500, height: 950 } as DOMRect;
@@ -43,5 +43,32 @@ describe('clientToNorm / clientToViewNorm', () => {
   it('超出容器外的指標座標仍被夾在範圍內', () => {
     expect(clientToViewNorm(rect, -999, -999)).toEqual({ x: 0, y: 0 });
     expect(clientToViewNorm(rect, 9999, 9999)).toEqual({ x: 1, y: 1 });
+  });
+});
+
+describe('fitCourtSize', () => {
+  it('高度受限時以高度為準，維持 10:19 比例', () => {
+    const { width, height } = fitCourtSize(400, 600);
+    expect(height).toBeCloseTo(600);
+    expect(width).toBeCloseTo((600 * 10) / 19);
+    expect(height / width).toBeCloseTo(1.9);
+  });
+
+  it('寬度受限時以寬度為準，維持 10:19 比例', () => {
+    const { width, height } = fitCourtSize(200, 900);
+    expect(width).toBeCloseTo(200);
+    expect(height).toBeCloseTo(380);
+  });
+
+  it('結果永遠塞得進可用空間', () => {
+    for (const [w, h] of [[375, 650], [768, 1000], [1024, 700], [300, 300]]) {
+      const r = fitCourtSize(w, h);
+      expect(r.width).toBeLessThanOrEqual(w + 0.001);
+      expect(r.height).toBeLessThanOrEqual(h + 0.001);
+    }
+  });
+
+  it('可用空間為 0 時回傳 0，不產生 NaN', () => {
+    expect(fitCourtSize(0, 0)).toEqual({ width: 0, height: 0 });
   });
 });

@@ -49,6 +49,8 @@ interface Props {
   onSelectDrawing: (id: string | null) => void;
   /** 新線條是否加箭頭（樣式面板可關） */
   arrowEnabled: boolean;
+  /** 覆寫根容器樣式；未提供時沿用一般模式的置中等比版面 */
+  className?: string;
 }
 
 /** token 放開時，與另一名球員的距離小於此像素值即視為「交換位置」 */
@@ -88,6 +90,7 @@ export default function VolleyballCourt({
   onRemoveDrawing,
   onSelectDrawing,
   arrowEnabled,
+  className,
 }: Props) {
   // ── 球員拖曳 ──
   const [draggingId, setDraggingId] = useState<number | null>(null);
@@ -344,7 +347,10 @@ export default function VolleyballCourt({
   return (
     <div
       ref={courtRef}
-      className="relative mx-auto aspect-[10/19] w-full max-w-[560px] select-none"
+      className={cn(
+        "relative select-none",
+        className ?? "mx-auto aspect-[10/19] w-full max-w-[560px]",
+      )}
       // 選取模式下點場地空白處＝取消線條選取（線／端點的 down 已 stopPropagation）
       onPointerDown={() => {
         if (tool === "select") onSelectDrawing(null);

@@ -120,3 +120,17 @@ export function firstFreeAnchor(
   }
   return null;
 }
+
+/**
+ * 依可用空間算出「完整可見」的場地尺寸（等比 10:19）。
+ * 以 JS 計算而非交給 CSS aspect-ratio ＋ 雙向 max 約束，
+ * 是為了在各瀏覽器得到完全一致且可測試的結果。
+ */
+export function fitCourtSize(
+  availW: number,
+  availH: number,
+): { width: number; height: number } {
+  if (!(availW > 0) || !(availH > 0)) return { width: 0, height: 0 };
+  const width = Math.min(availW, (availH * COURT_VIEW.w) / COURT_VIEW.h);
+  return { width, height: (width * COURT_VIEW.h) / COURT_VIEW.w };
+}

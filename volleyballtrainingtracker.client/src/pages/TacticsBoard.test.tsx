@@ -10,10 +10,11 @@
 // 這裡用實際渲染 + fireEvent.click 重現「使用者點按鈕」的操作，斷言
 // 退出鈕確實出現、再點退出後確實回到一般模式，作為這類「接線斷了但看似
 // 全綠」缺陷的永久保險。
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/Toaster";
+import { matchEventsApi, type MatchEventListItem } from "@/api/matchLogs";
 import TacticsBoardPage from "./TacticsBoard";
 
 vi.mock("@/api/players", async () => {
@@ -145,5 +146,134 @@ describe("TacticsBoardPage 專注模式清除→復原 toast（回歸 C-1）", (
 
     // 按下復原後戰術線應救回：「清除」鈕重新出現（drawingCount > 0）
     expect(await screen.findByRole("button", { name: "清除" })).toBeInTheDocument();
+  });
+});
+
+// ── 賽事分隊（A/B 隊陣容） ──────────────────────────────────────────────
+// 一場賽事可能分成 A、B 兩隊去打（MatchEvent.squadCount >= 2，每位報名球員
+// 帶 ourSquad="A"/"B"）。戰術板選完賽事後要能再選要排哪一隊的陣容，
+// 兩隊的站位草稿彼此獨立、不互相覆蓋。
+describe("TacticsBoardPage 賽事分隊（A/B 隊陣容）", () => {
+  const splitEvent: MatchEventListItem = {
+    id: 1,
+    matchDate: "2026-03-15T00:00:00Z",
+    matchType: "Friendly",
+    academicYear: 114,
+    matchName: "AB 隊分組賽",
+    location: null,
+    ranking: null,
+    rankingB: null,
+    videoUrl: null,
+    notes: null,
+    squadCount: 2,
+    playerCount: 5,
+    players: [
+      { playerId: 1, name: "艾莉", jerseyNo: 1, position: "OH", ourSquad: "A" },
+      { playerId: 2, name: "貝拉", jerseyNo: 2, position: "MB", ourSquad: "A" },
+      { playerId: 3, name: "西西", jerseyNo: 3, position: "S", ourSquad: "B" },
+      { playerId: 4, name: "黛西", jerseyNo: 4, position: "L", ourSquad: "B" },
+      // 報名了但沒指定隊別：依規格兩隊名單都不顯示
+      { playerId: 5, name: "伊芙", jerseyNo: 5, position: "OPP", ourSquad: null },
+    ],
+    matches: [],
+  };
+
+  const singleEvent: MatchEventListItem = {
+    ...splitEvent,
+    id: 2,
+    matchName: "沒分隊的友誼賽",
+    squadCount: 1,
+    playerCount: 2,
+    players: [
+      { playerId: 1, name: "艾莉", jerseyNo: 1, position: "OH", ourSquad: null },
+      { playerId: 2, name: "貝拉", jerseyNo: 2, position: "MB", ourSquad: null },
+    ],
+  };
+
+  /** 走使用者路徑選賽事：先按賽事類型，再從下拉選一場 */
+  async function selectEvent(event: MatchEventListItem) {
+    fireEvent.click(await screen.findByRole("button", { name: "友誼賽" }));
+    // 等賽事載完（下拉在載入中是 disabled，且選項還沒渲染，這時 change 不會生效）
+    await screen.findByRole("option", { name: new RegExp(event.matchName!) });
+    fireEvent.change(await screen.findByLabelText("選擇賽事"), {
+      target: { value: String(event.id) },
+    });
+  }
+
+  afterEach(() => {
+    // 還原成其他 describe 依賴的預設（無賽事）
+    vi.mocked(matchEventsApi.list).mockResolvedValue([]);
+  });
+
+  it("選到分隊賽事後出現隊伍切換，預設 A 隊且名單只有 A 隊球員", async () => {
+    vi.mocked(matchEventsApi.list).mockResolvedValue([splitEvent]);
+    renderPage();
+    await selectEvent(splitEvent);
+
+    expect(await screen.findByRole("button", { name: /A隊/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /B隊/ })).toHaveAttribute("aria-pressed", "false");
+
+    expect(await screen.findByRole("button", { name: /艾莉.*點選上場/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /貝拉.*點選上場/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /西西.*點選上場/ })).not.toBeInTheDocument();
+    // 未指定隊別的球員不屬於任何一隊，不該出現
+    expect(screen.queryByRole("button", { name: /伊芙.*點選上場/ })).not.toBeInTheDocument();
+  });
+
+  it("切到 B 隊後名單換成 B 隊球員", async () => {
+    vi.mocked(matchEventsApi.list).mockResolvedValue([splitEvent]);
+    renderPage();
+    await selectEvent(splitEvent);
+
+    fireEvent.click(await screen.findByRole("button", { name: /B隊/ }));
+
+    expect(await screen.findByRole("button", { name: /西西.*點選上場/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /黛西.*點選上場/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /艾莉.*點選上場/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /伊芙.*點選上場/ })).not.toBeInTheDocument();
+  });
+
+  it("未分隊的賽事不顯示隊伍切換", async () => {
+    vi.mocked(matchEventsApi.list).mockResolvedValue([singleEvent]);
+    renderPage();
+    await selectEvent(singleEvent);
+
+    expect(await screen.findByRole("button", { name: /艾莉.*點選上場/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /A隊/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /B隊/ })).not.toBeInTheDocument();
+  });
+
+  it("A 隊排好的站位不會被 B 隊蓋掉，切回 A 隊仍在", async () => {
+    vi.mocked(matchEventsApi.list).mockResolvedValue([splitEvent]);
+    // A 隊白板上已有一名場上球員（草稿依「賽事＋隊別」各自保存）
+    localStorage.setItem(
+      "vbtt-tactics-draft",
+      JSON.stringify({
+        version: 1,
+        boards: {
+          "event:1:A": [
+            { playerId: 1, jerseyNo: 1, name: "艾莉", role: "OH", x: 0.5, y: 0.62 },
+          ],
+        },
+      }),
+    );
+    renderPage();
+    await selectEvent(splitEvent);
+
+    // A 隊：艾莉在場上（場上 token 存在、名單區看不到她）
+    expect(await screen.findByRole("button", { name: /艾莉.*拖曳移動/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /艾莉.*點選上場/ })).not.toBeInTheDocument();
+
+    // 切到 B 隊：B 隊白板是空的，不該看到 A 隊的站位
+    fireEvent.click(screen.getByRole("button", { name: /B隊/ }));
+    expect(await screen.findByRole("button", { name: /西西.*點選上場/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /艾莉.*拖曳移動/ })).not.toBeInTheDocument();
+
+    // 切回 A 隊：原本的站位仍在
+    fireEvent.click(screen.getByRole("button", { name: /A隊/ }));
+    expect(await screen.findByRole("button", { name: /艾莉.*拖曳移動/ })).toBeInTheDocument();
   });
 });

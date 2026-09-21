@@ -10,7 +10,10 @@ import type { DrawingTool } from "@/lib/drawing";
 import { toast } from "@/lib/toast";
 import { useFullscreen } from "@/lib/useFullscreen";
 import DrawingToolbar from "@/components/tactics/DrawingToolbar";
-import MatchEventSelector, { type TacticsMode } from "@/components/tactics/MatchEventSelector";
+import MatchEventSelector, {
+  type SquadOption,
+  type TacticsMode,
+} from "@/components/tactics/MatchEventSelector";
 import PlayerRoster from "@/components/tactics/PlayerRoster";
 import TacticsFocusMode from "@/components/tactics/TacticsFocusMode";
 import TacticsToolbar from "@/components/tactics/TacticsToolbar";
@@ -18,15 +21,21 @@ import VolleyballCourt from "@/components/tactics/VolleyballCourt";
 import { useTacticsBoard } from "@/components/tactics/useTacticsBoard";
 import { useTacticsDrawings } from "@/components/tactics/useTacticsDrawings";
 
+/** 賽事分隊時的隊別代碼，對應 MatchEventPlayer.ourSquad（見 MatchLogEdit 的分隊設定） */
+const SQUAD_KEYS = ["A", "B"] as const;
+
 /**
  * 排球戰術板：
- * 名單來源二段式（全部現役球員／某場賽事的報名球員）＋ SVG 場地拖曳排陣
+ * 名單來源二段式（全部現役球員／某場賽事的報名球員；賽事分成 A、B 兩隊時
+ * 再選要排哪一隊的陣容）＋ SVG 場地拖曳排陣
  * ＋ 戰術畫線（拖曳畫直線／箭頭、選取編輯、橡皮擦）。
  * 站位與戰術線以草稿形式存在本機（localStorage），Phase 2 再加入後端儲存戰術。
  */
 export default function TacticsBoardPage() {
   const [mode, setMode] = useState<TacticsMode>("all");
   const [eventId, setEventId] = useState<number | null>(null);
+  // 賽事分成 A、B 兩隊時要排哪一隊的陣容；未分隊的賽事此值不生效（見 activeSquad）
+  const [squad, setSquad] = useState<string>(SQUAD_KEYS[0]);
   const [tool, setTool] = useState<DrawingTool>("select");
   const [arrowEnabled, setArrowEnabled] = useState(true);
   const {
@@ -57,6 +66,18 @@ export default function TacticsBoardPage() {
     [eventsQuery.data, eventId],
   );
 
+  // 選中賽事若分成兩隊（squadCount >= 2），要再選排哪一隊；未分隊則為 null
+  const activeSquad = (selectedEvent?.squadCount ?? 1) >= 2 ? squad : null;
+
+  // 隊別切換的選項與各隊人數；未分隊（或尚未選賽事）時為空陣列，切換列不顯示
+  const squadOptions = useMemo<SquadOption[]>(() => {
+    if (activeSquad == null || !selectedEvent) return [];
+    return SQUAD_KEYS.map((key) => ({
+      key,
+      count: selectedEvent.players.filter((p) => p.ourSquad === key).length,
+    }));
+  }, [activeSquad, selectedEvent]);
+
   // 目前名單（undefined = 載入中或尚未選賽事，不觸發場上球員校正）
   const roster = useMemo<RosterPlayer[] | undefined>(() => {
     if (mode === "all") {
@@ -67,16 +88,27 @@ export default function TacticsBoardPage() {
         position: p.position,
       }));
     }
-    return selectedEvent?.players.map((p) => ({
-      playerId: p.playerId,
-      jerseyNo: p.jerseyNo,
-      name: p.name,
-      position: p.position,
-    }));
-  }, [mode, playersQuery.data, selectedEvent]);
+    return selectedEvent?.players
+      // 分隊賽事只取該隊球員；報名了但未指定隊別者不屬於任何一隊，兩邊都不顯示
+      .filter((p) => activeSquad == null || p.ourSquad === activeSquad)
+      .map((p) => ({
+        playerId: p.playerId,
+        jerseyNo: p.jerseyNo,
+        name: p.name,
+        position: p.position,
+      }));
+  }, [mode, playersQuery.data, selectedEvent, activeSquad]);
 
-  // 草稿依名單來源各自保存，切換不互相覆蓋
-  const sourceKey = mode === "all" ? "all" : eventId != null ? `event:${eventId}` : "event:none";
+  // 草稿依名單來源各自保存，切換不互相覆蓋；分隊賽事再依隊別拆成兩塊白板，
+  // 排完 A 隊切到 B 隊不會蓋掉 A 隊的站位與戰術線。
+  const sourceKey =
+    mode === "all"
+      ? "all"
+      : eventId == null
+        ? "event:none"
+        : activeSquad
+          ? `event:${eventId}:${activeSquad}`
+          : `event:${eventId}`;
 
   const board = useTacticsBoard(sourceKey, roster);
   const { courtPlayers } = board;
@@ -154,7 +186,9 @@ export default function TacticsBoardPage() {
         ? "全部球員都已上場，可把場上球員拖回這裡。"
         : mode === "all"
           ? "目前沒有現役球員。"
-          : "這場賽事沒有報名球員。";
+          : activeSquad
+            ? `這場賽事的 ${activeSquad} 隊沒有球員。`
+            : "這場賽事沒有報名球員。";
 
   // focusRef 必須恆常掛在同一個常駐容器上（而不是只存在早退分支裡）——
   // 初始渲染時 focusIsFullscreen 一定是 false，若 ref 只掛在「isFullscreen
@@ -211,7 +245,14 @@ export default function TacticsBoardPage() {
             events={eventsQuery.data}
             eventsLoading={eventsQuery.isLoading}
             onModeChange={setMode}
-            onEventChange={setEventId}
+            // 換賽事一律回到 A 隊：上一場選了 B 隊，新賽事不一定有 B 隊
+            onEventChange={(id) => {
+              setEventId(id);
+              setSquad(SQUAD_KEYS[0]);
+            }}
+            squads={squadOptions}
+            squad={activeSquad}
+            onSquadChange={setSquad}
           />
 
           <div className="space-y-4 xl:grid xl:grid-cols-[2fr_3fr] xl:items-start xl:gap-6 xl:space-y-0">

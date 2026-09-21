@@ -11,6 +11,12 @@ const MODE_OPTIONS: ReadonlyArray<{ value: TacticsMode; label: string }> = [
   { value: "Official", label: "正式比賽" },
 ];
 
+/** 賽事分隊時的一個隊別選項（代碼＋該隊報名人數） */
+export interface SquadOption {
+  key: string;
+  count: number;
+}
+
 interface Props {
   mode: TacticsMode;
   eventId: number | null;
@@ -19,11 +25,19 @@ interface Props {
   eventsLoading?: boolean;
   onModeChange: (mode: TacticsMode) => void;
   onEventChange: (eventId: number | null) => void;
+  /** 可選的隊別（選中賽事未分隊時為空陣列，整組切換不顯示） */
+  squads: ReadonlyArray<SquadOption>;
+  /** 目前選中的隊別；null＝未分隊或尚未選賽事 */
+  squad: string | null;
+  onSquadChange: (squad: string) => void;
 }
 
 /**
  * 賽事選擇（二段式）：先選名單來源類型，選了賽事類型後再從下拉選一場，
  * 名單即為該場的報名球員。
+ *
+ * 若該場賽事分成 A、B 兩隊去打（MatchEvent.squadCount >= 2），再多一段
+ * 隊別切換，名單只顯示該隊球員；未分隊的賽事完全不顯示這一段。
  */
 export default function MatchEventSelector({
   mode,
@@ -32,6 +46,9 @@ export default function MatchEventSelector({
   eventsLoading,
   onModeChange,
   onEventChange,
+  squads,
+  squad,
+  onSquadChange,
 }: Props) {
   const filtered = (events ?? []).filter((e) => e.matchType === mode);
 
@@ -76,6 +93,29 @@ export default function MatchEventSelector({
             </option>
           ))}
         </Select>
+      )}
+
+      {/* 隊別切換：只有分隊的賽事才出現。沿用上方「名單來源」的分段按鈕樣式，
+          兩段操作視覺一致；一次只排一隊，故不需要 A/B 各自配色。 */}
+      {squads.length > 0 && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">隊伍</span>
+          <div className="flex gap-1 rounded-lg border bg-muted/40 p-1">
+            {squads.map((s) => (
+              <Button
+                key={s.key}
+                size="sm"
+                variant={squad === s.key ? "default" : "ghost"}
+                aria-pressed={squad === s.key}
+                aria-label={`${s.key}隊，${s.count} 人`}
+                onClick={() => onSquadChange(s.key)}
+              >
+                {s.key}隊
+                <span className="ml-1 text-xs tabular-nums opacity-80">{s.count}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

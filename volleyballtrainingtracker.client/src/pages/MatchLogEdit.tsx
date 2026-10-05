@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
+import { Switch } from "@/components/ui/switch";
 import { SelectableRosterChip } from "@/components/RosterChip";
 import { groupByPrimaryPosition } from "@/lib/positions";
 import {
@@ -21,8 +22,11 @@ import {
   type MatchLogItem,
   type MatchLogUpsert,
   type MatchLogSetInput,
+  type MatchEventPlayerInfo,
 } from "@/api/matchLogs";
-import { playersApi, MEMBER_TYPE, type Player } from "@/api/players";
+import {
+  playersApi, MEMBER_TYPE, PLAYER_STATUS, PLAYER_STATUS_LABEL, type PlayerStatus,
+} from "@/api/players";
 import { PERM, useAuthStore } from "@/stores/authStore";
 import { confirmAction, showError, showSuccess } from "@/lib/swal";
 import { DateInput } from "@/components/DateInput";
@@ -50,6 +54,8 @@ const MATCH_TYPES = [
 
 const SQUAD_OPTIONS = ["A", "B"] as const;
 const SQUAD_LABEL: Record<string, string> = { A: "A 隊", B: "B 隊" };
+// 新增模式沒有原始名單；用固定參考避免 RosterPicker 的 useMemo 每次重算
+const NO_INITIAL_PLAYERS: MatchEventPlayerInfo[] = [];
 
 function parseMatchScore(s: string): [number | null, number | null] {
   if (!s) return [null, null];
@@ -454,34 +460,108 @@ function MatchRowCard({
 }
 
 // ── 球員多選（單欄 / 雙欄 A·B）────────────────────────────────────────
+/** 名單挑選用的球員；status 為 null 表示名冊已查無此人，只剩賽事快照 */
+interface PickerPlayer {
+  id: number;
+  name: string;
+  jerseyNo: number | null;
+  position: string | null;
+  status: PlayerStatus | null;
+}
+
+/** 非現役球員的微標文字；現役回傳 undefined（不顯示） */
+function statusLabelOf(p: PickerPlayer): string | undefined {
+  if (p.status === PLAYER_STATUS.Active) return undefined;
+  return p.status == null ? "非現役" : PLAYER_STATUS_LABEL[p.status];
+}
+
 function RosterPicker({
-  selected, onToggle, splitMode, onSquadChange,
+  selected, onToggle, splitMode, onSquadChange, initialPlayers,
 }: {
   selected: Map<number, string | null>;
   onToggle: (id: number) => void;
   splitMode: boolean;
   onSquadChange: (id: number, squad: string | null) => void;
+  /** 編輯時此賽事原本的出賽名單快照；其中的畢業／離隊球員一律顯示 */
+  initialPlayers: MatchEventPlayerInfo[];
 }) {
+  // 撈全部狀態的選手，再於前端決定要顯示哪些非現役球員
   const { data, isLoading } = useQuery({
-    queryKey: ["players", "active"],
-    queryFn: () => playersApi.list({ activeOnly: true, memberType: MEMBER_TYPE.Player }),
+    queryKey: ["players", { memberType: MEMBER_TYPE.Player }],
+    queryFn: () => playersApi.list({ memberType: MEMBER_TYPE.Player }),
   });
-  const sortedPlayers = useMemo(
-    () =>
-      (data ?? []).slice().sort((a, b) => {
+  const [showInactive, setShowInactive] = useState(false);
+
+  // 非現役球員顯示條件：開關打開、原本就在此賽事名單、或目前已選取
+  // （後者避免取消勾選後馬上消失、無法再勾回）
+  const sortedPlayers = useMemo(() => {
+    const byId = new Map<number, PickerPlayer>();
+    for (const p of data ?? []) {
+      byId.set(p.id, {
+        id: p.id, name: p.name, jerseyNo: p.jerseyNo, position: p.position, status: p.isActive,
+      });
+    }
+    // 名冊查無者以快照補上，避免已選球員在畫面上「隱形」
+    for (const p of initialPlayers) {
+      if (!byId.has(p.playerId)) {
+        byId.set(p.playerId, {
+          id: p.playerId, name: p.name, jerseyNo: p.jerseyNo, position: p.position, status: null,
+        });
+      }
+    }
+    const initialIds = new Set(initialPlayers.map((p) => p.playerId));
+    const isActive = (p: PickerPlayer) => p.status === PLAYER_STATUS.Active;
+    return Array.from(byId.values())
+      .filter((p) => isActive(p) || showInactive || initialIds.has(p.id) || selected.has(p.id))
+      .sort((a, b) => {
+        // 現役在前，非現役排後
+        if (isActive(a) !== isActive(b)) return isActive(a) ? -1 : 1;
         const ja = a.jerseyNo ?? Number.MAX_SAFE_INTEGER;
         const jb = b.jerseyNo ?? Number.MAX_SAFE_INTEGER;
         if (ja !== jb) return ja - jb;
         return a.name.localeCompare(b.name);
-      }),
-    [data],
+      });
+  }, [data, initialPlayers, showInactive, selected]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Switch
+          id="roster-show-inactive"
+          checked={showInactive}
+          onCheckedChange={setShowInactive}
+          aria-label="顯示畢業／離隊球員"
+        />
+        <Label htmlFor="roster-show-inactive" className="text-xs text-muted-foreground cursor-pointer">
+          顯示畢業／離隊球員（補登舊比賽用）
+        </Label>
+      </div>
+      {isLoading ? (
+        <div className="text-sm text-muted-foreground">載入球員清單…</div>
+      ) : sortedPlayers.length === 0 ? (
+        <div className="text-sm text-muted-foreground">尚無啟用中的球員</div>
+      ) : (
+        <RosterColumns
+          players={sortedPlayers}
+          selected={selected}
+          onToggle={onToggle}
+          splitMode={splitMode}
+          onSquadChange={onSquadChange}
+        />
+      )}
+    </div>
   );
+}
 
-  if (isLoading) return <div className="text-sm text-muted-foreground">載入球員清單…</div>;
-  if (sortedPlayers.length === 0) {
-    return <div className="text-sm text-muted-foreground">尚無啟用中的球員</div>;
-  }
-
+function RosterColumns({
+  players: sortedPlayers, selected, onToggle, splitMode, onSquadChange,
+}: {
+  players: PickerPlayer[];
+  selected: Map<number, string | null>;
+  onToggle: (id: number) => void;
+  splitMode: boolean;
+  onSquadChange: (id: number, squad: string | null) => void;
+}) {
   if (!splitMode) {
     return (
       <PositionGroupedPicker
@@ -523,7 +603,7 @@ function SquadColumn({
 }: {
   title: string;
   tone: "primary" | "info";
-  players: Player[];
+  players: PickerPlayer[];
   selected: Map<number, string | null>;
   targetSquad: "A" | "B";
   onToggle: (id: number) => void;
@@ -569,7 +649,7 @@ function SquadColumn({
 function PositionGroupedPicker({
   players, selected, onToggle, splitMode, onSquadChange, targetSquad,
 }: {
-  players: Player[];
+  players: PickerPlayer[];
   selected: Map<number, string | null>;
   onToggle: (id: number) => void;
   splitMode: boolean;
@@ -607,6 +687,7 @@ function PositionGroupedPicker({
                   showSquadPicker={splitMode && !targetSquad}
                   squad={selected.get(p.id) ?? null}
                   onSquadChange={(s) => onSquadChange(p.id, s)}
+                  statusLabel={statusLabelOf(p)}
                 />
               );
             })}
@@ -647,6 +728,7 @@ function MatchEventForm({
   const [selectedPlayers, setSelectedPlayers] = useState<Map<number, string | null>>(
     () => new Map(initial?.players.map((p) => [p.playerId, p.ourSquad ?? null]) ?? []),
   );
+  const initialPlayers = initial?.players ?? NO_INITIAL_PLAYERS;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const splitMode = squadCount >= 2;
@@ -1141,6 +1223,7 @@ function MatchEventForm({
                 onToggle={togglePlayer}
                 splitMode={splitMode}
                 onSquadChange={setPlayerSquad}
+                initialPlayers={initialPlayers}
               />
             </CardContent>
           </Card>

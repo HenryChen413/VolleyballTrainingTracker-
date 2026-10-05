@@ -63,6 +63,7 @@ export function SelectableRosterChip({
   showSquadPicker,
   squad,
   onSquadChange,
+  statusLabel,
 }: BaseProps & {
   selected: boolean;
   onClick: () => void;
@@ -70,6 +71,8 @@ export function SelectableRosterChip({
   showSquadPicker?: boolean;
   squad?: string | null;
   onSquadChange?: (next: string | null) => void;
+  /** 非現役（畢業／離隊）標籤；有值時 chip 顯示微標並淡化 */
+  statusLabel?: string;
 }) {
   const tone = showSquadPicker ? toneOf(squad) : "primary";
   const style = SQUAD_STYLE[tone];
@@ -80,6 +83,7 @@ export function SelectableRosterChip({
         selected
           ? style.chip
           : "border-border bg-card hover:bg-accent/40",
+        statusLabel && !selected && "opacity-75",
         className,
       )}
     >
@@ -92,7 +96,7 @@ export function SelectableRosterChip({
           jerseyNo={player.jerseyNo}
           highlightedClass={selected ? style.bubble : undefined}
         />
-        <Body player={player} />
+        <Body player={player} statusLabel={statusLabel} />
         {selected && (
           <Check className={cn("absolute top-1 right-1 h-3.5 w-3.5", style.check)} />
         )}
@@ -179,11 +183,16 @@ function Bubble({
   );
 }
 
-function Body({ player }: { player: RosterChipPlayer }) {
+function Body({ player, statusLabel }: { player: RosterChipPlayer; statusLabel?: string }) {
   const positions = parsePositions(player.position);
   return (
     <div className="flex-1 min-w-0">
-      <div className="font-medium text-sm truncate">{player.name}</div>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span className="font-medium text-sm truncate">{player.name}</span>
+        {statusLabel && (
+          <Chip tone="neutral" size="sm" className="shrink-0">{statusLabel}</Chip>
+        )}
+      </div>
       {positions.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-0.5">
           {positions.map((p) => (

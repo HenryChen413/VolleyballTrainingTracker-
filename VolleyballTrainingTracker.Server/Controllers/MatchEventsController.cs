@@ -98,6 +98,7 @@ public class MatchEventsController : ControllerBase
             MatchName = e.MatchName,
             Location = e.Location,
             Ranking = e.Ranking,
+            RankingB = e.RankingB,
             VideoUrl = e.VideoUrl,
             Notes = e.Notes,
             SquadCount = e.SquadCount,

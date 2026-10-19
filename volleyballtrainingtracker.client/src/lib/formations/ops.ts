@@ -88,8 +88,8 @@ export const otherDefenseBase = (base: DefenseBaseKey): DefenseBaseKey =>
   base === "setterFront" ? "setterBack" : "setterFront";
 
 /**
- * 把某影格（基本站位或情況）的一組站位，依「場上區位」複製到另一組：
- * 舉球員前排時右前是舉球、右後是副攻；後排時相反，所以舉球與副攻對調，其餘四格照搬。
+ * 把某影格（基本站位或情況）的一組站位，照格子名稱複製到另一組。
+ * 球隊打法：不論舉球員前排或後排，防守站法相同（分兩組只為看清前後排），故不對調任何格子。
  * 找不到情況 id 時原樣回傳。
  */
 export function copyDefenseFrameToOtherBase(
@@ -98,10 +98,7 @@ export function copyDefenseFrameToOtherBase(
   from: DefenseBaseKey,
 ): DefenseLayout {
   const to = otherDefenseBase(from);
-  const mapped = (src: DefenseFrame): DefenseFrame => {
-    const f = structuredClone(src);
-    return { ...f, S: f.OPP, OPP: f.S };
-  };
+  const mapped = (src: DefenseFrame): DefenseFrame => structuredClone(src);
   if (frameId === BASE_FRAME_ID) {
     return { ...l, bases: { ...l.bases, [to]: mapped(l.bases[from]) } };
   }

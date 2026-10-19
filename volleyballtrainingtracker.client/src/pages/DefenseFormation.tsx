@@ -84,12 +84,12 @@ export default function DefenseFormationPage() {
     setFrameId(BASE_FRAME_ID);
   };
 
-  // 把目前影格的這一組站位依區位複製到另一組（舉球／副攻對調），套用後切到目標組方便微調
+  // 把目前影格的這一組站位照名稱複製到另一組（兩組站法相同），套用後切到目標組方便微調
   const handleCopyToOtherBase = async () => {
     const target = otherDefenseBase(base);
     const r = await confirmAction(
       `套用到${DEFENSE_BASE_LABEL[target]}？`,
-      `把「${situation?.name ?? "基本站位"}」的${DEFENSE_BASE_LABEL[base]}站位套用到${DEFENSE_BASE_LABEL[target]}，目標的站位會被覆蓋，舉球與副攻依區位對調。`,
+      `把「${situation?.name ?? "基本站位"}」的${DEFENSE_BASE_LABEL[base]}站位套用到${DEFENSE_BASE_LABEL[target]}，目標的站位會被覆蓋。`,
       "套用",
     );
     if (!r.isConfirmed) return;

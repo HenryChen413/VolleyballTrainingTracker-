@@ -66,29 +66,26 @@ describe("防守編輯操作", () => {
 });
 
 describe("套用到另一組（舉球員前排／後排）", () => {
-  it("基本站位：依區位複製，舉球與副攻對調，其他四格照搬", () => {
+  // 球隊打法：不論舉球員前排或後排，防守站法相同 → 照格子名稱直接複製，不對調舉球／副攻
+  it("基本站位：每一格照名稱複製到另一組", () => {
     const l = defaultDefenseLayout();
     const src = { ...l.bases.setterFront, OHF: { x: 0.11, y: 0.22 }, S: { x: 0.8, y: 0.05 }, OPP: { x: 0.9, y: 0.7 } };
     const withSrc = { ...l, bases: { ...l.bases, setterFront: src } };
     const n = copyDefenseFrameToOtherBase(withSrc, BASE_FRAME_ID, "setterFront");
-    const to = n.bases.setterBack;
-    expect(to.OPP).toEqual(src.S); // 右前：前排時是舉球、後排時是副攻
-    expect(to.S).toEqual(src.OPP); // 右後：前排時是副攻、後排時是舉球
-    for (const slot of ["OHF", "OHB", "MB", "L"] as const) expect(to[slot]).toEqual(src[slot]);
+    expect(n.bases.setterBack).toEqual(src);
+    expect(n.bases.setterBack.S).not.toBe(src.S); // 複製值而非共用參考
     expect(n.bases.setterFront).toEqual(src); // 來源不變
     expect(n.situations).toEqual(withSrc.situations); // 其他影格不變
-    expect(to.OPP).not.toBe(src.S); // 複製值而非共用參考
   });
 
-  it("情況：只動該情況的目標組，反方向（後排 → 前排）同樣對調", () => {
+  it("情況：只動該情況的目標組，反方向（後排 → 前排）同樣照名稱複製", () => {
     const l = defaultDefenseLayout();
     const [a, b] = l.situations;
-    const n = copyDefenseFrameToOtherBase(l, b.id, "setterBack");
-    const from = b.positions.setterBack;
-    expect(n.situations[1].positions.setterFront.S).toEqual(from.OPP);
-    expect(n.situations[1].positions.setterFront.OPP).toEqual(from.S);
-    expect(n.situations[1].positions.setterFront.MB).toEqual(from.MB);
-    expect(n.situations[1].positions.setterBack).toEqual(from);
+    const changed = { ...b.positions.setterBack, S: { x: 0.3, y: 0.3 } };
+    const withB = { ...l, situations: [a, { ...b, positions: { ...b.positions, setterBack: changed } }, ...l.situations.slice(2)] };
+    const n = copyDefenseFrameToOtherBase(withB, b.id, "setterBack");
+    expect(n.situations[1].positions.setterFront).toEqual(changed);
+    expect(n.situations[1].positions.setterBack).toEqual(changed);
     expect(n.situations[0]).toEqual(a);
     expect(n.bases).toEqual(l.bases);
   });

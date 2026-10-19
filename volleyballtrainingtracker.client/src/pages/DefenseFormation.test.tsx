@@ -83,20 +83,23 @@ describe("防守站位頁", () => {
     expect(screen.getByRole("button", { name: "儲存" })).toBeInTheDocument();
   });
 
-  it("套用到另一組：確認後切到目標組，舉球移到來源組舉球的區位（目標組的副攻格）", async () => {
+  it("套用到另一組：確認後切到目標組，舉球與副攻都留在原本的位置", async () => {
     loginAs([PERM.FormationsEdit]);
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: "編輯" }));
     fireEvent.click(screen.getByRole("button", { name: "對方打4號位" }));
-    // 前排時舉球在右前；記下它的位置
-    const setterLeft = screen.getByRole("button", { name: "舉球" }).style.left;
+    const setter = screen.getByRole("button", { name: "舉球" }).style;
+    const opp = screen.getByRole("button", { name: "副攻" }).style;
+    const before = { s: [setter.left, setter.top], o: [opp.left, opp.top] };
     fireEvent.click(screen.getByRole("button", { name: "套用到舉球員後排" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "舉球員後排" })).toHaveAttribute("aria-pressed", "true"),
     );
     expect(confirmAction).toHaveBeenCalledOnce();
-    // 後排時右前是副攻：副攻應站在剛才舉球的位置
-    expect(screen.getByRole("button", { name: "副攻" }).style.left).toBe(setterLeft);
+    const s2 = screen.getByRole("button", { name: "舉球" }).style;
+    const o2 = screen.getByRole("button", { name: "副攻" }).style;
+    expect([s2.left, s2.top]).toEqual(before.s);
+    expect([o2.left, o2.top]).toEqual(before.o);
     expect(screen.getByRole("button", { name: "套用到舉球員前排" })).toBeInTheDocument();
   });
 

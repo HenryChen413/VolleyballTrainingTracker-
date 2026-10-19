@@ -1,5 +1,5 @@
 // 內建預設站位：DB 尚無資料時顯示，教練從這裡開始調整。
-// 防守：以「場上六個區位」定義座標，再依舉球員前排／後排對應到格子。
+// 防守：以「場上六個區位」定義座標再對應到格子；球隊打法為舉球員前排／後排站法相同。
 // 接發：依輪轉自動產生合法站位（測試保證全部通過位置錯誤檢查）。
 import type { Point } from "./geometry";
 import type { DefenseBaseKey, DefenseFrame, DefenseLayout, ReceiveFrame, ReceiveLayout, ReceiveSystem } from "./layout";
@@ -19,9 +19,10 @@ import { RECEIVE_SLOT_META, type DefenseSlot } from "./slots";
 /** 區位：前排左／中／右、後排左／中／右 */
 type Spot = "LF" | "MF" | "RF" | "LB" | "MBk" | "RB";
 
+const SPOT_TO_SLOT: Readonly<Record<Spot, DefenseSlot>> = { LF: "OHF", MF: "MB", RF: "S", LB: "L", MBk: "OHB", RB: "OPP" };
 const SPOT_SLOT: Readonly<Record<DefenseBaseKey, Record<Spot, DefenseSlot>>> = {
-  setterFront: { LF: "OHF", MF: "MB", RF: "S", LB: "L", MBk: "OHB", RB: "OPP" },
-  setterBack: { LF: "OHF", MF: "MB", RF: "OPP", LB: "L", MBk: "OHB", RB: "S" },
+  setterFront: SPOT_TO_SLOT,
+  setterBack: SPOT_TO_SLOT,
 };
 
 const BASE_SPOTS: Record<Spot, Point> = {

@@ -16,6 +16,12 @@ describe("預設站位", () => {
     ]);
   });
 
+  it("防守預設：舉球員前排與後排站法相同（只差前後排的看法）", () => {
+    const d = defaultDefenseLayout();
+    expect(d.bases.setterBack).toEqual(d.bases.setterFront);
+    for (const s of d.situations) expect(s.positions.setterBack).toEqual(s.positions.setterFront);
+  });
+
   it.each(RECEIVE_SYSTEMS.map((s) => s.key))("%s 預設接發站位全部合法且格子正確", (system) => {
     const l = defaultReceiveLayout(system);
     expect(l.rotations.map((r) => r.rotation)).toEqual([...ROTATIONS]);

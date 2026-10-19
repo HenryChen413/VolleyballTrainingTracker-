@@ -50,6 +50,15 @@ describe("接發站位頁", () => {
     expect(screen.queryByRole("button", { name: "攔中1" })).not.toBeInTheDocument();
   });
 
+  it("在進攻位置影格切換輪轉時，回到接發站位", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "進攻位置" }));
+    expect(screen.getByRole("button", { name: "進攻位置" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "R2" }));
+    expect(screen.getByRole("button", { name: "R2" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "接發站位" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("接發站位違規時列出說明；進攻位置影格不檢查", async () => {
     const l = defaultReceiveLayout("receive-2oh");
     l.rotations[0].receive.OH1 = { x: 0.9, y: 0.08 };

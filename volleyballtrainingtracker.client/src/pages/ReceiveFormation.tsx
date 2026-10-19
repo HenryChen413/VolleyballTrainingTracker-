@@ -137,7 +137,11 @@ export default function ReceiveFormationPage() {
                   variant={rotation === r ? "default" : "outline"}
                   aria-pressed={rotation === r}
                   title={rotationLabel(r)}
-                  onClick={() => setRotation(r)}
+                  onClick={() => {
+                    // 切換輪轉一律從該輪轉的接發站位開始看
+                    setRotation(r);
+                    setFrameKey("receive");
+                  }}
                 >
                   R{r}
                 </Button>

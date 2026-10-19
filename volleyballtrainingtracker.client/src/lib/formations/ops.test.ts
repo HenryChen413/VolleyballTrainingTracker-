@@ -98,7 +98,7 @@ describe("套用到另一組（舉球員前排／後排）", () => {
 
 describe("接發編輯操作", () => {
   it("只動指定輪轉與影格", () => {
-    const l = defaultReceiveLayout("receive-opp");
+    const l = defaultReceiveLayout("receive-oh1-opp");
     const n = setReceivePoint(l, 2, "attack", "S", { x: 0.7, y: 0.02 });
     expect(n.rotations[1].attack.S).toEqual({ x: 0.7, y: 0.02 });
     expect(n.rotations[1].receive).toEqual(l.rotations[1].receive);

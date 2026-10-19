@@ -32,10 +32,13 @@ describe("預設站位", () => {
     }
   });
 
-  it("舉對＋自由＋1大砲：接發者為副攻、自由、後排主攻", () => {
-    // R1 後排主攻為 OH2（1 號位）
-    expect([...receiversFor("receive-opp", 1)].sort()).toEqual(["L", "OH2", "OPP"]);
-    expect([...receiversFor("receive-2oh", 1)].sort()).toEqual(["L", "OH1", "OH2"]);
+  it("三套接發體系的接發者在每個輪轉都固定", () => {
+    expect(RECEIVE_SYSTEMS.map((s) => s.label)).toEqual([
+      "主攻1＋自由＋主攻2", "主攻1＋自由＋副攻", "主攻2＋自由＋副攻",
+    ]);
+    expect([...receiversFor("receive-2oh")].sort()).toEqual(["L", "OH1", "OH2"]);
+    expect([...receiversFor("receive-oh1-opp")].sort()).toEqual(["L", "OH1", "OPP"]);
+    expect([...receiversFor("receive-oh2-opp")].sort()).toEqual(["L", "OH2", "OPP"]);
   });
 });
 
@@ -89,18 +92,18 @@ describe("parseReceiveLayout", () => {
   });
 
   it("缺輪轉補預設、多餘格子忽略", () => {
-    const l = defaultReceiveLayout("receive-opp");
+    const l = defaultReceiveLayout("receive-oh1-opp");
     const raw = JSON.parse(JSON.stringify(l));
     raw.rotations = raw.rotations.filter((r: { rotation: number }) => r.rotation !== 3);
     raw.rotations[0].receive.MB2 = { x: 0.5, y: 0.5 }; // R1 的 MB2 由自由替換，不在場上
-    const r = parseReceiveLayout(raw, "receive-opp");
+    const r = parseReceiveLayout(raw, "receive-oh1-opp");
     expect(r.layout.rotations[2]).toEqual(l.rotations[2]);
     expect(r.layout.rotations[0].receive.MB2).toBeUndefined();
   });
 
   it("格式錯誤 → 預設＋recovered", () => {
-    const r = parseReceiveLayout({ version: 1, rotations: "x" }, "receive-opp");
+    const r = parseReceiveLayout({ version: 1, rotations: "x" }, "receive-oh1-opp");
     expect(r.recovered).toBe(true);
-    expect(r.layout).toEqual(defaultReceiveLayout("receive-opp"));
+    expect(r.layout).toEqual(defaultReceiveLayout("receive-oh1-opp"));
   });
 });

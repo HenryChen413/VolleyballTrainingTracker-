@@ -11,8 +11,9 @@ public class FormationRulesTests
 
     [Theory]
     [InlineData("defense", Pages.Defense)]
-    [InlineData("receive-opp", Pages.Receive)]
     [InlineData("receive-2oh", Pages.Receive)]
+    [InlineData("receive-oh1-opp", Pages.Receive)]
+    [InlineData("receive-oh2-opp", Pages.Receive)]
     public void PageForKey_KnownKeys(string key, string page)
     {
         Assert.Equal(page, FormationRules.PageForKey(key));
@@ -20,6 +21,7 @@ public class FormationRulesTests
 
     [Theory]
     [InlineData("offense")]
+    [InlineData("receive-opp")] // 已淘汰的舊體系
     [InlineData("Defense")]
     [InlineData("")]
     public void PageForKey_UnknownKey_ReturnsNull(string key)

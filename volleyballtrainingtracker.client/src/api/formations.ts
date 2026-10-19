@@ -1,6 +1,6 @@
 import { api } from './client';
 
-export type FormationKey = 'defense' | 'receive-opp' | 'receive-2oh';
+export type FormationKey = 'defense' | 'receive-2oh' | 'receive-oh1-opp' | 'receive-oh2-opp';
 
 export interface FormationDto {
   key: FormationKey;

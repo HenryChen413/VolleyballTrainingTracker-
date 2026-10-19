@@ -51,10 +51,10 @@ describe("接發站位頁", () => {
   });
 
   it("接發站位違規時列出說明；進攻位置影格不檢查", async () => {
-    const l = defaultReceiveLayout("receive-opp");
+    const l = defaultReceiveLayout("receive-2oh");
     l.rotations[0].receive.OH1 = { x: 0.9, y: 0.08 };
     vi.mocked(formationsApi.get).mockImplementation(async (key: FormationKey) => ({
-      key, layout: key === "receive-opp" ? l : null, version: key === "receive-opp" ? 1 : 0, updatedAt: null, updatedByName: null,
+      key, layout: key === "receive-2oh" ? l : null, version: key === "receive-2oh" ? 1 : 0, updatedAt: null, updatedByName: null,
     }));
     renderPage();
     expect(await screen.findByText("4號位（主攻1）須在3號位（舉球）左側")).toBeInTheDocument();
@@ -62,9 +62,13 @@ describe("接發站位頁", () => {
     expect(screen.queryByText("4號位（主攻1）須在3號位（舉球）左側")).not.toBeInTheDocument();
   });
 
-  it("切換接發體系", async () => {
+  it("三個接發體系可切換，預設為主攻1＋自由＋主攻2", async () => {
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: "2大砲＋自由" }));
-    expect(screen.getByRole("button", { name: "2大砲＋自由" })).toHaveAttribute("aria-pressed", "true");
+    expect(await screen.findByRole("button", { name: "主攻1＋自由＋主攻2" })).toHaveAttribute("aria-pressed", "true");
+    for (const label of ["主攻1＋自由＋副攻", "主攻2＋自由＋副攻"]) {
+      fireEvent.click(screen.getByRole("button", { name: label }));
+      expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", "true");
+    }
+    expect(screen.getByRole("button", { name: "主攻1＋自由＋主攻2" })).toHaveAttribute("aria-pressed", "false");
   });
 });

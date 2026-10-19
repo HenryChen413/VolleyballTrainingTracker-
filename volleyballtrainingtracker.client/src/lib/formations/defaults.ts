@@ -98,16 +98,15 @@ export function defaultDefenseLayout(): DefenseLayout {
 
 // ---------- 接發 ----------
 
-/** 該體系在此輪轉的接發者 */
-export function receiversFor(system: ReceiveSystem, rotation: RotationNo): ReadonlySet<ReceiveSlot> {
-  if (system === "receive-2oh") return new Set<ReceiveSlot>(["OH1", "OH2", "L"]);
-  const lineup = rotationLineup(rotation);
-  const backOh = COURT_POSITIONS.map((p) => ({ p, s: lineup[p] })).find(
-    ({ p, s }) => !isFrontRow(p) && (s === "OH1" || s === "OH2"),
-  );
-  const set = new Set<ReceiveSlot>(["OPP", "L"]);
-  if (backOh) set.add(backOh.s);
-  return set;
+const RECEIVERS: Readonly<Record<ReceiveSystem, readonly ReceiveSlot[]>> = {
+  "receive-2oh": ["OH1", "OH2", "L"],
+  "receive-oh1-opp": ["OH1", "OPP", "L"],
+  "receive-oh2-opp": ["OH2", "OPP", "L"],
+};
+
+/** 該體系的接發者（R1–R6 皆同） */
+export function receiversFor(system: ReceiveSystem): ReadonlySet<ReceiveSlot> {
+  return new Set(RECEIVERS[system]);
 }
 
 const COLUMN_X: Readonly<Record<CourtPos, number>> = { 4: 0.17, 5: 0.17, 3: 0.5, 6: 0.5, 2: 0.83, 1: 0.83 };
@@ -116,7 +115,7 @@ const FRONT_OF: Readonly<Partial<Record<CourtPos, CourtPos>>> = { 5: 4, 6: 3, 1:
 
 function defaultReceiveFrame(system: ReceiveSystem, rotation: RotationNo): ReceiveFrame {
   const lineup = rotationLineup(rotation);
-  const recv = receiversFor(system, rotation);
+  const recv = receiversFor(system);
   const frontY = (pos: CourtPos) => (recv.has(lineup[pos]) ? 0.48 : 0.08);
   const frame: ReceiveFrame = {};
   for (const pos of COURT_POSITIONS) {

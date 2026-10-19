@@ -15,8 +15,9 @@ public static class FormationRules
     private static readonly Dictionary<string, string> KeyToPage = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["defense"] = Pages.Defense,
-        ["receive-opp"] = Pages.Receive,
         ["receive-2oh"] = Pages.Receive,
+        ["receive-oh1-opp"] = Pages.Receive,
+        ["receive-oh2-opp"] = Pages.Receive,
     };
 
     /// <summary>Key 對應的頁面權限；非白名單回 null。</summary>

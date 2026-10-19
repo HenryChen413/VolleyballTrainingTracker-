@@ -1,10 +1,12 @@
 -- ============================================================================
 -- PostgreSQL 17 — 新增「防守站位／接發站位」（Formations 表、頁面與編輯權限）
 -- ----------------------------------------------------------------------------
--- 背景：全隊共用站位存 DB，一套一筆（Key 固定三值），Layout 為 jsonb 文件，
+-- 背景：全隊共用站位存 DB，一套一筆（Key 固定四值：1 套防守＋3 套接發），Layout 為 jsonb 文件，
 --       Version 供樂觀並行控制。seed-roles 只影響新建角色，既有 DB 需執行本腳本。
 -- 規則：
---   1) 建立 "Formations" 表、唯一索引、外鍵。
+--   1) 建立 "Formations" 表、唯一索引、外鍵；Key 的 CHECK 先刪後建，確保為最新的白名單
+--      （接發體系：receive-2oh 主攻1＋自由＋主攻2、receive-oh1-opp 主攻1＋自由＋副攻、
+--       receive-oh2-opp 主攻2＋自由＋副攻）。
 --   2) 已能看到 tactics 的角色，補上 defense、receive 頁面。
 --   3) Admin / Coach / Captain / ViceCaptain 補上 formations.edit。
 -- 冪等：IF NOT EXISTS 建表／索引／外鍵；已含頁面或權限的角色不重複加入。
@@ -21,10 +23,16 @@ CREATE TABLE IF NOT EXISTS "Formations" (
     "UpdatedAt"       timestamptz   NULL,
     "CreatedByUserId" integer       NULL,
     "UpdatedByUserId" integer       NULL,
-    CONSTRAINT "CK_Formations_Key" CHECK ("Key" IN ('defense','receive-opp','receive-2oh'))
+    CONSTRAINT "CK_Formations_Key" CHECK ("Key" IN ('defense','receive-2oh','receive-oh1-opp','receive-oh2-opp'))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS "UX_Formations_Key" ON "Formations"("Key");
+
+-- 已淘汰的接發體系（receive-opp）資料先移除，才能套用新的 CHECK
+DELETE FROM "Formations" WHERE "Key" NOT IN ('defense','receive-2oh','receive-oh1-opp','receive-oh2-opp');
+ALTER TABLE "Formations" DROP CONSTRAINT IF EXISTS "CK_Formations_Key";
+ALTER TABLE "Formations" ADD CONSTRAINT "CK_Formations_Key"
+    CHECK ("Key" IN ('defense','receive-2oh','receive-oh1-opp','receive-oh2-opp'));
 
 DO $$
 BEGIN

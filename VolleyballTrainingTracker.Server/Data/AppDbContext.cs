@@ -314,7 +314,7 @@ public class AppDbContext : DbContext
         {
             e.ToTable("Formations", t =>
             {
-                t.HasCheckConstraint("CK_Formations_Key", "\"Key\" IN ('defense','receive-opp','receive-2oh')");
+                t.HasCheckConstraint("CK_Formations_Key", "\"Key\" IN ('defense','receive-2oh','receive-oh1-opp','receive-oh2-opp')");
             });
             e.Property(x => x.Key).HasMaxLength(30).IsRequired();
             e.Property(x => x.Layout).HasColumnType("jsonb").IsRequired();

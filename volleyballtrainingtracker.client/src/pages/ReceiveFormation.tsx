@@ -8,7 +8,13 @@ import FormationLineupBar from "@/components/formations/FormationLineupBar";
 import SlotPlayerPicker from "@/components/formations/SlotPlayerPicker";
 import { useFormation } from "@/components/formations/useFormation";
 import { useRosterSource } from "@/components/tactics/useRosterSource";
-import { parseReceiveLayout, RECEIVE_SYSTEMS, type ReceiveFrameKey, type ReceiveSystem } from "@/lib/formations/layout";
+import {
+  parseReceiveLayout,
+  RECEIVE_SYSTEMS,
+  type ReceiveFrameKey,
+  type ReceiveLayout,
+  type ReceiveSystem,
+} from "@/lib/formations/layout";
 import { assignPlayer, autoAssign, clearSlot, type SlotAssignment } from "@/lib/formations/lineup";
 import { setReceivePoint } from "@/lib/formations/ops";
 import { checkOverlap } from "@/lib/formations/overlap";
@@ -25,8 +31,9 @@ import { RECEIVE_SLOT_META, RECEIVE_SLOTS } from "@/lib/formations/slots";
 import { confirmAction } from "@/lib/swal";
 import { PERM, useAuthStore } from "@/stores/authStore";
 
-const parseOpp = (raw: unknown) => parseReceiveLayout(raw, "receive-opp");
 const parse2oh = (raw: unknown) => parseReceiveLayout(raw, "receive-2oh");
+const parseOh1Opp = (raw: unknown) => parseReceiveLayout(raw, "receive-oh1-opp");
+const parseOh2Opp = (raw: unknown) => parseReceiveLayout(raw, "receive-oh2-opp");
 
 const FRAME_LABEL: Record<ReceiveFrameKey, string> = { receive: "接發站位", attack: "進攻位置" };
 const FRAME_KEYS: readonly ReceiveFrameKey[] = ["receive", "attack"];
@@ -35,11 +42,15 @@ const STEPS = ROTATIONS.flatMap((r) => FRAME_KEYS.map((k) => ({ rotation: r, fra
 
 export default function ReceiveFormationPage() {
   const canEdit = useAuthStore((s) => s.can)(PERM.FormationsEdit);
-  const fOpp = useFormation("receive-opp", parseOpp);
-  const f2oh = useFormation("receive-2oh", parse2oh);
+  // 三套各自載入（hook 數量固定），依目前選的體系取用
+  const formations: Record<ReceiveSystem, ReturnType<typeof useFormation<ReceiveLayout>>> = {
+    "receive-2oh": useFormation("receive-2oh", parse2oh),
+    "receive-oh1-opp": useFormation("receive-oh1-opp", parseOh1Opp),
+    "receive-oh2-opp": useFormation("receive-oh2-opp", parseOh2Opp),
+  };
   const source = useRosterSource({ loadAllPlayers: false });
 
-  const [system, setSystem] = useState<ReceiveSystem>("receive-opp");
+  const [system, setSystem] = useState<ReceiveSystem>("receive-2oh");
   const [rotation, setRotation] = useState<RotationNo>(1);
   const [frameKey, setFrameKey] = useState<ReceiveFrameKey>("receive");
   const [pickSlot, setPickSlot] = useState<ReceiveSlot | null>(null);
@@ -51,7 +62,7 @@ export default function ReceiveFormationPage() {
   const [manual, setManual] = useState<{ key: string; value: SlotAssignment<ReceiveSlot> } | null>(null);
   const assignment = manual?.key === source.sourceKey ? manual.value : autoAssignment;
 
-  const f = system === "receive-opp" ? fOpp : f2oh;
+  const f = formations[system];
   const layout = f.layout;
   if (!layout) {
     return <FormationHeader.Loading title="接發站位" query={f.query} />;
@@ -91,7 +102,7 @@ export default function ReceiveFormationPage() {
       <FormationHeader title="接發站位" icon={Hand} formation={f} canEdit={canEdit} onCancel={handleCancel} />
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-lg border bg-muted/40 p-1">
+        <div className="flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-1">
           {RECEIVE_SYSTEMS.map((s) => (
             <Button
               key={s.key}

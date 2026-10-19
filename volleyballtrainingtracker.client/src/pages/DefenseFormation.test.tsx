@@ -83,24 +83,34 @@ describe("防守站位頁", () => {
     expect(screen.getByRole("button", { name: "儲存" })).toBeInTheDocument();
   });
 
-  it("套用到另一組：確認後切到目標組，舉球與副攻都留在原本的位置", async () => {
+  it("套用到另一組：確認後留在原本的組別，目標組的站位與來源相同", async () => {
     loginAs([PERM.FormationsEdit]);
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: "編輯" }));
     fireEvent.click(screen.getByRole("button", { name: "對方打4號位" }));
-    const setter = screen.getByRole("button", { name: "舉球" }).style;
-    const opp = screen.getByRole("button", { name: "副攻" }).style;
-    const before = { s: [setter.left, setter.top], o: [opp.left, opp.top] };
+    fireEvent.click(screen.getByRole("button", { name: "舉球員後排" }));
+    const b0 = screen.getByRole("button", { name: "舉球" }).style;
+    const back0 = { left: b0.left, top: b0.top };
+    fireEvent.click(screen.getByRole("button", { name: "舉球員前排" }));
+    // 先在前排把舉球拖到別處，製造與後排不同的站位（jsdom 的拖曳座標夾為 0）
+    const setterBtn = screen.getByRole("button", { name: "舉球" });
+    fireEvent.pointerDown(setterBtn, { pointerId: 1 });
+    fireEvent.pointerMove(setterBtn, { pointerId: 1 });
+    fireEvent.pointerUp(setterBtn, { pointerId: 1 });
+    const front = screen.getByRole("button", { name: "舉球" }).style;
+    const moved = [front.left, front.top];
+    expect(moved).not.toEqual([back0.left, back0.top]); // 確認拖曳後與後排原本不同，測試才有意義
+
     fireEvent.click(screen.getByRole("button", { name: "套用到舉球員後排" }));
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "舉球員後排" })).toHaveAttribute("aria-pressed", "true"),
-    );
-    expect(confirmAction).toHaveBeenCalledOnce();
-    const s2 = screen.getByRole("button", { name: "舉球" }).style;
-    const o2 = screen.getByRole("button", { name: "副攻" }).style;
-    expect([s2.left, s2.top]).toEqual(before.s);
-    expect([o2.left, o2.top]).toEqual(before.o);
-    expect(screen.getByRole("button", { name: "套用到舉球員前排" })).toBeInTheDocument();
+    await waitFor(() => expect(confirmAction).toHaveBeenCalledOnce());
+    // 畫面仍停在前排，按鈕也仍是「套用到舉球員後排」
+    expect(screen.getByRole("button", { name: "舉球員前排" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "套用到舉球員後排" })).toBeInTheDocument();
+
+    // 切到後排檢查：舉球已被複製到相同位置
+    fireEvent.click(screen.getByRole("button", { name: "舉球員後排" }));
+    const back = screen.getByRole("button", { name: "舉球" }).style;
+    expect([back.left, back.top]).toEqual(moved);
   });
 
   it("檢視模式沒有套用按鈕；取消確認則不變", async () => {

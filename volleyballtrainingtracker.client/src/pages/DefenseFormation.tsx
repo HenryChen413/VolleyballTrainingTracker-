@@ -29,6 +29,7 @@ import {
 } from "@/lib/formations/ops";
 import { DEFENSE_SLOT_META, DEFENSE_SLOTS, type DefenseSlot } from "@/lib/formations/slots";
 import { confirmAction } from "@/lib/swal";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { PERM, useAuthStore } from "@/stores/authStore";
 import FormationHeader from "@/components/formations/FormationHeader";
@@ -84,7 +85,7 @@ export default function DefenseFormationPage() {
     setFrameId(BASE_FRAME_ID);
   };
 
-  // 把目前影格的這一組站位照名稱複製到另一組（兩組站法相同），套用後切到目標組方便微調
+  // 把目前影格的這一組站位照名稱複製到另一組（兩組站法相同）；畫面留在原本的組別
   const handleCopyToOtherBase = async () => {
     const target = otherDefenseBase(base);
     const r = await confirmAction(
@@ -94,7 +95,7 @@ export default function DefenseFormationPage() {
     );
     if (!r.isConfirmed) return;
     f.update((l) => copyDefenseFrameToOtherBase(l, activeId, base));
-    setBase(target);
+    toast.success(`已套用到${DEFENSE_BASE_LABEL[target]}`);
   };
 
   const handleReset = async () => {

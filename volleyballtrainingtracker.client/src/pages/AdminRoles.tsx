@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Droplets,
   Dumbbell,
+  Hand,
   HandCoins,
   LayoutDashboard,
   ListChecks,
@@ -15,6 +16,7 @@ import {
   Search,
   Shield,
   ShieldCheck,
+  ShieldHalf,
   Trash2,
   User,
   UserCog,
@@ -49,6 +51,8 @@ const PAGE_META: PageMeta[] = [
   { key: PAGE.Players,     label: "選手",         icon: UsersIcon },
   { key: PAGE.Sessions,    label: "訓練紀錄",     icon: Dumbbell },
   { key: PAGE.MatchLogs,   label: "比賽紀錄",     icon: Volleyball },
+  { key: PAGE.Defense,     label: "防守站位",     icon: ShieldHalf },
+  { key: PAGE.Receive,     label: "接發站位",     icon: Hand },
   { key: PAGE.Drills,      label: "訓練項目",     icon: ListChecks },
   { key: PAGE.Crying,      label: "哭哭榜",       icon: Droplets },
   { key: PAGE.Board,       label: "留言板",       icon: MessageSquare },
@@ -74,6 +78,7 @@ const EDIT_PERMS: PermMeta[] = [
   { key: PERM.DrillsEdit,    label: "訓練項目", icon: ListChecks, desc: "新增、修改、停用訓練項目", relatedPage: PAGE.Drills },
   { key: PERM.MatchLogsEdit, label: "比賽紀錄", icon: Volleyball, desc: "新增、修改、刪除比賽紀錄", relatedPage: PAGE.MatchLogs },
   { key: PERM.SponsorsEdit,  label: "隊費贊助", icon: HandCoins,  desc: "新增、修改、刪除贊助者與贊助紀錄", relatedPage: PAGE.Sponsors },
+  { key: PERM.FormationsEdit, label: "站位編輯", icon: ShieldHalf, desc: "修改並儲存全隊共用的防守／接發站位", relatedPage: PAGE.Defense },
 ];
 
 const SPECIAL_PERMS: PermMeta[] = [

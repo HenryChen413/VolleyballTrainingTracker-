@@ -12,7 +12,7 @@ public static class FormationRules
 {
     public const int MaxLayoutBytes = 64 * 1024;
 
-    private static readonly IReadOnlyDictionary<string, string> KeyToPage = new Dictionary<string, string>(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string> KeyToPage = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["defense"] = Pages.Defense,
         ["receive-opp"] = Pages.Receive,

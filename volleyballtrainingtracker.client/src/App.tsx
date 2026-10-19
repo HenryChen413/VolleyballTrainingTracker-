@@ -13,6 +13,8 @@ import SessionEditPage from '@/pages/SessionEdit';
 import MatchLogsPage from '@/pages/MatchLogs';
 import MatchLogEditPage from '@/pages/MatchLogEdit';
 import TacticsBoardPage from '@/pages/TacticsBoard';
+import DefenseFormationPage from '@/pages/DefenseFormation';
+import ReceiveFormationPage from '@/pages/ReceiveFormation';
 import DrillsPage from '@/pages/Drills';
 import DrillEditPage from '@/pages/DrillEdit';
 import CryingLogsPage from '@/pages/CryingLogs';
@@ -61,6 +63,12 @@ export default function App() {
               </Route>
               <Route element={<ProtectedRoute requirePage={PAGE.Tactics} />}>
                 <Route path="/tactics" element={<TacticsBoardPage />} />
+              </Route>
+              <Route element={<ProtectedRoute requirePage={PAGE.Defense} />}>
+                <Route path="/defense" element={<DefenseFormationPage />} />
+              </Route>
+              <Route element={<ProtectedRoute requirePage={PAGE.Receive} />}>
+                <Route path="/receive" element={<ReceiveFormationPage />} />
               </Route>
               <Route element={<ProtectedRoute requirePage={PAGE.Drills} />}>
                 <Route path="/drills" element={<DrillsPage />} />

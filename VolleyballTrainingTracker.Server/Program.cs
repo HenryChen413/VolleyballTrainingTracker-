@@ -301,14 +301,16 @@ static async Task SeedRolesAsync(AppDbContext db)
         Permissions.SessionsEdit,
         Permissions.DrillsEdit,
         Permissions.SponsorsEdit,
+        Permissions.FormationsEdit,
     });
     var coachPages = JsonSerializer.Serialize(new[]
     {
-        Pages.Dashboard, Pages.Calendar, Pages.Players, Pages.Sessions, Pages.Tactics, Pages.Drills, Pages.Board, Pages.Sponsors, Pages.Profile,
+        Pages.Dashboard, Pages.Calendar, Pages.Players, Pages.Sessions, Pages.Tactics, Pages.Defense, Pages.Receive, Pages.Drills, Pages.Board, Pages.Sponsors, Pages.Profile,
     });
     var playerPerms = JsonSerializer.Serialize(Array.Empty<string>());
     var playerPages = coachPages; // 跟 Coach 同步主功能可看
-    var captainPerms = playerPerms;
+    // 隊長／副隊長：頁面同選手，但可編輯全隊站位（防守／接發）
+    var captainPerms = JsonSerializer.Serialize(new[] { Permissions.FormationsEdit });
     var captainPages = playerPages;
 
     await UpsertRoleAsync(db, "Admin",       "系統管理員（不可刪）", allPerms,     allPages,     isSystem: true);

@@ -19,6 +19,7 @@ public class PermissionsTests
         Assert.Contains(Permissions.UsersManage, Permissions.All);
         Assert.Contains(Permissions.RolesManage, Permissions.All);
         Assert.Contains(Permissions.BoardManage, Permissions.All);
+        Assert.Contains(Permissions.FormationsEdit, Permissions.All);
     }
 
     [Fact]
@@ -39,6 +40,8 @@ public class PermissionsTests
         Assert.Contains(Pages.AdminRoles, Pages.All);
         Assert.Contains(Pages.AdminUsers, Pages.All);
         Assert.Contains(Pages.Profile, Pages.All);
+        Assert.Contains(Pages.Defense, Pages.All);
+        Assert.Contains(Pages.Receive, Pages.All);
     }
 
     [Fact]

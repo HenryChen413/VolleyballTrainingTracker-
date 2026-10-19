@@ -25,6 +25,10 @@ public static class Permissions
     // 此權限額外授予新增/修改/刪除贊助者與贊助紀錄的能力（金錢較敏感）。
     public const string SponsorsEdit  = "sponsors.edit";
 
+    // 防守站位／接發站位：看由 Pages.Defense / Pages.Receive 控管；
+    // 此權限授予修改並儲存「全隊共用站位」的能力（預設：管理員／教練／隊長／副隊長）。
+    public const string FormationsEdit = "formations.edit";
+
     public static readonly string[] All =
     {
         PlayersEdit, PlayersPurge,
@@ -32,6 +36,7 @@ public static class Permissions
         UsersManage, RolesManage,
         BoardManage,
         SponsorsEdit,
+        FormationsEdit,
     };
 }
 
@@ -47,6 +52,9 @@ public static class Pages
     public const string MatchLogs = "match-logs";
     // 戰術板：全員可看可編（操作站位、儲存戰術），僅以頁面權限控管、無獨立 edit 權限。
     public const string Tactics = "tactics";
+    // 防守站位／接發站位：全隊共用的站位體系（存 DB），看與編分離（編輯需 formations.edit）。
+    public const string Defense = "defense";
+    public const string Receive = "receive";
     public const string Drills = "drills";
     public const string Crying = "crying";
     public const string Board = "board";
@@ -57,6 +65,6 @@ public static class Pages
 
     public static readonly string[] All =
     {
-        Dashboard, Calendar, Players, Sessions, MatchLogs, Tactics, Drills, Crying, Board, Sponsors, AdminRoles, AdminUsers, Profile,
+        Dashboard, Calendar, Players, Sessions, MatchLogs, Tactics, Defense, Receive, Drills, Crying, Board, Sponsors, AdminRoles, AdminUsers, Profile,
     };
 }

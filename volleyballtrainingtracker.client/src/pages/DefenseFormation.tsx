@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Pencil, Plus, RotateCcw, ShieldHalf, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Copy, Pencil, Plus, RotateCcw, ShieldHalf, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import FormationCourt, { type CourtToken } from "@/components/formations/FormationCourt";
@@ -19,7 +19,9 @@ import { assignPlayer, autoAssign, clearSlot, type SlotAssignment } from "@/lib/
 import {
   addSituation,
   BASE_FRAME_ID,
+  copyDefenseFrameToOtherBase,
   moveSituation,
+  otherDefenseBase,
   removeSituation,
   renameSituation,
   resetSituationFromBase,
@@ -80,6 +82,19 @@ export default function DefenseFormationPage() {
     if (!r.isConfirmed) return;
     f.update((l) => removeSituation(l, situation.id));
     setFrameId(BASE_FRAME_ID);
+  };
+
+  // 把目前影格的這一組站位依區位複製到另一組（舉球／副攻對調），套用後切到目標組方便微調
+  const handleCopyToOtherBase = async () => {
+    const target = otherDefenseBase(base);
+    const r = await confirmAction(
+      `套用到${DEFENSE_BASE_LABEL[target]}？`,
+      `把「${situation?.name ?? "基本站位"}」的${DEFENSE_BASE_LABEL[base]}站位套用到${DEFENSE_BASE_LABEL[target]}，目標的站位會被覆蓋，舉球與副攻依區位對調。`,
+      "套用",
+    );
+    if (!r.isConfirmed) return;
+    f.update((l) => copyDefenseFrameToOtherBase(l, activeId, base));
+    setBase(target);
   };
 
   const handleReset = async () => {
@@ -144,6 +159,11 @@ export default function DefenseFormationPage() {
                 </Button>
               ))}
             </div>
+            {f.editing && (
+              <Button size="sm" variant="outline" className="w-full" onClick={handleCopyToOtherBase}>
+                <Copy className="mr-1 h-4 w-4" />套用到{DEFENSE_BASE_LABEL[otherDefenseBase(base)]}
+              </Button>
+            )}
             <div className="space-y-1">
               {frameButton(BASE_FRAME_ID, "基本站位")}
               {layout.situations.map((s) => frameButton(s.id, s.name))}

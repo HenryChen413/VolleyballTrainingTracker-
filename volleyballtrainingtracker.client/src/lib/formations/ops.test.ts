@@ -3,6 +3,7 @@ import { defaultDefenseLayout, defaultReceiveLayout } from "./defaults";
 import {
   addSituation,
   BASE_FRAME_ID,
+  copyDefenseFrameToOtherBase,
   moveSituation,
   removeSituation,
   renameSituation,
@@ -61,6 +62,40 @@ describe("防守編輯操作", () => {
     const n = resetSituationFromBase(l, id, "setterFront");
     expect(n.situations[0].positions.setterFront).toEqual(l.bases.setterFront);
     expect(n.situations[0].positions.setterBack).toEqual(l.situations[0].positions.setterBack);
+  });
+});
+
+describe("套用到另一組（舉球員前排／後排）", () => {
+  it("基本站位：依區位複製，舉球與副攻對調，其他四格照搬", () => {
+    const l = defaultDefenseLayout();
+    const src = { ...l.bases.setterFront, OHF: { x: 0.11, y: 0.22 }, S: { x: 0.8, y: 0.05 }, OPP: { x: 0.9, y: 0.7 } };
+    const withSrc = { ...l, bases: { ...l.bases, setterFront: src } };
+    const n = copyDefenseFrameToOtherBase(withSrc, BASE_FRAME_ID, "setterFront");
+    const to = n.bases.setterBack;
+    expect(to.OPP).toEqual(src.S); // 右前：前排時是舉球、後排時是副攻
+    expect(to.S).toEqual(src.OPP); // 右後：前排時是副攻、後排時是舉球
+    for (const slot of ["OHF", "OHB", "MB", "L"] as const) expect(to[slot]).toEqual(src[slot]);
+    expect(n.bases.setterFront).toEqual(src); // 來源不變
+    expect(n.situations).toEqual(withSrc.situations); // 其他影格不變
+    expect(to.OPP).not.toBe(src.S); // 複製值而非共用參考
+  });
+
+  it("情況：只動該情況的目標組，反方向（後排 → 前排）同樣對調", () => {
+    const l = defaultDefenseLayout();
+    const [a, b] = l.situations;
+    const n = copyDefenseFrameToOtherBase(l, b.id, "setterBack");
+    const from = b.positions.setterBack;
+    expect(n.situations[1].positions.setterFront.S).toEqual(from.OPP);
+    expect(n.situations[1].positions.setterFront.OPP).toEqual(from.S);
+    expect(n.situations[1].positions.setterFront.MB).toEqual(from.MB);
+    expect(n.situations[1].positions.setterBack).toEqual(from);
+    expect(n.situations[0]).toEqual(a);
+    expect(n.bases).toEqual(l.bases);
+  });
+
+  it("找不到情況 id 時原樣回傳", () => {
+    const l = defaultDefenseLayout();
+    expect(copyDefenseFrameToOtherBase(l, "nope", "setterFront")).toEqual(l);
   });
 });
 

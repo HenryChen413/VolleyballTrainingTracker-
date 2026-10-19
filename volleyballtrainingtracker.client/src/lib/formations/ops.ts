@@ -4,6 +4,7 @@ import {
   newSituationId,
   SITUATION_NAME_MAX,
   type DefenseBaseKey,
+  type DefenseFrame,
   type DefenseLayout,
   type ReceiveFrameKey,
   type ReceiveLayout,
@@ -79,6 +80,35 @@ export function resetSituationFromBase(l: DefenseLayout, id: string, base: Defen
     ...l,
     situations: l.situations.map((s) =>
       s.id !== id ? s : { ...s, positions: { ...s.positions, [base]: structuredClone(l.bases[base]) } },
+    ),
+  };
+}
+
+export const otherDefenseBase = (base: DefenseBaseKey): DefenseBaseKey =>
+  base === "setterFront" ? "setterBack" : "setterFront";
+
+/**
+ * 把某影格（基本站位或情況）的一組站位，依「場上區位」複製到另一組：
+ * 舉球員前排時右前是舉球、右後是副攻；後排時相反，所以舉球與副攻對調，其餘四格照搬。
+ * 找不到情況 id 時原樣回傳。
+ */
+export function copyDefenseFrameToOtherBase(
+  l: DefenseLayout,
+  frameId: string,
+  from: DefenseBaseKey,
+): DefenseLayout {
+  const to = otherDefenseBase(from);
+  const mapped = (src: DefenseFrame): DefenseFrame => {
+    const f = structuredClone(src);
+    return { ...f, S: f.OPP, OPP: f.S };
+  };
+  if (frameId === BASE_FRAME_ID) {
+    return { ...l, bases: { ...l.bases, [to]: mapped(l.bases[from]) } };
+  }
+  return {
+    ...l,
+    situations: l.situations.map((s) =>
+      s.id !== frameId ? s : { ...s, positions: { ...s.positions, [to]: mapped(s.positions[from]) } },
     ),
   };
 }

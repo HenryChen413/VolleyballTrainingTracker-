@@ -83,6 +83,35 @@ describe("防守站位頁", () => {
     expect(screen.getByRole("button", { name: "儲存" })).toBeInTheDocument();
   });
 
+  it("套用到另一組：確認後切到目標組，舉球移到來源組舉球的區位（目標組的副攻格）", async () => {
+    loginAs([PERM.FormationsEdit]);
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "編輯" }));
+    fireEvent.click(screen.getByRole("button", { name: "對方打4號位" }));
+    // 前排時舉球在右前；記下它的位置
+    const setterLeft = screen.getByRole("button", { name: "舉球" }).style.left;
+    fireEvent.click(screen.getByRole("button", { name: "套用到舉球員後排" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "舉球員後排" })).toHaveAttribute("aria-pressed", "true"),
+    );
+    expect(confirmAction).toHaveBeenCalledOnce();
+    // 後排時右前是副攻：副攻應站在剛才舉球的位置
+    expect(screen.getByRole("button", { name: "副攻" }).style.left).toBe(setterLeft);
+    expect(screen.getByRole("button", { name: "套用到舉球員前排" })).toBeInTheDocument();
+  });
+
+  it("檢視模式沒有套用按鈕；取消確認則不變", async () => {
+    loginAs([PERM.FormationsEdit]);
+    vi.mocked(confirmAction).mockResolvedValue({ isConfirmed: false } as never);
+    renderPage();
+    await screen.findByRole("button", { name: "編輯" });
+    expect(screen.queryByRole("button", { name: "套用到舉球員後排" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "編輯" }));
+    fireEvent.click(screen.getByRole("button", { name: "套用到舉球員後排" }));
+    await waitFor(() => expect(confirmAction).toHaveBeenCalledOnce());
+    expect(screen.getByRole("button", { name: "舉球員前排" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("刪除正在檢視的情況後回到基本站位", async () => {
     loginAs([PERM.FormationsEdit]);
     renderPage();

@@ -34,6 +34,7 @@ public class AppDbContext : DbContext
     public DbSet<BoardReaction> BoardReactions => Set<BoardReaction>();
     public DbSet<Sponsor> Sponsors => Set<Sponsor>();
     public DbSet<Sponsorship> Sponsorships => Set<Sponsorship>();
+    public DbSet<Formation> Formations => Set<Formation>();
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -307,6 +308,21 @@ public class AppDbContext : DbContext
             e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
             e.HasIndex(x => x.SponsorId).HasDatabaseName("IX_Sponsorships_Sponsor");
             e.HasIndex(x => x.OccurredAt).HasDatabaseName("IX_Sponsorships_OccurredAt");
+        });
+
+        modelBuilder.Entity<Formation>(e =>
+        {
+            e.ToTable("Formations", t =>
+            {
+                t.HasCheckConstraint("CK_Formations_Key", "\"Key\" IN ('defense','receive-opp','receive-2oh')");
+            });
+            e.Property(x => x.Key).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Layout).HasColumnType("jsonb").IsRequired();
+            // UPDATE 時帶 WHERE "Version" = 原值，同時儲存的第二人會得到 DbUpdateConcurrencyException
+            e.Property(x => x.Version).IsConcurrencyToken();
+            e.HasIndex(x => x.Key).IsUnique().HasDatabaseName("UX_Formations_Key");
+            e.HasOne(x => x.CreatedByUser).WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
         });
     }
 

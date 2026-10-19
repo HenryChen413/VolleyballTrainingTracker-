@@ -1,28 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, Expand, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MEMBER_TYPE, playersApi } from "@/api/players";
-import { matchEventsApi } from "@/api/matchLogs";
-import type { RosterPlayer } from "@/lib/court";
 import type { DrawingTool } from "@/lib/drawing";
 import { toast } from "@/lib/toast";
 import { useFullscreen } from "@/lib/useFullscreen";
 import DrawingToolbar from "@/components/tactics/DrawingToolbar";
-import MatchEventSelector, {
-  type SquadOption,
-  type TacticsMode,
-} from "@/components/tactics/MatchEventSelector";
+import MatchEventSelector from "@/components/tactics/MatchEventSelector";
 import PlayerRoster from "@/components/tactics/PlayerRoster";
 import TacticsFocusMode from "@/components/tactics/TacticsFocusMode";
 import TacticsToolbar from "@/components/tactics/TacticsToolbar";
 import VolleyballCourt from "@/components/tactics/VolleyballCourt";
 import { useTacticsBoard } from "@/components/tactics/useTacticsBoard";
 import { useTacticsDrawings } from "@/components/tactics/useTacticsDrawings";
-
-/** 賽事分隊時的隊別代碼，對應 MatchEventPlayer.ourSquad（見 MatchLogEdit 的分隊設定） */
-const SQUAD_KEYS = ["A", "B"] as const;
+import { SQUAD_KEYS, useRosterSource } from "@/components/tactics/useRosterSource";
 
 /**
  * 排球戰術板：
@@ -32,10 +23,10 @@ const SQUAD_KEYS = ["A", "B"] as const;
  * 站位與戰術線以草稿形式存在本機（localStorage），Phase 2 再加入後端儲存戰術。
  */
 export default function TacticsBoardPage() {
-  const [mode, setMode] = useState<TacticsMode>("all");
-  const [eventId, setEventId] = useState<number | null>(null);
-  // 賽事分成 A、B 兩隊時要排哪一隊的陣容；未分隊的賽事此值不生效（見 activeSquad）
-  const [squad, setSquad] = useState<string>(SQUAD_KEYS[0]);
+  const {
+    mode, setMode, eventId, setEventId, setSquad,
+    playersQuery, eventsQuery, activeSquad, squadOptions, roster, sourceKey,
+  } = useRosterSource({ loadAllPlayers: true });
   const [tool, setTool] = useState<DrawingTool>("select");
   const [arrowEnabled, setArrowEnabled] = useState(true);
   const {
@@ -50,66 +41,8 @@ export default function TacticsBoardPage() {
   const courtRef = useRef<HTMLDivElement | null>(null);
   const rosterRef = useRef<HTMLDivElement | null>(null);
 
-  const playersQuery = useQuery({
-    queryKey: ["players", { activeOnly: true, memberType: MEMBER_TYPE.Player }],
-    queryFn: () => playersApi.list({ activeOnly: true, memberType: MEMBER_TYPE.Player }),
-    enabled: mode === "all",
-  });
-  const eventsQuery = useQuery({
-    queryKey: ["matchEvents"],
-    queryFn: () => matchEventsApi.list(),
-    enabled: mode !== "all",
-  });
-
-  const selectedEvent = useMemo(
-    () => (eventId != null ? eventsQuery.data?.find((e) => e.id === eventId) : undefined),
-    [eventsQuery.data, eventId],
-  );
-
-  // 選中賽事若分成兩隊（squadCount >= 2），要再選排哪一隊；未分隊則為 null
-  const activeSquad = (selectedEvent?.squadCount ?? 1) >= 2 ? squad : null;
-
-  // 隊別切換的選項與各隊人數；未分隊（或尚未選賽事）時為空陣列，切換列不顯示
-  const squadOptions = useMemo<SquadOption[]>(() => {
-    if (activeSquad == null || !selectedEvent) return [];
-    return SQUAD_KEYS.map((key) => ({
-      key,
-      count: selectedEvent.players.filter((p) => p.ourSquad === key).length,
-    }));
-  }, [activeSquad, selectedEvent]);
-
-  // 目前名單（undefined = 載入中或尚未選賽事，不觸發場上球員校正）
-  const roster = useMemo<RosterPlayer[] | undefined>(() => {
-    if (mode === "all") {
-      return playersQuery.data?.map((p) => ({
-        playerId: p.id,
-        jerseyNo: p.jerseyNo,
-        name: p.name,
-        position: p.position,
-      }));
-    }
-    return selectedEvent?.players
-      // 分隊賽事只取該隊球員；報名了但未指定隊別者不屬於任何一隊，兩邊都不顯示
-      .filter((p) => activeSquad == null || p.ourSquad === activeSquad)
-      .map((p) => ({
-        playerId: p.playerId,
-        jerseyNo: p.jerseyNo,
-        name: p.name,
-        position: p.position,
-      }));
-  }, [mode, playersQuery.data, selectedEvent, activeSquad]);
-
   // 草稿依名單來源各自保存，切換不互相覆蓋；分隊賽事再依隊別拆成兩塊白板，
   // 排完 A 隊切到 B 隊不會蓋掉 A 隊的站位與戰術線。
-  const sourceKey =
-    mode === "all"
-      ? "all"
-      : eventId == null
-        ? "event:none"
-        : activeSquad
-          ? `event:${eventId}:${activeSquad}`
-          : `event:${eventId}`;
-
   const board = useTacticsBoard(sourceKey, roster);
   const { courtPlayers } = board;
 

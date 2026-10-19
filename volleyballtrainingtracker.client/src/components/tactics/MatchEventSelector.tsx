@@ -30,6 +30,8 @@ interface Props {
   /** 目前選中的隊別；null＝未分隊或尚未選賽事 */
   squad: string | null;
   onSquadChange: (squad: string) => void;
+  /** 「all」選項的顯示文字；站位頁用「位置代號」 */
+  allLabel?: string;
 }
 
 /**
@@ -49,6 +51,7 @@ export default function MatchEventSelector({
   squads,
   squad,
   onSquadChange,
+  allLabel,
 }: Props) {
   const filtered = (events ?? []).filter((e) => e.matchType === mode);
 
@@ -66,7 +69,7 @@ export default function MatchEventSelector({
               onEventChange(null); // 換類型時重選賽事
             }}
           >
-            {opt.label}
+            {opt.value === "all" && allLabel ? allLabel : opt.label}
           </Button>
         ))}
       </div>

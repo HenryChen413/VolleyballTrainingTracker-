@@ -71,6 +71,7 @@ export const PERM = {
   RolesManage: 'roles.manage',
   BoardManage: 'board.manage',
   SponsorsEdit: 'sponsors.edit',
+  FormationsEdit: 'formations.edit',
 } as const;
 
 export const PAGE = {
@@ -80,6 +81,8 @@ export const PAGE = {
   Sessions: 'sessions',
   MatchLogs: 'match-logs',
   Tactics: 'tactics',
+  Defense: 'defense',
+  Receive: 'receive',
   Drills: 'drills',
   Crying: 'crying',
   Board: 'board',

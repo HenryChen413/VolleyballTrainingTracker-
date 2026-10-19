@@ -740,8 +740,8 @@ describe("rotation", () => {
     expect(rotationLineup(1)).toEqual({ 1: "OH2", 2: "MB1", 3: "S", 4: "OH1", 5: "L", 6: "OPP" });
   });
 
-  it("R2 順時針輪轉一格", () => {
-    expect(rotationLineup(2)).toEqual({ 1: "MB1", 2: "S", 3: "OH1", 4: "MB2", 5: "OPP", 6: "OH2" });
+  it("R2 順時針輪轉一格：攔中1 輪到 1 號位（後排）由自由替換", () => {
+    expect(rotationLineup(2)).toEqual({ 1: "L", 2: "S", 3: "OH1", 4: "MB2", 5: "OPP", 6: "OH2" });
   });
 
   it("R3 後排攔中 MB1 由自由替換", () => {
@@ -757,7 +757,7 @@ describe("rotation", () => {
   });
 
   it("自由替換的攔中", () => {
-    expect(ROTATIONS.map(liberoReplaces)).toEqual(["MB2", "MB2", "MB1", "MB1", "MB1", "MB2"]);
+    expect(ROTATIONS.map(liberoReplaces)).toEqual(["MB2", "MB1", "MB1", "MB1", "MB2", "MB2"]);
   });
 
   it("每輪轉場上 6 格且含自由、不含被替換的攔中", () => {

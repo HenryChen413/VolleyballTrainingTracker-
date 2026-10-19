@@ -31,6 +31,9 @@ export function useFormation<T>(key: FormationKey, parse: (raw: unknown) => Pars
   const [draft, setDraft] = useState<T | null>(null);
   const [dirty, setDirty] = useState(false);
   const [conflict, setConflict] = useState<FormationConflict | null>(null);
+  // 開始編輯時的版本：儲存一律以此為 expectedVersion。不可用送出當下的 query.data.version——
+  // 編輯中若背景 refetch（如 iPad 斷線重連）拿到他人的新版本，會繞過衝突檢查而覆蓋對方。
+  const [baseVersion, setBaseVersion] = useState(0);
   useUnsavedGuard(dirty);
 
   const resetEdit = () => {
@@ -40,8 +43,7 @@ export function useFormation<T>(key: FormationKey, parse: (raw: unknown) => Pars
   };
 
   const mutation = useMutation({
-    mutationFn: (layout: T) =>
-      formationsApi.save(key, { layout, expectedVersion: query.data?.version ?? 0 }),
+    mutationFn: (vars: { layout: T; expectedVersion: number }) => formationsApi.save(key, vars),
     onSuccess: (dto) => {
       queryClient.setQueryData(["formation", key], dto);
       resetEdit();
@@ -67,6 +69,7 @@ export function useFormation<T>(key: FormationKey, parse: (raw: unknown) => Pars
     startEdit: () => {
       if (!parsed) return;
       setDraft(structuredClone(parsed.layout));
+      setBaseVersion(query.data?.version ?? 0);
       setDirty(false);
       setConflict(null);
     },
@@ -76,7 +79,7 @@ export function useFormation<T>(key: FormationKey, parse: (raw: unknown) => Pars
     },
     cancel: resetEdit,
     save: () => {
-      if (draft) mutation.mutate(draft);
+      if (draft) mutation.mutate({ layout: draft, expectedVersion: baseVersion });
     },
     reload: async () => {
       resetEdit();

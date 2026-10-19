@@ -2,7 +2,7 @@ namespace VolleyballTrainingTracker.Server.Entities;
 
 /// <summary>
 /// 全隊共用站位（防守／接發）：一套站位存成一筆，內容為 jsonb 文件。
-/// Key 固定為 defense / receive-2oh / receive-oh1-opp / receive-oh2-opp；Layout 結構由前端解析器負責。
+/// Key 固定為 defense / receive-2oh / receive-oh1-opp / receive-oh2-opp / receive-2oh-opp；Layout 結構由前端解析器負責。
 /// Version 每次儲存 +1，作為樂觀並行控制（避免兩人同時編輯互相覆蓋）。
 /// </summary>
 public class Formation

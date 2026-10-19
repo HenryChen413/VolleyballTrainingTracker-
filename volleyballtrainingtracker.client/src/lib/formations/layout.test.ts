@@ -32,10 +32,11 @@ describe("預設站位", () => {
     }
   });
 
-  it("三套接發體系的接發者在每個輪轉都固定", () => {
+  it("四套接發體系的接發者在每個輪轉都固定", () => {
     expect(RECEIVE_SYSTEMS.map((s) => s.label)).toEqual([
-      "主攻1＋自由＋主攻2", "主攻1＋自由＋副攻", "主攻2＋自由＋副攻",
+      "主攻1＋自由＋主攻2", "主攻1＋自由＋副攻", "主攻2＋自由＋副攻", "主攻1＋主攻2＋副攻",
     ]);
+    expect([...receiversFor("receive-2oh-opp")].sort()).toEqual(["OH1", "OH2", "OPP"]);
     expect([...receiversFor("receive-2oh")].sort()).toEqual(["L", "OH1", "OH2"]);
     expect([...receiversFor("receive-oh1-opp")].sort()).toEqual(["L", "OH1", "OPP"]);
     expect([...receiversFor("receive-oh2-opp")].sort()).toEqual(["L", "OH2", "OPP"]);

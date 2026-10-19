@@ -102,6 +102,7 @@ const RECEIVERS: Readonly<Record<ReceiveSystem, readonly ReceiveSlot[]>> = {
   "receive-2oh": ["OH1", "OH2", "L"],
   "receive-oh1-opp": ["OH1", "OPP", "L"],
   "receive-oh2-opp": ["OH2", "OPP", "L"],
+  "receive-2oh-opp": ["OH1", "OH2", "OPP"], // 自由不接發
 };
 
 /** 該體系的接發者（R1–R6 皆同） */

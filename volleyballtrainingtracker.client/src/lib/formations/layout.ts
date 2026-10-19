@@ -41,11 +41,12 @@ export interface ReceiveLayout {
 }
 
 /** 接發體系：三名接發者固定（R1–R6 皆同），各自存一套站位 */
-export type ReceiveSystem = "receive-2oh" | "receive-oh1-opp" | "receive-oh2-opp";
+export type ReceiveSystem = "receive-2oh" | "receive-oh1-opp" | "receive-oh2-opp" | "receive-2oh-opp";
 export const RECEIVE_SYSTEMS: ReadonlyArray<{ key: ReceiveSystem; label: string }> = [
   { key: "receive-2oh", label: "主攻1＋自由＋主攻2" },
   { key: "receive-oh1-opp", label: "主攻1＋自由＋副攻" },
   { key: "receive-oh2-opp", label: "主攻2＋自由＋副攻" },
+  { key: "receive-2oh-opp", label: "主攻1＋主攻2＋副攻" },
 ];
 
 export const SITUATION_NAME_MAX = 20;

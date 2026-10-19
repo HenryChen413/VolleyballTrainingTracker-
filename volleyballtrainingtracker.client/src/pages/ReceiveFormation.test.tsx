@@ -62,10 +62,10 @@ describe("接發站位頁", () => {
     expect(screen.queryByText("4號位（主攻1）須在3號位（舉球）左側")).not.toBeInTheDocument();
   });
 
-  it("三個接發體系可切換，預設為主攻1＋自由＋主攻2", async () => {
+  it("四個接發體系可切換，預設為主攻1＋自由＋主攻2", async () => {
     renderPage();
     expect(await screen.findByRole("button", { name: "主攻1＋自由＋主攻2" })).toHaveAttribute("aria-pressed", "true");
-    for (const label of ["主攻1＋自由＋副攻", "主攻2＋自由＋副攻"]) {
+    for (const label of ["主攻1＋自由＋副攻", "主攻2＋自由＋副攻", "主攻1＋主攻2＋副攻"]) {
       fireEvent.click(screen.getByRole("button", { name: label }));
       expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", "true");
     }

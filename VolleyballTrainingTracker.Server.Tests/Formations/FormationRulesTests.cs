@@ -14,6 +14,7 @@ public class FormationRulesTests
     [InlineData("receive-2oh", Pages.Receive)]
     [InlineData("receive-oh1-opp", Pages.Receive)]
     [InlineData("receive-oh2-opp", Pages.Receive)]
+    [InlineData("receive-2oh-opp", Pages.Receive)]
     public void PageForKey_KnownKeys(string key, string page)
     {
         Assert.Equal(page, FormationRules.PageForKey(key));

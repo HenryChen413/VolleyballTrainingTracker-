@@ -300,7 +300,7 @@ CREATE TABLE IF NOT EXISTS "Formations" (
     "UpdatedAt"       timestamptz   NULL,
     "CreatedByUserId" integer       NULL,
     "UpdatedByUserId" integer       NULL,
-    CONSTRAINT "CK_Formations_Key" CHECK ("Key" IN ('defense','receive-2oh','receive-oh1-opp','receive-oh2-opp'))
+    CONSTRAINT "CK_Formations_Key" CHECK ("Key" IN ('defense','receive-2oh','receive-oh1-opp','receive-oh2-opp','receive-2oh-opp'))
 );
 
 -- =============================================================================

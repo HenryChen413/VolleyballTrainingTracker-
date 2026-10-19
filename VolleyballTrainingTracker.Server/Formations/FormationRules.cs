@@ -18,6 +18,7 @@ public static class FormationRules
         ["receive-2oh"] = Pages.Receive,
         ["receive-oh1-opp"] = Pages.Receive,
         ["receive-oh2-opp"] = Pages.Receive,
+        ["receive-2oh-opp"] = Pages.Receive,
     };
 
     /// <summary>Key 對應的頁面權限；非白名單回 null。</summary>

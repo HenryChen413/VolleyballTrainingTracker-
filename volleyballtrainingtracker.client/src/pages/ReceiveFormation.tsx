@@ -34,6 +34,7 @@ import { PERM, useAuthStore } from "@/stores/authStore";
 const parse2oh = (raw: unknown) => parseReceiveLayout(raw, "receive-2oh");
 const parseOh1Opp = (raw: unknown) => parseReceiveLayout(raw, "receive-oh1-opp");
 const parseOh2Opp = (raw: unknown) => parseReceiveLayout(raw, "receive-oh2-opp");
+const parse2ohOpp = (raw: unknown) => parseReceiveLayout(raw, "receive-2oh-opp");
 
 const FRAME_LABEL: Record<ReceiveFrameKey, string> = { receive: "接發站位", attack: "進攻位置" };
 const FRAME_KEYS: readonly ReceiveFrameKey[] = ["receive", "attack"];
@@ -42,11 +43,12 @@ const STEPS = ROTATIONS.flatMap((r) => FRAME_KEYS.map((k) => ({ rotation: r, fra
 
 export default function ReceiveFormationPage() {
   const canEdit = useAuthStore((s) => s.can)(PERM.FormationsEdit);
-  // 三套各自載入（hook 數量固定），依目前選的體系取用
+  // 四套各自載入（hook 數量固定），依目前選的體系取用
   const formations: Record<ReceiveSystem, ReturnType<typeof useFormation<ReceiveLayout>>> = {
     "receive-2oh": useFormation("receive-2oh", parse2oh),
     "receive-oh1-opp": useFormation("receive-oh1-opp", parseOh1Opp),
     "receive-oh2-opp": useFormation("receive-oh2-opp", parseOh2Opp),
+    "receive-2oh-opp": useFormation("receive-2oh-opp", parse2ohOpp),
   };
   const source = useRosterSource({ loadAllPlayers: false });
 

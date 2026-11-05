@@ -64,6 +64,7 @@ public class MatchEventsController : ControllerBase
                         OpponentScore = m.OpponentScore,
                         Result = m.Result,
                         MatchDate = m.MatchDate,
+                        SheetCount = m.ScoreSheets.Count,
                         Sets = m.Sets
                             .OrderBy(s => s.SetIndex)
                             .Select(s => new MatchLogSetDto
@@ -88,6 +89,13 @@ public class MatchEventsController : ControllerBase
             .Include(x => x.Players)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return NotFound();
+
+        // Get 以 Include 載入（不載入記錄單內容 jsonb），故另以 GROUP BY 取各對戰的局數
+        var sheetCounts = await _db.MatchScoreSheets
+            .Where(s => s.MatchLog!.MatchEventId == id)
+            .GroupBy(s => s.MatchLogId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count);
 
         return Ok(new MatchEventDetailDto
         {
@@ -136,6 +144,7 @@ public class MatchEventsController : ControllerBase
                     OpponentScore = m.OpponentScore,
                     Result = m.Result,
                     MatchDate = m.MatchDate,
+                    SheetCount = sheetCounts.GetValueOrDefault(m.Id),
                     Sets = m.Sets
                         .OrderBy(s => s.SetIndex)
                         .Select(s => new MatchLogSetDto

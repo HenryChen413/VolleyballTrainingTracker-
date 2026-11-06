@@ -29,6 +29,8 @@ export interface MatchLogItem {
   result: string | null;
   matchDate: string | null;
   sets: MatchLogSetItem[];
+  /** 已建立的比賽記錄單局數 */
+  sheetCount: number;
 }
 
 export interface MatchLogUpsert {

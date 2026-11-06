@@ -24,4 +24,5 @@ public class MatchLog
     public MatchEvent? MatchEvent { get; set; }
     public User? UpdatedByUser { get; set; }
     public ICollection<MatchLogSet> Sets { get; set; } = new List<MatchLogSet>();
+    public ICollection<MatchScoreSheet> ScoreSheets { get; set; } = new List<MatchScoreSheet>();
 }

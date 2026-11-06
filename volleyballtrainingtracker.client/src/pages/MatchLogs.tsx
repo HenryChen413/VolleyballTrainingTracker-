@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronRight, ChevronDown, Video, Pencil, Trophy,
-  MapPin, Users, Search, StickyNote, X, Download, CalendarDays,
+  MapPin, Users, Search, StickyNote, X, Download, CalendarDays, ClipboardList,
 } from "lucide-react";
 import {
   matchEventsApi,
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
+import { StartSheetDialog } from "@/components/scoresheet/StartSheetDialog";
 import { RosterChip } from "@/components/RosterChip";
 import { groupByPrimaryPosition } from "@/lib/positions";
 import { PERM, useAuthStore } from "@/stores/authStore";
@@ -67,6 +68,7 @@ export default function MatchLogsPage() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [startFor, setStartFor] = useState<MatchEventListItem | null>(null);
 
   const availableYears = useMemo(() => {
     const set = new Set<number>();
@@ -353,6 +355,19 @@ export default function MatchLogsPage() {
                   </div>
                 </div>
 
+                {/* 賽事底部：直接開始記錄單（選隊別、對手後進入該局） */}
+                <div className="border-t border-border px-4 py-2 flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11 gap-1.5"
+                    onClick={() => setStartFor(g)}
+                  >
+                    <ClipboardList className="h-4 w-4" />
+                    記錄單
+                  </Button>
+                </div>
+
                 {/* 展開區 */}
                 {open && (
                   <div className="border-t bg-muted/30 px-4 py-4 animate-slide-up space-y-5">
@@ -367,7 +382,7 @@ export default function MatchLogsPage() {
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                           {g.matches.map((item) => (
-                            <MatchScoreCard key={item.id} item={item} isSplit={isSplit} />
+                            <MatchScoreCard key={item.id} item={item} isSplit={isSplit} eventId={g.id} />
                           ))}
                         </div>
                       )}
@@ -381,6 +396,17 @@ export default function MatchLogsPage() {
             );
           })}
         </div>
+      )}
+
+      {startFor && (
+        <StartSheetDialog
+          key={startFor.id}
+          open
+          onClose={() => setStartFor(null)}
+          eventId={startFor.id}
+          squadCount={startFor.squadCount}
+          matches={startFor.matches}
+        />
       )}
 
       {/* 浮動「新增比賽」：固定右下，捲動到任何位置都點得到 */}
@@ -559,7 +585,8 @@ function ToggleChip({
 }
 
 // ── 比分對決卡 ─────────────────────────────────────────────────────────
-function MatchScoreCard({ item, isSplit }: { item: MatchLogItem; isSplit: boolean }) {
+function MatchScoreCard({ item, isSplit, eventId }: { item: MatchLogItem; isSplit: boolean; eventId: number }) {
+  const navigate = useNavigate();
   // 對戰自帶日期就顯示；無值（友誼賽 / 未填）才隱藏
   const ownDate = item.matchDate ? item.matchDate.slice(0, 10) : null;
   const r = item.result as ResultKey | null;
@@ -681,6 +708,20 @@ function MatchScoreCard({ item, isSplit }: { item: MatchLogItem; isSplit: boolea
           })}
         </div>
       )}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-2 w-full min-h-11"
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/match-logs/${eventId}/games/${item.id}/sheets`);
+        }}
+      >
+        <ClipboardList className="h-4 w-4" />
+        {item.sheetCount > 0 ? `記錄單 · ${item.sheetCount} 局` : "記錄單"}
+      </Button>
     </div>
   );
 }

@@ -71,6 +71,9 @@ public class MatchLogItemDto
 
     /// <summary>友誼賽動態局分；Official 模式為空陣列。</summary>
     public List<MatchLogSetDto> Sets { get; set; } = new();
+
+    /// <summary>該筆對戰已建立的比賽記錄單局數。</summary>
+    public int SheetCount { get; set; }
 }
 
 public class MatchLogSetDto

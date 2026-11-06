@@ -26,6 +26,7 @@ public class AppDbContext : DbContext
     public DbSet<MatchEventPlayer> MatchEventPlayers => Set<MatchEventPlayer>();
     public DbSet<MatchLog> MatchLogs => Set<MatchLog>();
     public DbSet<MatchLogSet> MatchLogSets => Set<MatchLogSet>();
+    public DbSet<MatchScoreSheet> MatchScoreSheets => Set<MatchScoreSheet>();
     public DbSet<AuditDelete> AuditDeletes => Set<AuditDelete>();
     public DbSet<CryingLog> CryingLogs => Set<CryingLog>();
     public DbSet<CryingLogCulprit> CryingLogCulprits => Set<CryingLogCulprit>();
@@ -201,6 +202,21 @@ public class AppDbContext : DbContext
             e.ToTable("MatchLogSets");
             e.HasIndex(x => new { x.MatchLogId, x.SetIndex }).IsUnique();
             e.HasOne(x => x.MatchLog).WithMany(m => m.Sets).HasForeignKey(x => x.MatchLogId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MatchScoreSheet>(e =>
+        {
+            e.ToTable("MatchScoreSheets", t =>
+            {
+                t.HasCheckConstraint("CK_MatchScoreSheets_SetIndex", "\"SetIndex\" BETWEEN 1 AND 50");
+            });
+            e.Property(x => x.RecorderName).HasMaxLength(64);
+            e.Property(x => x.Content).HasColumnType("jsonb").IsRequired();
+            // UPDATE 時帶 WHERE "Version" = 原值，同時儲存的第二人會得到 DbUpdateConcurrencyException
+            e.Property(x => x.Version).IsConcurrencyToken();
+            e.HasIndex(x => new { x.MatchLogId, x.SetIndex }).IsUnique().HasDatabaseName("UX_MatchScoreSheets_LogSet");
+            e.HasOne(x => x.MatchLog).WithMany(m => m.ScoreSheets).HasForeignKey(x => x.MatchLogId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.UpdatedByUser).WithMany().HasForeignKey(x => x.UpdatedByUserId).OnDelete(DeleteBehavior.NoAction);
         });
 
         modelBuilder.Entity<AuditDelete>(e =>

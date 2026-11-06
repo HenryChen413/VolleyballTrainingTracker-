@@ -223,6 +223,13 @@ public class MatchEventsController : ControllerBase
         var matches = req.Matches ?? new List<MatchLogUpsertRequest>();
         var incomingIds = matches.Where(m => m.Id.HasValue).Select(m => m.Id!.Value).ToHashSet();
         var toRemove = e.Matches.Where(m => !incomingIds.Contains(m.Id)).ToList();
+        if (toRemove.Count > 0)
+        {
+            // 記錄單由 DB cascade 刪除不會經過 SaveChanges 稽核；先載入並明確刪除，留下 AuditDelete 快照
+            var removeIds = toRemove.Select(m => m.Id).ToList();
+            var sheets = await _db.MatchScoreSheets.Where(s => removeIds.Contains(s.MatchLogId)).ToListAsync();
+            _db.MatchScoreSheets.RemoveRange(sheets);
+        }
         foreach (var m in toRemove) _db.MatchLogs.Remove(m);
 
         foreach (var inc in matches)
@@ -287,8 +294,13 @@ public class MatchEventsController : ControllerBase
     [RequirePermission(Permissions.MatchLogsEdit)]
     public async Task<IActionResult> Delete(int id)
     {
-        var e = await _db.MatchEvents.FindAsync(id);
+        // 一併載入 Matches 與其記錄單：記錄單若只靠 DB cascade 刪除，不會留下 AuditDelete 快照；
+        // 讓 EF 追蹤整條 Event → MatchLog → 記錄單 關係，才能依序先刪記錄單再刪上層
+        var e = await _db.MatchEvents
+            .Include(x => x.Matches).ThenInclude(m => m.ScoreSheets)
+            .FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return NotFound();
+        foreach (var m in e.Matches) _db.MatchScoreSheets.RemoveRange(m.ScoreSheets);
         _db.MatchEvents.Remove(e);  // cascade 刪 Matches + Players
         await _db.SaveChangesAsync();
         return NoContent();

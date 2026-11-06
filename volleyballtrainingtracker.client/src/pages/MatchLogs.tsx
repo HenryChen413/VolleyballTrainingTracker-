@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
+import { StartSheetDialog } from "@/components/scoresheet/StartSheetDialog";
 import { RosterChip } from "@/components/RosterChip";
 import { groupByPrimaryPosition } from "@/lib/positions";
 import { PERM, useAuthStore } from "@/stores/authStore";
@@ -67,6 +68,7 @@ export default function MatchLogsPage() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [startFor, setStartFor] = useState<MatchEventListItem | null>(null);
 
   const availableYears = useMemo(() => {
     const set = new Set<number>();
@@ -353,6 +355,19 @@ export default function MatchLogsPage() {
                   </div>
                 </div>
 
+                {/* 賽事底部：直接開始記錄單（選隊別、對手後進入該局） */}
+                <div className="border-t border-border px-4 py-2 flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11 gap-1.5"
+                    onClick={() => setStartFor(g)}
+                  >
+                    <ClipboardList className="h-4 w-4" />
+                    記錄單
+                  </Button>
+                </div>
+
                 {/* 展開區 */}
                 {open && (
                   <div className="border-t bg-muted/30 px-4 py-4 animate-slide-up space-y-5">
@@ -381,6 +396,17 @@ export default function MatchLogsPage() {
             );
           })}
         </div>
+      )}
+
+      {startFor && (
+        <StartSheetDialog
+          key={startFor.id}
+          open
+          onClose={() => setStartFor(null)}
+          eventId={startFor.id}
+          squadCount={startFor.squadCount}
+          matches={startFor.matches}
+        />
       )}
 
       {/* 浮動「新增比賽」：固定右下，捲動到任何位置都點得到 */}

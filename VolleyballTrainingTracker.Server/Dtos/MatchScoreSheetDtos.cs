@@ -47,3 +47,19 @@ public class MatchScoreSheetSaveRequest
     /// <summary>新建為 0；更新時帶目前版本。</summary>
     public int ExpectedVersion { get; set; }
 }
+
+/// <summary>從賽事直接開始記錄：選隊別（分隊賽事才需要）與對手。</summary>
+public class SheetStartRequest
+{
+    public string? Opponent { get; set; }
+    public string? OurSquad { get; set; }
+}
+
+public class SheetStartResponse
+{
+    public int MatchLogId { get; set; }
+    /// <summary>該對戰下一局局號（既有最大局號＋1）。</summary>
+    public int SetIndex { get; set; }
+    /// <summary>是否新建了對戰（新對手）。</summary>
+    public bool Created { get; set; }
+}

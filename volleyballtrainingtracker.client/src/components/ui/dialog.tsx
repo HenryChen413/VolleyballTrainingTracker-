@@ -13,6 +13,8 @@ interface DialogProps {
   footer?: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   closeOnBackdrop?: boolean;
+  /** 隱藏右上角關閉鈕（強制使用者從 footer 做選擇時使用） */
+  hideClose?: boolean;
 }
 
 const SIZE_CLASS: Record<NonNullable<DialogProps['size']>, string> = {
@@ -35,6 +37,7 @@ export function Dialog({
   footer,
   size = 'md',
   closeOnBackdrop = true,
+  hideClose = false,
 }: DialogProps) {
   return (
     <DialogPrimitive.Root
@@ -80,16 +83,18 @@ export function Dialog({
                   </DialogPrimitive.Description>
                 )}
               </div>
-              <DialogPrimitive.Close asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  title="關閉"
-                  className="-mr-2 -mt-2 h-8 w-8"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </DialogPrimitive.Close>
+              {!hideClose && (
+                <DialogPrimitive.Close asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="關閉"
+                    className="-mr-2 -mt-2 h-8 w-8"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </DialogPrimitive.Close>
+              )}
             </div>
           )}
           {/* 無標題時仍提供無障礙標題（視覺隱藏） */}

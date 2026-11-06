@@ -12,6 +12,7 @@ import SessionsPage from '@/pages/Sessions';
 import SessionEditPage from '@/pages/SessionEdit';
 import MatchLogsPage from '@/pages/MatchLogs';
 import MatchLogEditPage from '@/pages/MatchLogEdit';
+import MatchScoreSheetPage from '@/pages/MatchScoreSheet';
 import TacticsBoardPage from '@/pages/TacticsBoard';
 import DefenseFormationPage from '@/pages/DefenseFormation';
 import ReceiveFormationPage from '@/pages/ReceiveFormation';
@@ -60,6 +61,10 @@ export default function App() {
               <Route element={<ProtectedRoute requirePage={PAGE.MatchLogs} />}>
                 <Route path="/match-logs" element={<MatchLogsPage />} />
                 <Route path="/match-logs/:id" element={<MatchLogEditPage />} />
+                <Route
+                  path="/match-logs/:eventId/games/:matchLogId/sheets/:setIndex"
+                  element={<MatchScoreSheetPage />}
+                />
               </Route>
               <Route element={<ProtectedRoute requirePage={PAGE.Tactics} />}>
                 <Route path="/tactics" element={<TacticsBoardPage />} />

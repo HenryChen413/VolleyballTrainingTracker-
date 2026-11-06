@@ -28,8 +28,8 @@ import {
   type RallyItem,
   type SheetContent,
 } from '@/lib/scoresheet/sheet';
-import { useSheetSync, type SyncStatus } from '@/lib/scoresheet/useSheetSync';
-import { confirmAction } from '@/lib/swal';
+import { readSheetDraft, useSheetSync, type SyncStatus } from '@/lib/scoresheet/useSheetSync';
+import { confirmAction, showError } from '@/lib/swal';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -37,6 +37,8 @@ import { useAuthStore } from '@/stores/authStore';
 const UNDO_LIMIT = 200;
 /** 局號上限（與後端一致） */
 const MAX_SET_INDEX = 50;
+/** 載入超過此毫秒數仍未完成，且本機有草稿時，提供「以本機草稿繼續」 */
+const SLOW_LOAD_MS = 8000;
 
 /** 觸控按鈕：避免長按選字／系統選單、取消雙擊縮放延遲 */
 const TOUCH = 'select-none touch-manipulation [-webkit-touch-callout:none]';
@@ -47,15 +49,25 @@ function useWakeLock() {
     const wl = typeof navigator !== 'undefined' && 'wakeLock' in navigator ? navigator.wakeLock : undefined;
     if (!wl) return;
     let sentinel: WakeLockSentinel | null = null;
+    let requesting = false;
     let disposed = false;
     const acquire = () => {
-      if (document.visibilityState !== 'visible') return;
+      // 已持有（且未被系統釋放）或請求進行中就不再重複取得，避免卸載後仍有殘留的鎖
+      if (document.visibilityState !== 'visible' || requesting) return;
+      if (sentinel && !sentinel.released) return;
+      requesting = true;
       wl.request('screen')
         .then((s) => {
-          if (disposed) void s.release().catch(() => {});
-          else sentinel = s;
+          requesting = false;
+          if (disposed) {
+            void s.release().catch(() => {});
+            return;
+          }
+          if (sentinel && sentinel !== s) void sentinel.release().catch(() => {});
+          sentinel = s;
         })
         .catch(() => {
+          requesting = false;
           /* 省電模式等情況會被拒絕，忽略 */
         });
     };
@@ -193,12 +205,19 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
   const onResolve = (choice: 'mine' | 'server') => {
     if (!conflict) return;
     setResolvingFor(conflict);
-    // 改用伺服器版本後，畫面上的撤銷紀錄已不對應目前內容
-    if (choice === 'server') {
-      undoRef.current = [];
-      setUndoCount(0);
-    }
-    resolveConflict(choice);
+    void resolveConflict(choice).then((ok) => {
+      if (!ok) {
+        // 取不到伺服器版本：重新啟用按鈕讓使用者再試
+        setResolvingFor(null);
+        showError('無法取得伺服器版本，請檢查網路後再試');
+        return;
+      }
+      // 改用伺服器版本後，畫面上的撤銷紀錄已不對應目前內容
+      if (choice === 'server') {
+        undoRef.current = [];
+        setUndoCount(0);
+      }
+    });
   };
   const resolving = conflict !== null && resolvingFor === conflict;
 
@@ -211,7 +230,7 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
 
   return createPortal(
     <div className="fixed inset-0 z-40 flex flex-col bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
-      <RotateHint />
+      <RotateHint backTo={listPath} />
 
       {/* 頁首 */}
       <header className="flex shrink-0 items-center gap-2 border-b bg-card px-2 py-1.5 lg:gap-4 lg:px-4">
@@ -370,12 +389,20 @@ export default function MatchScoreSheetPage() {
 
   const [tick, setTick] = useState(0);
   const loadKey = `${matchLogId}:${setIndex}:${tick}`;
+  const sheetKey = `${matchLogId}:${setIndex}`;
   const [state, setState] = useState<{ key: string; data?: MatchScoreSheetsResponse; error?: boolean } | null>(null);
+  /** 載入超過 SLOW_LOAD_MS 的 loadKey（Render 冷啟動或網路不穩） */
+  const [slowKey, setSlowKey] = useState<string | null>(null);
+  /** 使用者選擇「以本機草稿繼續」的局 */
+  const [draftKey, setDraftKey] = useState<string | null>(null);
 
   // 每次進入都重新取得（不用快取），避免以舊版本號上傳造成假衝突
   useEffect(() => {
     if (!Number.isInteger(matchLogId) || matchLogId <= 0) return;
     let alive = true;
+    const slowTimer = setTimeout(() => {
+      if (alive) setSlowKey(loadKey);
+    }, SLOW_LOAD_MS);
     scoreSheetsApi
       .list(matchLogId)
       .then((data) => {
@@ -383,32 +410,75 @@ export default function MatchScoreSheetPage() {
       })
       .catch(() => {
         if (alive) setState({ key: loadKey, error: true });
-      });
+      })
+      .finally(() => clearTimeout(slowTimer));
     return () => {
       alive = false;
+      clearTimeout(slowTimer);
     };
   }, [matchLogId, loadKey]);
 
   if (!Number.isInteger(matchLogId) || matchLogId <= 0) return <Navigate to="/match-logs" replace />;
 
   const loaded = state?.key === loadKey ? state : null;
+  const okData = loaded?.data && !loaded.error ? loaded.data : null;
+
+  // 離線模式：以本機草稿開啟（只支援本機已有草稿的局，不支援離線新增全新的一局）
+  if (draftKey === sheetKey) {
+    const draft = readSheetDraft(matchLogId, setIndex);
+    if (draft) {
+      const data: MatchScoreSheetsResponse = okData ?? {
+        matchLogId,
+        matchEventId: 0,
+        opponent: '—',
+        matchDate: '',
+        matchType: null,
+        ourSquad: null,
+        roster: [],
+        sheets: [],
+      };
+      const server: MatchScoreSheetDto = {
+        setIndex,
+        recorderName: draft.recorderName,
+        content: draft.content,
+        version: draft.baseVersion,
+        updatedAt: '',
+        updatedByName: null,
+      };
+      return <SheetEditor key={sheetKey} data={data} setIndex={setIndex} server={server} listPath={listPath} />;
+    }
+  }
+
+  const failed = loaded !== null && !okData;
+  const canUseDraft =
+    (failed || (!loaded && slowKey === loadKey)) && Number.isInteger(setIndex) && readSheetDraft(matchLogId, setIndex) !== null;
+  const draftButton = canUseDraft && (
+    <Button className="h-11" onClick={() => setDraftKey(sheetKey)}>
+      以本機草稿繼續
+    </Button>
+  );
+
   if (!loaded) {
     return (
-      <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-        載入中…
+      <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+          載入中…
+        </div>
+        {draftButton}
       </div>
     );
   }
-  if (loaded.error || !loaded.data) {
+  if (!okData) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
         <p className="text-muted-foreground">無法載入記錄單，請確認網路後重試</p>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setTick((t) => t + 1)}>
+        <div className="flex flex-wrap justify-center gap-2">
+          {draftButton}
+          <Button variant="outline" className="h-11" onClick={() => setTick((t) => t + 1)}>
             重試
           </Button>
-          <Link to={listPath} className="inline-flex h-10 items-center px-4 text-sm text-primary">
+          <Link to={listPath} className="inline-flex h-11 items-center px-4 text-sm text-primary">
             返回列表
           </Link>
         </div>
@@ -416,20 +486,12 @@ export default function MatchScoreSheetPage() {
     );
   }
 
-  const data = loaded.data;
+  const data = okData;
   const server = data.sheets.find((s) => s.setIndex === setIndex) ?? null;
   const maxIndex = data.sheets.reduce((m, s) => Math.max(m, s.setIndex), 0);
   const valid =
     Number.isInteger(setIndex) && (server !== null || (setIndex === maxIndex + 1 && setIndex <= MAX_SET_INDEX));
   if (!valid) return <Navigate to={listPath} replace />;
 
-  return (
-    <SheetEditor
-      key={`${data.matchLogId}:${setIndex}`}
-      data={data}
-      setIndex={setIndex}
-      server={server}
-      listPath={listPath}
-    />
-  );
+  return <SheetEditor key={sheetKey} data={data} setIndex={setIndex} server={server} listPath={listPath} />;
 }

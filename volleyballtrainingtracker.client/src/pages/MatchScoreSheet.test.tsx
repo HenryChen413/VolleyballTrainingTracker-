@@ -195,4 +195,74 @@ describe('MatchScoreSheet 頁面', () => {
       vi.useRealTimers();
     }
   });
+  it('conflict: failed server fetch re-enables both choices and shows a toast', async () => {
+    const { showError } = await import('@/lib/swal');
+    vi.useFakeTimers();
+    try {
+      list.mockResolvedValue(response([SET1]));
+      save.mockRejectedValue({
+        response: { status: 409, data: { message: 'x', version: 5, updatedAt: null, updatedByName: '別人' } },
+      });
+      renderAt('/match-logs/3/games/7/sheets/1');
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      fireEvent.click(btn('我方 +1'));
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+      const dialog = screen.getByRole('dialog', { name: '版本衝突' });
+      list.mockRejectedValue(new Error('network'));
+      fireEvent.click(within(dialog).getByRole('button', { name: '改用伺服器版本' }));
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(within(dialog).getByRole('button', { name: '改用伺服器版本' })).toBeEnabled();
+      expect(within(dialog).getByRole('button', { name: '用我的覆蓋' })).toBeEnabled();
+      expect(showError).toHaveBeenCalledWith('無法取得伺服器版本，請檢查網路後再試');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('list fails + local draft exists → can continue with the draft', async () => {
+    localStorage.setItem('scoresheet:7:2', JSON.stringify({
+      content: {
+        lineup: [null, null, null, null, null, null],
+        rows: [{ playerId: 1, name: '小美', jerseyNo: 12, counts: { serveO: 3 } }],
+        oppErrors: 0, ourErrors: 0, rally: ['U', 'U', 'O'],
+      },
+      recorderName: '草稿人', baseVersion: 4, dirty: true, savedAt: 1,
+    }));
+    list.mockRejectedValue(new Error('network'));
+    renderAt('/match-logs/3/games/7/sheets/2');
+    fireEvent.click(await screen.findByRole('button', { name: '以本機草稿繼續' }));
+    expect(await screen.findByText('VS —')).toBeInTheDocument();
+    expect(screen.getByText('第 2 局')).toBeInTheDocument();
+    expect(headerScore()).toHaveTextContent('2 : 1');
+    expect(btn('小美 發球 O')).toHaveTextContent('3');
+    expect(screen.getByLabelText('記錄人')).toHaveValue('草稿人');
+    await waitFor(() => expect(save).toHaveBeenCalled());
+    expect(save.mock.calls[0][2].expectedVersion).toBe(4);
+  });
+
+  it('list fails + no local draft → no draft button, only retry', async () => {
+    list.mockRejectedValue(new Error('network'));
+    renderAt('/match-logs/3/games/7/sheets/2');
+    expect(await screen.findByText('無法載入記錄單，請確認網路後重試')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '以本機草稿繼續' })).not.toBeInTheDocument();
+    expect(btn('重試')).toBeInTheDocument();
+  });
+
+  it('slow load (8s) + local draft exists → draft button appears while loading', async () => {
+    vi.useFakeTimers();
+    try {
+      localStorage.setItem('scoresheet:7:1', JSON.stringify({
+        content: { rally: ['U'] }, recorderName: null, baseVersion: 1, dirty: false, savedAt: 1,
+      }));
+      list.mockReturnValue(new Promise(() => {}));
+      renderAt('/match-logs/3/games/7/sheets/1');
+      await act(async () => { await vi.advanceTimersByTimeAsync(7999); });
+      expect(screen.queryByRole('button', { name: '以本機草稿繼續' })).not.toBeInTheDocument();
+      await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+      fireEvent.click(btn('以本機草稿繼續'));
+      expect(headerScore()).toHaveTextContent('1 : 0');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

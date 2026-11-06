@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { scoreSheetsApi, type MatchScoreSheetDto } from '@/api/scoreSheets';
 import { emptyContent, pushRally } from './sheet';
-import { useSheetSync } from './useSheetSync';
+import { readSheetDraft, useSheetSync } from './useSheetSync';
 
 vi.mock('@/api/scoreSheets', async (orig) => {
   const actual = await orig<typeof import('@/api/scoreSheets')>();
@@ -144,7 +144,7 @@ describe('useSheetSync', () => {
     const { result } = mount();
     act(() => result.current.update((c) => pushRally(c, 'U')));
     await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
-    act(() => result.current.resolveConflict('mine'));
+    act(() => { void result.current.resolveConflict('mine'); });
     await flush();
     expect(save).toHaveBeenCalledTimes(2);
     expect(save.mock.calls[1][2].expectedVersion).toBe(4);
@@ -162,12 +162,65 @@ describe('useSheetSync', () => {
     const { result } = mount();
     act(() => result.current.update((c) => pushRally(c, 'U')));
     await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
-    act(() => result.current.resolveConflict('server'));
+    act(() => { void result.current.resolveConflict('server'); });
     await flush();
     expect(result.current.content.rally).toEqual(['O', 'O']);
     expect(localStorage.getItem(KEY)).toBeNull();
     expect(result.current.status).toBe('saved');
     expect(result.current.conflict).toBeNull();
+  });
+
+  it("'server' fetch failure resolves false and keeps conflict", async () => {
+    save.mockRejectedValueOnce(conflict409(4));
+    list.mockRejectedValue(new Error('network'));
+    const { result } = mount();
+    act(() => result.current.update((c) => pushRally(c, 'U')));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    let ok: boolean | undefined;
+    await act(async () => { ok = await result.current.resolveConflict('server'); });
+    expect(ok).toBe(false);
+    expect(result.current.conflict).not.toBeNull();
+    expect(result.current.status).toBe('conflict');
+    expect(result.current.content.rally).toEqual(['U']);
+  });
+
+  it("'server' success resolves true", async () => {
+    save.mockRejectedValueOnce(conflict409(4));
+    list.mockResolvedValue({
+      matchLogId: 7, matchEventId: 1, opponent: 'A', matchDate: '2026-11-05', matchType: null, ourSquad: null,
+      roster: [], sheets: [dto(4, ['O'])],
+    });
+    const { result } = mount();
+    act(() => result.current.update((c) => pushRally(c, 'U')));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    let ok: boolean | undefined;
+    await act(async () => { ok = await result.current.resolveConflict('server'); });
+    expect(ok).toBe(true);
+    expect(result.current.conflict).toBeNull();
+  });
+
+  it("'mine' resolves true and persists the new baseVersion to localStorage", async () => {
+    save.mockRejectedValueOnce(conflict409(6)).mockReturnValueOnce(new Promise(() => {}));
+    const { result } = mount();
+    act(() => result.current.update((c) => pushRally(c, 'U')));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    let ok: boolean | undefined;
+    await act(async () => { ok = await result.current.resolveConflict('mine'); });
+    expect(ok).toBe(true);
+    const draft = JSON.parse(localStorage.getItem(KEY)!);
+    expect(draft.baseVersion).toBe(6);
+    expect(draft.dirty).toBe(true);
+  });
+
+  it('readSheetDraft returns the stored draft or null', () => {
+    save.mockResolvedValue(dto(3));
+    expect(readSheetDraft(7, 1)).toBeNull();
+    const { result } = mount();
+    act(() => result.current.update((c) => pushRally(c, 'O')));
+    const d = readSheetDraft(7, 1);
+    expect(d?.content.rally).toEqual(['O']);
+    expect(d?.baseVersion).toBe(2);
+    expect(readSheetDraft(7, 2)).toBeNull();
   });
 
   it('never runs two uploads concurrently; resends latest after in-flight save', async () => {

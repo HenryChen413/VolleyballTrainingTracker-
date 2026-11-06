@@ -7,7 +7,7 @@ export type SyncStatus = 'saved' | 'pending' | 'saving' | 'offline' | 'conflict'
 const DEBOUNCE_MS = 1000;
 const RETRY_MS = 5000;
 
-interface Draft {
+export interface Draft {
   content: SheetContent;
   recorderName: string | null;
   baseVersion: number;
@@ -39,6 +39,11 @@ function readDraft(key: string): Draft | null {
   } catch {
     return null;
   }
+}
+
+/** 讀取某局的本機草稿（離線開啟用）；沒有或無法讀取時回 null */
+export function readSheetDraft(matchLogId: number, setIndex: number): Draft | null {
+  return readDraft(storageKey(matchLogId, setIndex));
 }
 
 function writeDraft(key: string, d: Draft) {
@@ -195,18 +200,21 @@ export function useSheetSync({ matchLogId, setIndex, server }: Args) {
   );
 
   const resolveConflict = useCallback(
-    (choice: 'mine' | 'server') => {
+    (choice: 'mine' | 'server'): Promise<boolean> => {
       const c = conflictRef.current;
-      if (!c) return;
+      if (!c) return Promise.resolve(false);
       if (choice === 'mine') {
         // 以伺服器目前版本為基準重送（version 0 代表該局已不存在，視為新增）
         baseVersionRef.current = c.version;
         conflictRef.current = null;
+        // 立即寫入本機，避免重送完成前重新整理又以舊版本號造成衝突
+        persist();
         setConflict(null);
         uploadRef.current();
-        return;
+        return Promise.resolve(true);
       }
-      scoreSheetsApi
+      // 回傳 true＝已改用伺服器版本；false＝取不到伺服器資料，衝突維持
+      return scoreSheetsApi
         .list(matchLogId)
         .then((res) => {
           const s = res.sheets.find((x) => x.setIndex === setIndex) ?? null;
@@ -218,17 +226,19 @@ export function useSheetSync({ matchLogId, setIndex, server }: Args) {
           dirtyRef.current = false;
           conflictRef.current = null;
           clearDraft(key);
-          if (unmountedRef.current) return;
+          if (unmountedRef.current) return true;
           setContent(contentRef.current);
           setRecorderNameState(recorderRef.current);
           setConflict(null);
           setStatus('saved');
+          return true;
         })
         .catch(() => {
           // 取不到伺服器版本：維持衝突狀態，使用者可再試
+          return false;
         });
     },
-    [matchLogId, setIndex, key],
+    [matchLogId, setIndex, key, persist],
   );
 
   useEffect(() => {

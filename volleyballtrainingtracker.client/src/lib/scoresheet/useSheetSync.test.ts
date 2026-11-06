@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { scoreSheetsApi, type MatchScoreSheetDto } from '@/api/scoreSheets';
 import { emptyContent, pushRally } from './sheet';
-import { readSheetDraft, useSheetSync } from './useSheetSync';
+import { clearSheetDraft, readSheetDraft, useSheetSync } from './useSheetSync';
 
 vi.mock('@/api/scoreSheets', async (orig) => {
   const actual = await orig<typeof import('@/api/scoreSheets')>();
@@ -247,5 +247,13 @@ describe('useSheetSync', () => {
     expect(save).not.toHaveBeenCalled();
     unmount();
     expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('clearSheetDraft removes the stored draft', () => {
+    localStorage.setItem(KEY, JSON.stringify({ dirty: true, content: emptyContent() }));
+    expect(readSheetDraft(7, 1)).not.toBeNull();
+    clearSheetDraft(7, 1);
+    expect(readSheetDraft(7, 1)).toBeNull();
+    expect(localStorage.getItem(KEY)).toBeNull();
   });
 });

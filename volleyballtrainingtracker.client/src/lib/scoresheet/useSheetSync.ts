@@ -62,6 +62,11 @@ function clearDraft(key: string) {
   }
 }
 
+/** 刪除某局後清掉其本機草稿，避免日後新增同局號時載入舊的未上傳草稿 */
+export function clearSheetDraft(matchLogId: number, setIndex: number) {
+  clearDraft(storageKey(matchLogId, setIndex));
+}
+
 interface Args {
   matchLogId: number;
   setIndex: number;

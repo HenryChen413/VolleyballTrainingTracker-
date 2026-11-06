@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronRight, ChevronDown, Video, Pencil, Trophy,
-  MapPin, Users, Search, StickyNote, X, Download, CalendarDays,
+  MapPin, Users, Search, StickyNote, X, Download, CalendarDays, ClipboardList,
 } from "lucide-react";
 import {
   matchEventsApi,
@@ -367,7 +367,7 @@ export default function MatchLogsPage() {
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                           {g.matches.map((item) => (
-                            <MatchScoreCard key={item.id} item={item} isSplit={isSplit} />
+                            <MatchScoreCard key={item.id} item={item} isSplit={isSplit} eventId={g.id} />
                           ))}
                         </div>
                       )}
@@ -559,7 +559,8 @@ function ToggleChip({
 }
 
 // ── 比分對決卡 ─────────────────────────────────────────────────────────
-function MatchScoreCard({ item, isSplit }: { item: MatchLogItem; isSplit: boolean }) {
+function MatchScoreCard({ item, isSplit, eventId }: { item: MatchLogItem; isSplit: boolean; eventId: number }) {
+  const navigate = useNavigate();
   // 對戰自帶日期就顯示；無值（友誼賽 / 未填）才隱藏
   const ownDate = item.matchDate ? item.matchDate.slice(0, 10) : null;
   const r = item.result as ResultKey | null;
@@ -681,6 +682,20 @@ function MatchScoreCard({ item, isSplit }: { item: MatchLogItem; isSplit: boolea
           })}
         </div>
       )}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-2 w-full min-h-11"
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/match-logs/${eventId}/games/${item.id}/sheets`);
+        }}
+      >
+        <ClipboardList className="h-4 w-4" />
+        {item.sheetCount > 0 ? `記錄單 · ${item.sheetCount} 局` : "記錄單"}
+      </Button>
     </div>
   );
 }

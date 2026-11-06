@@ -1,17 +1,23 @@
-// 記錄單列表頁：各局清單（點入編輯）、整場合計、新增／刪除最後一局
-import { useCallback, useEffect, useState } from 'react';
+// 記錄單列表頁：各局清單（點入編輯）、整場合計、新增／刪除最後一局；離線時以快取＋本機草稿顯示
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ClipboardList, Loader2, Trash2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, ClipboardList, CloudOff, Loader2, Trash2 } from 'lucide-react';
 import { scoreSheetsApi, type MatchScoreSheetsResponse } from '@/api/scoreSheets';
 import EmptyState from '@/components/EmptyState';
 import { StatGrid } from '@/components/scoresheet/StatGrid';
 import { AddFab } from '@/components/ui/add-fab';
+import { Button } from '@/components/ui/button';
+import { mergeOfflineCards, readListCache, writeListCache, type SheetCard } from '@/lib/scoresheet/listCache';
 import { scoreOf } from '@/lib/scoresheet/rally';
 import { normalizeContent } from '@/lib/scoresheet/sheet';
 import { sumSheets } from '@/lib/scoresheet/totals';
 import { clearSheetDraft } from '@/lib/scoresheet/useSheetSync';
 import { confirmAction, showError } from '@/lib/swal';
 import { toast } from '@/lib/toast';
+
+/** 載入超過此毫秒數仍未完成，且有快取時，先以快取顯示 */
+const SLOW_LOAD_MS = 8000;
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -24,33 +30,67 @@ export default function MatchScoreSheetsPage() {
   const navigate = useNavigate();
   const eventId = Number(params.eventId);
   const matchLogId = Number(params.matchLogId);
+  const queryClient = useQueryClient();
   const [data, setData] = useState<MatchScoreSheetsResponse | null>(null);
   const [error, setError] = useState(false);
+  const [slow, setSlow] = useState(false);
+  /** 載入中（首次進入即為載入中；重試時由按鈕設定） */
+  const [loading, setLoading] = useState(true);
+  const aliveRef = useRef(true);
 
   const load = useCallback(() => {
+    const slowTimer = setTimeout(() => {
+      if (aliveRef.current) setSlow(true);
+    }, SLOW_LOAD_MS);
     return scoreSheetsApi
       .list(matchLogId)
       .then((res) => {
+        writeListCache(res);
+        if (!aliveRef.current) return;
         setData(res);
         setError(false);
       })
-      .catch(() => setError(true));
+      .catch(() => {
+        if (aliveRef.current) setError(true);
+      })
+      .finally(() => {
+        clearTimeout(slowTimer);
+        if (aliveRef.current) setLoading(false);
+      });
   }, [matchLogId]);
 
   useEffect(() => {
+    aliveRef.current = true;
     if (Number.isInteger(matchLogId)) void load();
+    return () => {
+      aliveRef.current = false;
+    };
   }, [matchLogId, load]);
 
   const backTo = '/match-logs';
 
-  if (error && !data) {
+  // 離線（載入失敗或過久）且尚無即時資料時，改用最後一次同步的快取
+  const cache = !data && (error || slow) ? readListCache(matchLogId) : null;
+  const offline = cache !== null;
+  const retry = () => {
+    setLoading(true);
+    void load();
+  };
+  const retryButton = (
+    <Button variant="outline" className="h-11" disabled={loading} onClick={retry}>
+      重試
+    </Button>
+  );
+
+  if (!data && !cache && error) {
     return (
       <div className="p-4">
-        <EmptyState title="載入失敗" description="無法取得記錄單，請稍後再試" />
+        <EmptyState title="載入失敗" description="無法取得記錄單，請確認網路後重試" action={retryButton} />
       </div>
     );
   }
-  if (!data) {
+  const view = data ?? cache;
+  if (!view) {
     return (
       <div className="flex justify-center py-20" role="status" aria-label="載入中">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
@@ -58,11 +98,19 @@ export default function MatchScoreSheetsPage() {
     );
   }
 
-  const sheets = data.sheets;
-  const lastIndex = sheets.length > 0 ? sheets[sheets.length - 1].setIndex : 0;
+  const cards: SheetCard[] = offline
+    ? mergeOfflineCards(view, matchLogId)
+    : view.sheets.map((s) => ({
+        setIndex: s.setIndex,
+        content: normalizeContent(s.content),
+        recorderName: s.recorderName,
+        updatedAt: s.updatedAt,
+        unsynced: false,
+        onServer: true,
+      }));
+  const lastIndex = cards.reduce((m, c) => Math.max(m, c.setIndex), 0);
   const nextIndex = lastIndex + 1;
-  const contents = sheets.map((s) => normalizeContent(s.content));
-  const totals = sumSheets(contents);
+  const totals = sumSheets(cards.map((c) => c.content));
 
   const goSheet = (i: number) => navigate(`/match-logs/${eventId}/games/${matchLogId}/sheets/${i}`);
 
@@ -77,6 +125,7 @@ export default function MatchScoreSheetsPage() {
     }
     // 一併清掉本機草稿，否則日後新增同局號會載回已刪除的內容
     clearSheetDraft(matchLogId, setIndex);
+    void queryClient.invalidateQueries({ queryKey: ['match-events'] });
     toast.success(`已刪除第 ${setIndex} 局記錄單`);
     await load();
   };
@@ -93,12 +142,23 @@ export default function MatchScoreSheetsPage() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="min-w-0 leading-tight">
-          <h1 className="truncate text-lg font-semibold">VS {data.opponent}</h1>
-          <div className="text-xs text-muted-foreground">{data.matchDate.slice(0, 10)}</div>
+          <h1 className="truncate text-lg font-semibold">VS {view.opponent}</h1>
+          <div className="text-xs text-muted-foreground">{view.matchDate.slice(0, 10)}</div>
         </div>
       </div>
 
-      {sheets.length === 0 ? (
+      {offline && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning"
+        >
+          <CloudOff className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="flex-1">離線：顯示上次同步的資料</span>
+          {retryButton}
+        </div>
+      )}
+
+      {cards.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
           title="尚無記錄單"
@@ -107,9 +167,10 @@ export default function MatchScoreSheetsPage() {
       ) : (
         <div className="space-y-4 xl:grid xl:grid-cols-[2fr_3fr] xl:gap-6 xl:items-start xl:space-y-0">
           <div className="space-y-3">
-            {sheets.map((s, i) => {
-              const score = scoreOf(contents[i].rally);
-              const isLast = s.setIndex === lastIndex;
+            {cards.map((s) => {
+              const score = scoreOf(s.content.rally);
+              // 只有伺服器上的最後一局可刪；離線時刪除必定失敗，不提供
+              const isLast = !offline && s.onServer && s.setIndex === lastIndex;
               return (
                 <div key={s.setIndex} className="flex items-stretch gap-2 rounded-xl border bg-card">
                   <Link
@@ -117,7 +178,12 @@ export default function MatchScoreSheetsPage() {
                     className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-xl p-3 hover:bg-accent/50"
                   >
                     <div className="min-w-0">
-                      <div className="font-semibold">第 {s.setIndex} 局</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">第 {s.setIndex} 局</span>
+                        {s.unsynced && (
+                          <span className="rounded bg-warning/15 px-1.5 py-0.5 text-xs text-warning">未同步</span>
+                        )}
+                      </div>
                       <div className="truncate text-xs text-muted-foreground">
                         {s.recorderName ? `記錄人 ${s.recorderName}` : '未填記錄人'} · {formatTime(s.updatedAt)}
                       </div>
@@ -145,8 +211,8 @@ export default function MatchScoreSheetsPage() {
           <section aria-label="整場合計" className="space-y-2 rounded-xl border bg-card p-3">
             <h2 className="text-sm font-semibold">整場合計</h2>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums text-muted-foreground">
-              {sheets.map((s, i) => {
-                const sc = scoreOf(contents[i].rally);
+              {cards.map((s) => {
+                const sc = scoreOf(s.content.rally);
                 return (
                   <span key={s.setIndex}>
                     第 {s.setIndex} 局 {sc.our}-{sc.opp}

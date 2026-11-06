@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, Navigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, Check, CloudOff, Loader2, Undo2 } from 'lucide-react';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { AlertTriangle, ArrowLeft, Check, CloudOff, Loader2, Undo2, XCircle } from 'lucide-react';
 import {
   scoreSheetsApi,
   type MatchScoreSheetDto,
@@ -16,6 +16,7 @@ import { RallyStrip } from '@/components/scoresheet/RallyStrip';
 import { RotateHint } from '@/components/scoresheet/RotateHint';
 import { StatGrid } from '@/components/scoresheet/StatGrid';
 import type { StatKey } from '@/lib/scoresheet/columns';
+import { MAX_SET_INDEX, openSheetOffline, readListCache, writeListCache } from '@/lib/scoresheet/listCache';
 import { scoreOf } from '@/lib/scoresheet/rally';
 import {
   addRow,
@@ -35,9 +36,7 @@ import { useAuthStore } from '@/stores/authStore';
 
 /** 表格撤銷堆疊上限 */
 const UNDO_LIMIT = 200;
-/** 局號上限（與後端一致） */
-const MAX_SET_INDEX = 50;
-/** 載入超過此毫秒數仍未完成，且本機有草稿時，提供「以本機草稿繼續」 */
+/** 載入超過此毫秒數仍未完成，且有快取或本機草稿時，提供離線繼續 */
 const SLOW_LOAD_MS = 8000;
 
 /** 觸控按鈕：避免長按選字／系統選單、取消雙擊縮放延遲 */
@@ -102,16 +101,23 @@ const STATUS_VIEW: Record<SyncStatus, { label: string; className: string; icon: 
   pending: { label: '同步中', className: 'text-muted-foreground', icon: Loader2 },
   saving: { label: '同步中', className: 'text-muted-foreground', icon: Loader2 },
   offline: { label: '離線，稍後重送', className: 'text-warning', icon: CloudOff },
+  error: { label: '無法同步', className: 'text-destructive', icon: XCircle },
   conflict: { label: '版本衝突', className: 'text-destructive', icon: AlertTriangle },
 };
 
-function SyncBadge({ status }: { status: SyncStatus }) {
+function SyncBadge({ status, errorMessage }: { status: SyncStatus; errorMessage: string | null }) {
   const v = STATUS_VIEW[status];
   const Icon = v.icon;
+  const label = status === 'error' && errorMessage ? `無法同步（${errorMessage}）` : v.label;
   return (
-    <span role="status" aria-label="同步狀態" className={cn('flex items-center gap-1 whitespace-nowrap text-xs', v.className)}>
-      <Icon className={cn('h-3.5 w-3.5', status === 'saving' && 'animate-spin')} aria-hidden />
-      {v.label}
+    <span
+      role="status"
+      aria-label="同步狀態"
+      className={cn('flex min-w-0 items-center gap-1 text-xs', status === 'error' ? 'truncate' : 'whitespace-nowrap', v.className)}
+      title={label}
+    >
+      <Icon className={cn('h-3.5 w-3.5 shrink-0', status === 'saving' && 'animate-spin')} aria-hidden />
+      {label}
     </span>
   );
 }
@@ -128,6 +134,7 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
   const sync = useSheetSync({ matchLogId: data.matchLogId, setIndex, server });
   const { content, update, setRecorderName, conflict, resolveConflict } = sync;
   const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
 
   // 新局首次載入時預填記錄人；等到第一次實際編輯才寫入，避免只是打開頁面就在伺服器建立空白局
   const [pendingRecorder, setPendingRecorder] = useState<string | null>(() =>
@@ -202,10 +209,15 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
 
   const onLineup = (slot: number, playerId: number | null) => edit((c) => setLineup(c, slot, playerId));
 
-  const onResolve = (choice: 'mine' | 'server') => {
+  const onResolve = (choice: 'mine' | 'server' | 'discard') => {
     if (!conflict) return;
     setResolvingFor(conflict);
     void resolveConflict(choice).then((ok) => {
+      if (ok && choice === 'discard') {
+        // 伺服器上此局已被刪除且捨棄本機版本：回到列表
+        navigate(listPath, { replace: true });
+        return;
+      }
       if (!ok) {
         // 取不到伺服器版本：重新啟用按鈕讓使用者再試
         setResolvingFor(null);
@@ -220,6 +232,8 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
     });
   };
   const resolving = conflict !== null && resolvingFor === conflict;
+  /** 伺服器上此局已被刪除（衝突版本為 0） */
+  const deletedOnServer = conflict?.version === 0;
 
   const score = scoreOf(content.rally);
   const added = new Set(content.rows.map((r) => r.playerId));
@@ -262,7 +276,12 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
             className="h-11 w-24 px-2 text-sm text-foreground lg:w-32"
           />
         </label>
-        <SyncBadge status={sync.status} />
+        <SyncBadge status={sync.status} errorMessage={sync.errorMessage} />
+        {sync.status === 'error' && (
+          <Button variant="outline" aria-label="重試同步" className={cn(TOUCH, 'h-11 shrink-0')} onClick={sync.retry}>
+            重試
+          </Button>
+        )}
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <div className="hidden lg:block">{lineupGrid}</div>
           <Button variant="outline" className={cn(TOUCH, 'h-11 lg:hidden')} onClick={() => setLineupOpen(true)}>
@@ -362,17 +381,30 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
         title="版本衝突"
         size="sm"
         footer={
-          <>
-            <Button variant="outline" className="h-11" disabled={resolving} onClick={() => onResolve('server')}>
-              改用伺服器版本
-            </Button>
-            <Button className="h-11" disabled={resolving} onClick={() => onResolve('mine')}>
-              用我的覆蓋
-            </Button>
-          </>
+          deletedOnServer ? (
+            <>
+              <Button variant="outline" className="h-11" disabled={resolving} onClick={() => onResolve('discard')}>
+                捨棄本機版本
+              </Button>
+              <Button className="h-11" disabled={resolving} onClick={() => onResolve('mine')}>
+                用我的重新建立
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" className="h-11" disabled={resolving} onClick={() => onResolve('server')}>
+                改用伺服器版本
+              </Button>
+              <Button className="h-11" disabled={resolving} onClick={() => onResolve('mine')}>
+                用我的覆蓋
+              </Button>
+            </>
+          )
         }
       >
-        <p className="text-sm">伺服器上有較新的版本（{conflict?.updatedByName ?? '未知'}）</p>
+        <p className="text-sm">
+          {deletedOnServer ? '伺服器上此局已被刪除' : `伺服器上有較新的版本（${conflict?.updatedByName ?? '未知'}）`}
+        </p>
         <p className="mt-2 text-xs text-muted-foreground">本機的修改已暫存，選擇後才會繼續同步。</p>
       </Dialog>
     </div>,
@@ -393,7 +425,7 @@ export default function MatchScoreSheetPage() {
   const [state, setState] = useState<{ key: string; data?: MatchScoreSheetsResponse; error?: boolean } | null>(null);
   /** 載入超過 SLOW_LOAD_MS 的 loadKey（Render 冷啟動或網路不穩） */
   const [slowKey, setSlowKey] = useState<string | null>(null);
-  /** 使用者選擇「以本機草稿繼續」的局 */
+  /** 使用者選擇離線繼續（以快取／本機草稿開啟）的局 */
   const [draftKey, setDraftKey] = useState<string | null>(null);
 
   // 每次進入都重新取得（不用快取），避免以舊版本號上傳造成假衝突
@@ -406,6 +438,8 @@ export default function MatchScoreSheetPage() {
     scoreSheetsApi
       .list(matchLogId)
       .then((data) => {
+        // 保存最後一次成功取得的資料，供離線時使用（對手、名單、各局）
+        writeListCache(data);
         if (alive) setState({ key: loadKey, data });
       })
       .catch(() => {
@@ -423,38 +457,22 @@ export default function MatchScoreSheetPage() {
   const loaded = state?.key === loadKey ? state : null;
   const okData = loaded?.data && !loaded.error ? loaded.data : null;
 
-  // 離線模式：以本機草稿開啟（只支援本機已有草稿的局，不支援離線新增全新的一局）
+  // 離線模式：以快取的對手、名單、各局（及本機草稿）開啟；可開啟已有的局、只有本機草稿的局或下一局
   if (draftKey === sheetKey) {
-    const draft = readSheetDraft(matchLogId, setIndex);
-    if (draft) {
-      const data: MatchScoreSheetsResponse = okData ?? {
-        matchLogId,
-        matchEventId: 0,
-        opponent: '—',
-        matchDate: '',
-        matchType: null,
-        ourSquad: null,
-        roster: [],
-        sheets: [],
-      };
-      const server: MatchScoreSheetDto = {
-        setIndex,
-        recorderName: draft.recorderName,
-        content: draft.content,
-        version: draft.baseVersion,
-        updatedAt: '',
-        updatedByName: null,
-      };
-      return <SheetEditor key={sheetKey} data={data} setIndex={setIndex} server={server} listPath={listPath} />;
-    }
+    const off = openSheetOffline(matchLogId, setIndex, okData);
+    if (!off.valid) return <Navigate to={listPath} replace />;
+    return <SheetEditor key={sheetKey} data={off.data} setIndex={setIndex} server={off.server} listPath={listPath} />;
   }
 
   const failed = loaded !== null && !okData;
-  const canUseDraft =
-    (failed || (!loaded && slowKey === loadKey)) && Number.isInteger(setIndex) && readSheetDraft(matchLogId, setIndex) !== null;
-  const draftButton = canUseDraft && (
+  const hasDraft = Number.isInteger(setIndex) && readSheetDraft(matchLogId, setIndex) !== null;
+  const canGoOffline =
+    (failed || (!loaded && slowKey === loadKey)) &&
+    Number.isInteger(setIndex) &&
+    (hasDraft || readListCache(matchLogId) !== null);
+  const draftButton = canGoOffline && (
     <Button className="h-11" onClick={() => setDraftKey(sheetKey)}>
-      以本機草稿繼續
+      {hasDraft ? '以本機草稿繼續' : '離線繼續'}
     </Button>
   );
 

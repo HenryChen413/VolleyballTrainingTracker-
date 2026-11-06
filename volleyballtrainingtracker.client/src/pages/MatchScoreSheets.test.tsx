@@ -1,6 +1,7 @@
 // 記錄單列表頁：各局清單、刪除限制、新增導向、整場合計、空狀態
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import {
   scoreSheetsApi,
@@ -58,20 +59,32 @@ function Where() {
   return <div data-testid="where">{useLocation().pathname}</div>;
 }
 
+let qc: QueryClient;
+
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/match-logs/3/games/9/sheets']}>
-      <Routes>
-        <Route path="/match-logs/:eventId/games/:matchLogId/sheets" element={<MatchScoreSheetsPage />} />
-        <Route path="*" element={<Where />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={qc}>
+      <MemoryRouter initialEntries={['/match-logs/3/games/9/sheets']}>
+        <Routes>
+          <Route path="/match-logs/:eventId/games/:matchLogId/sheets" element={<MatchScoreSheetsPage />} />
+          <Route path="*" element={<Where />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
+
+const CACHE_KEY = 'scoresheet-list:9';
+const draft = (rally: string[], dirty: boolean, baseVersion = 0) =>
+  JSON.stringify({
+    content: { lineup: [null, null, null, null, null, null], rows: [], oppErrors: 0, ourErrors: 0, rally },
+    recorderName: '草稿人', baseVersion, dirty, savedAt: Date.parse('2026-11-05T09:00:00Z'), sent: [],
+  });
 
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  qc = new QueryClient();
   vi.mocked(confirmAction).mockResolvedValue({ isConfirmed: true } as never);
   remove.mockResolvedValue(undefined);
 });
@@ -151,6 +164,88 @@ describe('MatchScoreSheetsPage', () => {
     renderPage();
     expect(await screen.findByText('尚無記錄單')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '新增第 1 局' }));
+    expect(screen.getByTestId('where')).toHaveTextContent('/match-logs/3/games/9/sheets/1');
+  });
+
+  // ── F1：刪除後讓比賽紀錄的快取失效 ──
+  it('delete invalidates match-events queries', async () => {
+    list.mockResolvedValue(response(TWO));
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    renderPage();
+    await screen.findByText('第 2 局');
+    fireEvent.click(screen.getByRole('button', { name: '刪除第 2 局記錄單' }));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ['match-events'] }));
+  });
+
+  // ── F4：離線時以快取顯示列表 ──
+  it('successful load writes the list cache', async () => {
+    list.mockResolvedValue(response(TWO));
+    renderPage();
+    await screen.findByText('第 2 局');
+    expect(JSON.parse(localStorage.getItem(CACHE_KEY)!).sheets).toHaveLength(2);
+  });
+
+  it('offline: renders from cache with a banner, retry reloads', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(response(TWO)));
+    list.mockRejectedValue(new Error('network'));
+    renderPage();
+    expect(await screen.findByText('離線：顯示上次同步的資料')).toBeInTheDocument();
+    expect(screen.getByText('VS 某某大學')).toBeInTheDocument();
+    expect(screen.getByText('第 1 局')).toBeInTheDocument();
+    expect(screen.getByText('第 2 局')).toBeInTheDocument();
+    list.mockResolvedValue(response([TWO[0]]));
+    fireEvent.click(screen.getByRole('button', { name: '重試' }));
+    await waitFor(() => expect(screen.queryByText('離線：顯示上次同步的資料')).not.toBeInTheDocument());
+    expect(screen.queryByText('第 2 局')).not.toBeInTheDocument();
+  });
+
+  it('offline without cache: error with retry', async () => {
+    list.mockRejectedValue(new Error('network'));
+    renderPage();
+    expect(await screen.findByText('載入失敗')).toBeInTheDocument();
+    list.mockResolvedValue(response(TWO));
+    fireEvent.click(screen.getByRole('button', { name: '重試' }));
+    expect(await screen.findByText('第 2 局')).toBeInTheDocument();
+  });
+
+  it('slow load (8s) with cache shows the cached list', async () => {
+    vi.useFakeTimers();
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(response(TWO)));
+      list.mockReturnValue(new Promise(() => {}));
+      renderPage();
+      await act(async () => { await vi.advanceTimersByTimeAsync(7999); });
+      expect(screen.queryByText('離線：顯示上次同步的資料')).not.toBeInTheDocument();
+      await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+      expect(screen.getByText('離線：顯示上次同步的資料')).toBeInTheDocument();
+      expect(screen.getByText('第 2 局')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('offline: merges local drafts, marks unsynced and next index counts drafts', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(response(TWO)));
+    // 第 2 局本機有未上傳修改；第 3 局只存在於本機
+    localStorage.setItem('scoresheet:9:2', draft(['U', 'U', 'U'], true, 1));
+    localStorage.setItem('scoresheet:9:3', draft(['O'], true));
+    list.mockRejectedValue(new Error('network'));
+    renderPage();
+    await screen.findByText('離線：顯示上次同步的資料');
+    expect(screen.getByText('第 3 局')).toBeInTheDocument();
+    expect(screen.getAllByText('3 : 0').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('0 : 1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('未同步')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: '新增第 4 局' }));
+    expect(screen.getByTestId('where')).toHaveTextContent('/match-logs/3/games/9/sheets/4');
+  });
+
+  it('offline: draft-only sets can be opened', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(response([])));
+    localStorage.setItem('scoresheet:9:1', draft(['O'], true));
+    list.mockRejectedValue(new Error('network'));
+    renderPage();
+    fireEvent.click(await screen.findByRole('link', { name: /第 1 局/ }));
     expect(screen.getByTestId('where')).toHaveTextContent('/match-logs/3/games/9/sheets/1');
   });
 });

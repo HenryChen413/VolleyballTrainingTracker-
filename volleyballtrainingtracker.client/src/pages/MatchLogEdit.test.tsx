@@ -133,3 +133,24 @@ describe("MatchLogEdit 出賽名單：畢業／離隊球員", () => {
     expect(lastUpdatePayload().players.map((p) => p.playerId).sort()).toEqual([1, 2, 3, 4]);
   });
 });
+
+describe("MatchLogEdit 編輯頁不以過期快取初始化表單", () => {
+  it("快取中有舊資料時，先重新取得再顯示表單（避免蓋掉記錄單回填的局分）", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 30_000 } },
+    });
+    queryClient.setQueryData(["match-events", 5, "detail"], { ...EVENT, matchName: "舊名稱" });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/match-logs/5"]}>
+          <Routes>
+            <Route path="/match-logs/:id" element={<MatchLogEditPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByDisplayValue("舊名稱")).not.toBeInTheDocument();
+    expect(await screen.findByDisplayValue("校內盃")).toBeInTheDocument();
+    expect(matchEventsApi.get).toHaveBeenCalledWith(5);
+  });
+});

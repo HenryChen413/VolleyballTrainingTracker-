@@ -1250,11 +1250,14 @@ function MatchEventForm({
 
 // ── 編輯包裝 ────────────────────────────────────────────────────────
 function EditWrapper({ id }: { id: number }) {
-  const { data } = useQuery({
+  // 表單只在掛載時以 initial 初始化：每次進入都重新取得，取得（或失敗）前不以快取渲染，
+  // 避免記錄單回填局分後，以過期快取的局分存檔蓋掉
+  const { data, isFetchedAfterMount } = useQuery({
     queryKey: ["match-events", id, "detail"],
     queryFn: () => matchEventsApi.get(id),
+    refetchOnMount: "always",
   });
-  if (!data) return <div className="text-muted-foreground p-6">載入中…</div>;
+  if (!data || !isFetchedAfterMount) return <div className="text-muted-foreground p-6">載入中…</div>;
   return <MatchEventForm mode="edit" initial={data} />;
 }
 

@@ -21,6 +21,14 @@ describe('RallyStrip', () => {
     expect(screen.getByTitle('對方暫停')).toBeInTheDocument();
   });
 
+  it('sub shows out→in in our row with a title', () => {
+    const label = (id: number) => ({ 1: '7', 3: '12' })[id] ?? '?';
+    render(<RallyStrip rally={['U']} subs={[{ out: 1, in: 3, at: 1 }]} labelOf={label} />);
+    expect(cellTexts('我方')).toEqual(['1', '7→12']);
+    expect(cellTexts('對方')).toEqual(['', '']);
+    expect(screen.getByTitle('換人：7 下、12 上')).toBeInTheDocument();
+  });
+
   it('empty rally shows a placeholder', () => {
     render(<RallyStrip rally={[]} />);
     expect(screen.getByText('尚未記分')).toBeInTheDocument();

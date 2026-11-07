@@ -25,6 +25,39 @@ public class ScoreSheetRulesTests
         Assert.Null(ScoreSheetRules.ValidateContent(c));
     }
 
+    [Fact]
+    public void ValidateContent_WithLiberos_IsValid()
+    {
+        var c = Json("{\"lineup\":[null,null,null,null,null,null],\"liberos\":[5,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[]}");
+        Assert.Null(ScoreSheetRules.ValidateContent(c));
+    }
+
+    [Theory]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"liberos\":[5],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[]}")]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"liberos\":[\"x\",null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[]}")]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"liberos\":null,\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[]}")]
+    public void ValidateContent_InvalidLiberos_ReturnsMessage(string json)
+    {
+        Assert.NotNull(ScoreSheetRules.ValidateContent(Json(json)));
+    }
+
+    [Fact]
+    public void ValidateContent_WithSubs_IsValid()
+    {
+        var c = Json("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[],\"subs\":[{\"out\":1,\"in\":3,\"at\":0}]}");
+        Assert.Null(ScoreSheetRules.ValidateContent(c));
+    }
+
+    [Theory]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[],\"subs\":null}")]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[],\"subs\":[1]}")]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[],\"subs\":[{\"out\":1,\"at\":0}]}")]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[],\"subs\":[{\"out\":1,\"in\":-3,\"at\":0}]}")]
+    public void ValidateContent_InvalidSubs_ReturnsMessage(string json)
+    {
+        Assert.NotNull(ScoreSheetRules.ValidateContent(Json(json)));
+    }
+
     [Theory]
     [InlineData("[]")]
     [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0}")]

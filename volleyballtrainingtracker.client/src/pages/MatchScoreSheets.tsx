@@ -10,7 +10,7 @@ import { AddFab } from '@/components/ui/add-fab';
 import { Button } from '@/components/ui/button';
 import { mergeOfflineCards, readListCache, writeListCache, type SheetCard } from '@/lib/scoresheet/listCache';
 import { scoreOf } from '@/lib/scoresheet/rally';
-import { normalizeContent } from '@/lib/scoresheet/sheet';
+import { normalizeContent, sortRowsByJersey } from '@/lib/scoresheet/sheet';
 import { sumSheets } from '@/lib/scoresheet/totals';
 import { clearSheetDraft } from '@/lib/scoresheet/useSheetSync';
 import { confirmAction, showError } from '@/lib/swal';
@@ -221,7 +221,13 @@ export default function MatchScoreSheetsPage() {
               })}
             </div>
             <div className="overflow-x-auto">
-              <StatGrid readOnly rows={totals.rows} oppErrors={totals.oppErrors} ourErrors={totals.ourErrors} />
+              <StatGrid
+                readOnly
+                rows={sortRowsByJersey(totals.rows)}
+                oppErrors={totals.oppErrors}
+                ourErrors={totals.ourErrors}
+                setsPlayed={totals.setsPlayed}
+              />
             </div>
           </section>
         </div>

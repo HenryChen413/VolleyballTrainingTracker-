@@ -9,10 +9,21 @@ export interface SheetRow {
   counts: Partial<Record<StatKey, number>>;
 }
 
+/** 換人：out 下場、in 上場，at 為當時 rally 長度（在比分條上的位置） */
+export interface Sub {
+  out: number;
+  in: number;
+  at: number;
+}
+
 export interface SheetContent {
   /** 長度 6，索引 0..5 = 1..6 號位 */
   lineup: (number | null)[];
+  /** 長度 2，[接發自由, 防守自由]；只用一個自由時另一格為 null */
+  liberos: (number | null)[];
   rows: SheetRow[];
+  /** 換人紀錄，依發生順序 */
+  subs: Sub[];
   oppErrors: number;
   ourErrors: number;
   rally: RallyItem[];
@@ -21,7 +32,7 @@ export interface SheetContent {
 const RALLY_ITEMS: readonly string[] = ['U', 'O', 'TU', 'TO'];
 
 export function emptyContent(): SheetContent {
-  return { lineup: [null, null, null, null, null, null], rows: [], oppErrors: 0, ourErrors: 0, rally: [] };
+  return { lineup: [null, null, null, null, null, null], liberos: [null, null], rows: [], subs: [], oppErrors: 0, ourErrors: 0, rally: [] };
 }
 
 export function addRow(c: SheetContent, p: { playerId: number; name: string; jerseyNo: number | null }): SheetContent {
@@ -34,6 +45,8 @@ export function removeRow(c: SheetContent, playerId: number): SheetContent {
     ...c,
     rows: c.rows.filter((r) => r.playerId !== playerId),
     lineup: c.lineup.map((id) => (id === playerId ? null : id)),
+    liberos: c.liberos.map((id) => (id === playerId ? null : id)),
+    subs: c.subs.filter((s) => s.out !== playerId && s.in !== playerId),
   };
 }
 
@@ -57,6 +70,57 @@ export function setLineup(c: SheetContent, slot: number, playerId: number | null
   return { ...c, lineup: c.lineup.map((id, i) => (i === slot ? playerId : id)) };
 }
 
+/** slot：0 = 接發自由、1 = 防守自由 */
+export function setLibero(c: SheetContent, slot: number, playerId: number | null): SheetContent {
+  return { ...c, liberos: c.liberos.map((id, i) => (i === slot ? playerId : id)) };
+}
+
+export function addSub(c: SheetContent, out: number, inId: number): SheetContent {
+  return { ...c, subs: [...c.subs, { out, in: inId, at: c.rally.length }] };
+}
+
+export function removeSub(c: SheetContent, index: number): SheetContent {
+  return { ...c, subs: c.subs.filter((_, i) => i !== index) };
+}
+
+/** 目前在場上的人：第一球站位＋自由，再依序套用換人 */
+export function onCourt(c: SheetContent): Set<number> {
+  const set = new Set([...c.lineup, ...c.liberos].filter((id): id is number => id != null));
+  for (const s of c.subs) {
+    set.delete(s.out);
+    set.add(s.in);
+  }
+  return set;
+}
+
+/**
+ * 球員列的替補標記：非先發者標「替」，有換人紀錄則加上最近一次換下的人（背號，無背號用名字）。
+ * 沒有任何先發也沒有換人時不標。
+ */
+export function subMarks(c: SheetContent): Record<number, string> {
+  const starters = new Set([...c.lineup, ...c.liberos].filter((id): id is number => id != null));
+  if (starters.size === 0 && c.subs.length === 0) return {};
+  const replaced = new Map<number, number>();
+  for (const s of c.subs) replaced.set(s.in, s.out);
+  const labelOf = (id: number) => {
+    const r = c.rows.find((x) => x.playerId === id);
+    return r ? (r.jerseyNo != null ? String(r.jerseyNo) : r.name) : '';
+  };
+  const marks: Record<number, string> = {};
+  for (const r of c.rows) {
+    if (starters.has(r.playerId)) continue;
+    const out = replaced.get(r.playerId);
+    marks[r.playerId] = out != null ? `替${labelOf(out)}` : '替';
+  }
+  return marks;
+}
+
+/** 顯示用排序：背號小到大，無背號排最後；相同時維持原順序（不改動傳入陣列） */
+export function sortRowsByJersey(rows: SheetRow[]): SheetRow[] {
+  const key = (r: SheetRow) => r.jerseyNo ?? Number.MAX_SAFE_INTEGER;
+  return [...rows].sort((a, b) => key(a) - key(b));
+}
+
 export function pushRally(c: SheetContent, item: RallyItem): SheetContent {
   return { ...c, rally: [...c.rally, item] };
 }
@@ -78,6 +142,21 @@ export function normalizeContent(raw: unknown): SheetContent {
     const v = Array.isArray(o.lineup) ? o.lineup[i] : null;
     return isInt(v) ? v : null;
   });
+
+  const liberos = base.liberos.map((_, i) => {
+    const v = Array.isArray(o.liberos) ? o.liberos[i] : null;
+    return isInt(v) ? v : null;
+  });
+
+  const subs: Sub[] = [];
+  if (Array.isArray(o.subs)) {
+    for (const s of o.subs) {
+      if (!s || typeof s !== 'object') continue;
+      const x = s as Record<string, unknown>;
+      if (!isInt(x.out) || !isInt(x.in) || !isInt(x.at) || x.out === x.in || x.at < 0) continue;
+      subs.push({ out: x.out, in: x.in, at: x.at });
+    }
+  }
 
   const rows: SheetRow[] = [];
   if (Array.isArray(o.rows)) {
@@ -104,5 +183,5 @@ export function normalizeContent(raw: unknown): SheetContent {
     ? o.rally.filter((v): v is RallyItem => typeof v === 'string' && RALLY_ITEMS.includes(v))
     : [];
 
-  return { lineup, rows, oppErrors: nonNeg(o.oppErrors), ourErrors: nonNeg(o.ourErrors), rally };
+  return { lineup, liberos, rows, subs, oppErrors: nonNeg(o.oppErrors), ourErrors: nonNeg(o.ourErrors), rally };
 }

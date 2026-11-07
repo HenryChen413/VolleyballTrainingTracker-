@@ -157,6 +157,24 @@ describe('MatchScoreSheetsPage', () => {
     await screen.findByText('第 2 局');
     const totals = screen.getByRole('region', { name: '整場合計' });
     expect(within(totals).getByText('3')).toBeInTheDocument();
+    // 小美兩局都有上場
+    expect(within(totals).getByRole('columnheader', { name: '局數' })).toBeInTheDocument();
+    expect(within(totals).getByText('2')).toBeInTheDocument();
+  });
+
+  it('totals list players by jersey number ascending', async () => {
+    const c = {
+      ...content(1, 0, 0),
+      rows: [
+        { playerId: 7, name: '小美', jerseyNo: 12, counts: {} },
+        { playerId: 8, name: '小華', jerseyNo: 3, counts: {} },
+      ],
+    };
+    list.mockResolvedValue(response([sheet(1, c)]));
+    renderPage();
+    await screen.findByText('第 1 局');
+    const totals = screen.getByRole('region', { name: '整場合計' });
+    expect(within(totals).getAllByRole('rowheader').map((th) => th.textContent)).toEqual(['3小華', '12小美']);
   });
 
   it('empty state when no sheets', async () => {

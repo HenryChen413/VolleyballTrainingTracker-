@@ -1,18 +1,24 @@
 import { X } from 'lucide-react';
 import { STAT_GROUPS, type StatKey } from '@/lib/scoresheet/columns';
 import type { SheetRow } from '@/lib/scoresheet/sheet';
+import { autoOurErrors } from '@/lib/scoresheet/totals';
 import { cn } from '@/lib/utils';
 import { useLongPress } from './useLongPress';
 
 interface StatGridProps {
   rows: SheetRow[];
   oppErrors: number;
+  /** 手動補記的我方失誤；畫面顯示為「格子自動加總 ＋ 此值」 */
   ourErrors: number;
   /** 唯讀模式：不渲染任何按鈕與事件處理（整場合計、回看用） */
   readOnly?: boolean;
   onBump?: (playerId: number, key: StatKey, delta: 1 | -1) => void;
   onBumpErrors?: (side: 'opp' | 'our', delta: 1 | -1) => void;
   onRemoveRow?: (playerId: number) => void;
+  /** 有給時在「隊員」後多一欄「局數」（整場合計用），key 為 playerId */
+  setsPlayed?: Record<number, number>;
+  /** 替補標記（playerId → 「替」或「替7」），見 subMarks */
+  marks?: Record<number, string>;
 }
 
 /** 觸控用：避免長按選字、iOS 放大鏡與系統選單，並取消雙擊縮放延遲 */
@@ -64,12 +70,15 @@ function StaticCell({ value }: { value: number }) {
   );
 }
 
-const rowLabel = (r: SheetRow) => (r.jerseyNo != null ? `#${r.jerseyNo}` : '');
+const rowLabel = (r: SheetRow) => (r.jerseyNo != null ? String(r.jerseyNo) : '');
 
 /** 記錄單球員表格：欄位順序與紙本一致；下方為對方／我方失誤計數 */
-export function StatGrid({ rows, oppErrors, ourErrors, readOnly, onBump, onBumpErrors, onRemoveRow }: StatGridProps) {
+export function StatGrid({
+  rows, oppErrors, ourErrors, readOnly, onBump, onBumpErrors, onRemoveRow, setsPlayed, marks,
+}: StatGridProps) {
   const canEdit = !readOnly;
-  const counter = (side: 'opp' | 'our', label: string, value: number) => (
+  const autoErrors = autoOurErrors(rows);
+  const counter = (side: 'opp' | 'our', label: string, value: number, note?: string) => (
     <div className="flex items-center gap-2">
       <span className="text-sm text-muted-foreground">{label}</span>
       {canEdit ? (
@@ -82,6 +91,7 @@ export function StatGrid({ rows, oppErrors, ourErrors, readOnly, onBump, onBumpE
       ) : (
         <StaticCell value={value} />
       )}
+      {note && <span className="text-xs text-muted-foreground">{note}</span>}
     </div>
   );
 
@@ -98,6 +108,11 @@ export function StatGrid({ rows, oppErrors, ourErrors, readOnly, onBump, onBumpE
               >
                 隊員
               </th>
+              {setsPlayed && (
+                <th rowSpan={2} scope="col" className="border-b border-r px-1 py-1 font-medium">
+                  局數
+                </th>
+              )}
               {STAT_GROUPS.map((g) => (
                 <th key={g.title} colSpan={g.cols.length} scope="colgroup" className="border-b border-r px-1 py-1 font-medium">
                   {g.title}
@@ -116,7 +131,7 @@ export function StatGrid({ rows, oppErrors, ourErrors, readOnly, onBump, onBumpE
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={COLS.length + 2} className="px-3 py-6 text-center text-muted-foreground">
+                <td colSpan={COLS.length + 3} className="px-3 py-6 text-center text-muted-foreground">
                   尚未加入隊員
                 </td>
               </tr>
@@ -129,7 +144,20 @@ export function StatGrid({ rows, oppErrors, ourErrors, readOnly, onBump, onBumpE
                 >
                   <span className="mr-1 text-xs text-muted-foreground tabular-nums">{rowLabel(r)}</span>
                   <span className="truncate">{r.name}</span>
+                  {marks?.[r.playerId] && (
+                    <span
+                      title={marks[r.playerId] === '替' ? '替補' : `替補，換下 ${marks[r.playerId].slice(1)}`}
+                      className="ml-1 whitespace-nowrap rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                    >
+                      {marks[r.playerId]}
+                    </span>
+                  )}
                 </th>
+                {setsPlayed && (
+                  <td className="border-r bg-muted/30 p-0 text-center">
+                    <StaticCell value={setsPlayed[r.playerId] ?? 0} />
+                  </td>
+                )}
                 {COLS.map((c) => {
                   const v = r.counts[c.key] ?? 0;
                   return (
@@ -166,7 +194,8 @@ export function StatGrid({ rows, oppErrors, ourErrors, readOnly, onBump, onBumpE
       </div>
       <div className="flex flex-wrap items-center gap-4">
         {counter('opp', '對方失誤', oppErrors)}
-        {counter('our', '我方失誤', ourErrors)}
+        {/* 點／長按只增減手動補記的部分；自動部分隨格子變動 */}
+        {counter('our', '我方失誤', autoErrors + ourErrors, `自動 ${autoErrors} ＋ 手動 ${ourErrors}`)}
       </div>
     </div>
   );

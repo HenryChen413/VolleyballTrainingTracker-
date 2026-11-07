@@ -28,6 +28,31 @@ public static class ScoreSheetRules
             if (p.ValueKind != JsonValueKind.Null && !IsNonNegativeInt(p)) return "lineup 內容必須是球員編號或 null";
         }
 
+        // liberos 為後加欄位（[接發自由, 防守自由]），舊資料可沒有；有的話必須是長度 2
+        if (content.TryGetProperty("liberos", out var liberos))
+        {
+            if (liberos.ValueKind != JsonValueKind.Array || liberos.GetArrayLength() != 2)
+                return "liberos 必須是長度 2 的陣列";
+            foreach (var p in liberos.EnumerateArray())
+            {
+                if (p.ValueKind != JsonValueKind.Null && !IsNonNegativeInt(p)) return "liberos 內容必須是球員編號或 null";
+            }
+        }
+
+        // subs 為後加欄位（換人紀錄 {out, in, at}），舊資料可沒有
+        if (content.TryGetProperty("subs", out var subs))
+        {
+            if (subs.ValueKind != JsonValueKind.Array) return "subs 必須是陣列";
+            foreach (var s in subs.EnumerateArray())
+            {
+                if (s.ValueKind != JsonValueKind.Object) return "subs 每筆必須是物件";
+                foreach (var name in new[] { "out", "in", "at" })
+                {
+                    if (!s.TryGetProperty(name, out var v) || !IsNonNegativeInt(v)) return "subs 每筆必須有 out、in、at 非負整數";
+                }
+            }
+        }
+
         if (!content.TryGetProperty("rows", out var rows) || rows.ValueKind != JsonValueKind.Array)
             return "rows 必須是陣列";
         foreach (var row in rows.EnumerateArray())

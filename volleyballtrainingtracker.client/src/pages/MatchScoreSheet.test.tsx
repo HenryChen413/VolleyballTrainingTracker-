@@ -130,7 +130,26 @@ describe('MatchScoreSheet 頁面', () => {
     expect(headerScore()).toHaveTextContent('0 : 0');
   });
 
-  it('undo table reverts last stat bump', async () => {
+  it('substitution: 換人 → 下場 → 上場 marks strip and row, auto-adds the player', async () => {
+    const withLineup = sheet(1, {
+      lineup: [1, null, null, null, null, null],
+      rows: [{ playerId: 1, name: '小美', jerseyNo: 12, counts: {} }],
+      oppErrors: 0,
+      ourErrors: 0,
+      rally: ['U'],
+    });
+    list.mockResolvedValue(response([withLineup]));
+    renderAt('/match-logs/3/games/7/sheets/1');
+    await screen.findByText('VS 某某大學');
+    fireEvent.click(btn('換人'));
+    fireEvent.click(within(screen.getByRole('group', { name: '下場' })).getByRole('button', { name: '12 小美' }));
+    fireEvent.click(within(screen.getByRole('group', { name: '上場' })).getByRole('button', { name: '5 小芳' }));
+    expect(screen.getByTitle('換人：12 下、5 上')).toHaveTextContent('12→5');
+    const fang = screen.getAllByRole('rowheader').find((th) => th.textContent?.includes('小芳'))!;
+    expect(within(fang).getByText('替12')).toBeInTheDocument();
+  });
+
+    it('undo table reverts last stat bump', async () => {
     list.mockResolvedValue(response([SET1]));
     renderAt('/match-logs/3/games/7/sheets/1');
     await screen.findByText('VS 某某大學');

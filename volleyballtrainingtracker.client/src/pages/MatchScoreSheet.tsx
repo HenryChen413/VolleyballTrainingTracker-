@@ -15,6 +15,7 @@ import { LineupGrid } from '@/components/scoresheet/LineupGrid';
 import { RallyStrip } from '@/components/scoresheet/RallyStrip';
 import { RotateHint } from '@/components/scoresheet/RotateHint';
 import { StatGrid } from '@/components/scoresheet/StatGrid';
+import { SubDialog } from '@/components/scoresheet/SubDialog';
 import type { StatKey } from '@/lib/scoresheet/columns';
 import { MAX_SET_INDEX, openSheetOffline, readListCache, writeListCache } from '@/lib/scoresheet/listCache';
 import { scoreOf } from '@/lib/scoresheet/rally';
@@ -25,6 +26,10 @@ import {
   popRally,
   pushRally,
   removeRow,
+  addSub,
+  removeSub,
+  setLibero,
+  subMarks,
   setLineup,
   type RallyItem,
   type SheetContent,
@@ -145,6 +150,7 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
   const [undoCount, setUndoCount] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
   const [lineupOpen, setLineupOpen] = useState(false);
+  const [subOpen, setSubOpen] = useState(false);
   const [resolvingFor, setResolvingFor] = useState<object | null>(null);
 
   useWakeLock();
@@ -202,12 +208,21 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
   const addPlayer = (p: SheetRosterPlayer) =>
     edit((c) => addRow(c, { playerId: p.playerId, name: p.name, jerseyNo: p.jerseyNo }));
 
+  const onSub = (out: number, p: { playerId: number; name: string; jerseyNo: number | null }) =>
+    edit((c) => addSub(addRow(c, p), out, p.playerId));
+  const onRemoveSub = (index: number) => edit((c) => removeSub(c, index));
+  const labelOf = (id: number) => {
+    const r = content.rows.find((x) => x.playerId === id);
+    return r ? (r.jerseyNo != null ? String(r.jerseyNo) : r.name) : '?';
+  };
+
   const rally = (item: RallyItem) => edit((c) => pushRally(c, item));
   const undoRally = () => {
     if (content.rally.length > 0) edit(popRally);
   };
 
   const onLineup = (slot: number, playerId: number | null) => edit((c) => setLineup(c, slot, playerId));
+  const onLibero = (slot: number, playerId: number | null) => edit((c) => setLibero(c, slot, playerId));
 
   const onResolve = (choice: 'mine' | 'server' | 'discard') => {
     if (!conflict) return;
@@ -240,7 +255,13 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
   const available = data.roster.filter((p) => !added.has(p.playerId));
   const recorderValue = sync.recorderName ?? pendingRecorder ?? '';
 
-  const lineupGrid = <LineupGrid lineup={content.lineup} rows={content.rows} onChange={onLineup} />;
+  const lineupProps = {
+    lineup: content.lineup,
+    liberos: content.liberos,
+    rows: content.rows,
+    onChange: onLineup,
+    onLiberoChange: onLibero,
+  };
 
   return createPortal(
     <div className="fixed inset-0 z-40 flex flex-col bg-background pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
@@ -283,8 +304,8 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
           </Button>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <div className="hidden lg:block">{lineupGrid}</div>
-          <Button variant="outline" className={cn(TOUCH, 'h-11 lg:hidden')} onClick={() => setLineupOpen(true)}>
+          <div className="hidden xl:block"><LineupGrid {...lineupProps} /></div>
+          <Button variant="outline" className={cn(TOUCH, 'h-11 xl:hidden')} onClick={() => setLineupOpen(true)}>
             站位
           </Button>
           <Button variant="outline" className={cn(TOUCH, 'h-11')} onClick={() => setAddOpen(true)}>
@@ -302,6 +323,7 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
           onBump={onBump}
           onBumpErrors={onBumpErrors}
           onRemoveRow={(id) => void onRemoveRow(id)}
+          marks={subMarks(content)}
         />
         <div className="flex justify-end">
           <Button variant="ghost" className={cn(TOUCH, 'h-11')} onClick={undoTable} disabled={undoCount === 0}>
@@ -313,7 +335,7 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
 
       {/* 比分發展：固定在底部 */}
       <footer className="shrink-0 space-y-2 border-t bg-card px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 lg:px-4">
-        <RallyStrip rally={content.rally} />
+        <RallyStrip rally={content.rally} subs={content.subs} labelOf={labelOf} />
         <div className="flex flex-wrap items-center gap-2">
           <Button className={cn(TOUCH, 'h-12 px-6 text-base')} onClick={() => rally('U')}>
             我方 +1
@@ -331,6 +353,9 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
           <Button variant="outline" className={cn(TOUCH, 'h-11')} onClick={() => rally('TO')}>
             對方暫停
           </Button>
+          <Button variant="outline" className={cn(TOUCH, 'h-11')} onClick={() => setSubOpen(true)}>
+            換人
+          </Button>
           <Button
             variant="ghost"
             className={cn(TOUCH, 'ml-auto h-11')}
@@ -344,11 +369,20 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
       </footer>
 
       <Dialog open={lineupOpen} onClose={() => setLineupOpen(false)} title="第一球站位" size="sm">
-        <div className="flex justify-center">{lineupGrid}</div>
+        <div className="flex justify-center"><LineupGrid {...lineupProps} layout="stacked" /></div>
         {content.rows.length === 0 && (
           <p className="mt-3 text-center text-sm text-muted-foreground">請先加入隊員</p>
         )}
       </Dialog>
+
+      <SubDialog
+        open={subOpen}
+        onClose={() => setSubOpen(false)}
+        content={content}
+        roster={data.roster}
+        onSubmit={onSub}
+        onRemove={onRemoveSub}
+      />
 
       <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="加入隊員">
         {available.length === 0 ? (
@@ -364,7 +398,7 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
                 className={cn(TOUCH, 'h-11 justify-start')}
                 onClick={() => addPlayer(p)}
               >
-                {p.jerseyNo != null && <span className="mr-1 text-muted-foreground tabular-nums">#{p.jerseyNo}</span>}
+                {p.jerseyNo != null && <span className="mr-1 text-muted-foreground tabular-nums">{p.jerseyNo}</span>}
                 {p.name}
               </Button>
             ))}

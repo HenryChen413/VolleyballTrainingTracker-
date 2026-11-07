@@ -16,6 +16,17 @@ describe('rally', () => {
     ]);
   });
 
+  it('subs are inserted as their own column at their rally position', () => {
+    const subs = [{ out: 1, in: 3, at: 1 }, { out: 2, in: 4, at: 9 }];
+    expect(layoutRally(['U', 'O'], subs)).toEqual([
+      { our: '1', opp: '', timeout: null },
+      { our: '', opp: '', timeout: null, sub: { out: 1, in: 3 } },
+      { our: '', opp: '1', timeout: null },
+      // at 超出目前長度（撤銷過比分）時放在最後
+      { our: '', opp: '', timeout: null, sub: { out: 2, in: 4 } },
+    ]);
+  });
+
   it('score of timeouts-only rally is 0:0', () => {
     expect(scoreOf(['TU', 'TO'])).toEqual({ our: 0, opp: 0 });
     expect(scoreOf(['U', 'O', 'U'])).toEqual({ our: 2, opp: 1 });

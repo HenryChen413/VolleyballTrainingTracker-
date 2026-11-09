@@ -104,6 +104,16 @@ describe('MatchScoreSheet 頁面', () => {
     expect(screen.getByLabelText('記錄人')).toHaveValue('王小明');
   });
 
+  it('help button opens the operation guide without editing the sheet', async () => {
+    list.mockResolvedValue(response([SET1]));
+    renderAt('/match-logs/3/games/7/sheets/1');
+    await screen.findByText('VS 某某大學');
+    fireEvent.click(btn('操作說明'));
+    const dlg = await screen.findByRole('dialog', { name: '記錄單操作說明' });
+    expect(within(dlg).getByText(/點一下 \+1，按住 −1/)).toBeInTheDocument();
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it('our +1 updates header score and strip', async () => {
     list.mockResolvedValue(response([SET1]));
     renderAt('/match-logs/3/games/7/sheets/1');

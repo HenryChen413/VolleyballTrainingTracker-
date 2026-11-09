@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, Check, CloudOff, Loader2, Undo2, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, CircleHelp, CloudOff, Loader2, Undo2, XCircle } from 'lucide-react';
 import {
   scoreSheetsApi,
   type MatchScoreSheetDto,
@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { HelpDialog } from '@/components/scoresheet/HelpDialog';
 import { LineupGrid } from '@/components/scoresheet/LineupGrid';
 import { RallyStrip } from '@/components/scoresheet/RallyStrip';
 import { RotateHint } from '@/components/scoresheet/RotateHint';
@@ -151,6 +152,7 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
   const [addOpen, setAddOpen] = useState(false);
   const [lineupOpen, setLineupOpen] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [resolvingFor, setResolvingFor] = useState<object | null>(null);
 
   useWakeLock();
@@ -304,6 +306,16 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
           </Button>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            aria-label="操作說明"
+            title="操作說明"
+            className={cn(TOUCH, 'h-11 px-3')}
+            onClick={() => setHelpOpen(true)}
+          >
+            <CircleHelp className="h-5 w-5 lg:mr-1" aria-hidden />
+            <span className="hidden lg:inline">說明</span>
+          </Button>
           <div className="hidden xl:block"><LineupGrid {...lineupProps} /></div>
           <Button variant="outline" className={cn(TOUCH, 'h-11 xl:hidden')} onClick={() => setLineupOpen(true)}>
             站位
@@ -374,6 +386,8 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
           <p className="mt-3 text-center text-sm text-muted-foreground">請先加入隊員</p>
         )}
       </Dialog>
+
+      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       <SubDialog
         open={subOpen}

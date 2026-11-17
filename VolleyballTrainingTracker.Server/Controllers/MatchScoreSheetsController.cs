@@ -14,7 +14,8 @@ namespace VolleyballTrainingTracker.Server.Controllers;
 /// <summary>
 /// 比賽記錄單：每場對戰（MatchLog）每局一筆，內容為 jsonb 文件。
 /// 全部端點以 [RequirePage(Pages.MatchLogs)] 控管。
-/// 儲存以 Version 做樂觀並行控制，版本不符回 409；儲存時順帶把該局比分回填到 MatchLog。
+/// 儲存以 Version 做樂觀並行控制，版本不符回 409；儲存時順帶把該局比分回填到 MatchLog，
+/// 並依已打完的局更新局勝數與勝負（只動空白或先前自動算出的值）。
 /// </summary>
 [ApiController]
 [Authorize]
@@ -121,8 +122,18 @@ public class MatchScoreSheetsController : ControllerBase
         var err = ScoreSheetRules.ValidateContent(req.Content);
         if (err != null) return BadRequest(new { message = err });
 
-        var existing = await _db.MatchScoreSheets
-            .FirstOrDefaultAsync(s => s.MatchLogId == matchLogId && s.SetIndex == setIndex);
+        // 一次載入本場所有局，用來在存檔前後各算一次局勝數
+        var allSheets = await _db.MatchScoreSheets
+            .Where(s => s.MatchLogId == matchLogId)
+            .ToListAsync();
+        var existing = allSheets.FirstOrDefault(s => s.SetIndex == setIndex);
+        var sheetScores = allSheets.ToDictionary(s => (int)s.SetIndex, s => ScoreFromStoredContent(s.Content));
+        // 存檔前的兩種自動算法結果：記錄單（只算打完的局）、比賽紀錄編輯頁（每局領先者都算）
+        var oldTallies = new[]
+        {
+            ScoreSheetRules.TallyFinishedSets(sheetScores),
+            ScoreSheetRules.TallyAllSets(sheetScores),
+        };
 
         var contentJson = req.Content.GetRawText();
         var recorder = req.RecorderName?.Trim();
@@ -161,6 +172,10 @@ public class MatchScoreSheetsController : ControllerBase
         {
             ScoreSheetRules.ApplyBackfill(log, log.MatchEvent?.MatchType, setIndex, score.Value.Our, score.Value.Opp);
         }
+
+        // 依「已打完的局」更新局勝數與勝負（手動填過的值不動）
+        sheetScores[setIndex] = score;
+        ScoreSheetRules.ApplyMatchTotals(log, oldTallies,ScoreSheetRules.TallyFinishedSets(sheetScores));
 
         try
         {
@@ -236,6 +251,20 @@ public class MatchScoreSheetsController : ControllerBase
                     : null,
             })
             .FirstOrDefaultAsync();
+
+    /// <summary>由資料庫存的 Content 字串算該局比分；內容壞掉視同空白局。</summary>
+    private static (int Our, int Opp)? ScoreFromStoredContent(string content)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(content);
+            return ScoreSheetRules.ComputeFinalScore(doc.RootElement);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 
     private static MatchScoreSheetDto ToDto(SheetRow r)
     {

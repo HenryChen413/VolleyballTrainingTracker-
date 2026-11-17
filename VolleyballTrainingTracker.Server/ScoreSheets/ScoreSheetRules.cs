@@ -118,7 +118,7 @@ public static class ScoreSheetRules
 
     /// <summary>
     /// 把該局比分回填到 MatchLog：正式賽（含 null）只寫第 1～3 局欄位；友誼賽新增／更新 MatchLogSets。
-    /// 不動局勝數（OurScore/OpponentScore）與 Result。
+    /// 局勝數（OurScore/OpponentScore）與 Result 另由 <see cref="ApplyMatchTotals"/> 處理。
     /// </summary>
     public static void ApplyBackfill(MatchLog log, string? matchType, int setIndex, int our, int opp)
     {
@@ -142,6 +142,90 @@ public static class ScoreSheetRules
             case 1: log.Set1Our = our; log.Set1Opp = opp; break;
             case 2: log.Set2Our = our; log.Set2Opp = opp; break;
             case 3: log.Set3Our = our; log.Set3Opp = opp; break;
+        }
+    }
+
+    /// <summary>
+    /// 判斷某局是否已打完：之後已經有下一局記錄單就算打完；
+    /// 最後一局則看排球規則——第 1、2 局先到 25 分、第 3 局起先到 15 分，且領先至少 2 分。
+    /// </summary>
+    public static bool IsSetFinished(int setIndex, int our, int opp, bool hasLaterSheet)
+    {
+        if (hasLaterSheet) return true;
+        var target = setIndex >= 3 ? 15 : 25;
+        return Math.Max(our, opp) >= target && Math.Abs(our - opp) >= 2;
+    }
+
+    /// <summary>
+    /// 由各局記錄單比分（局號 → 比分；rally 為空時值為 null）統計「已打完的局」的勝負局數。
+    /// 平手的局與空白局不計；一局都沒打完回 null。
+    /// </summary>
+    public static (int Wins, int Losses)? TallyFinishedSets(IReadOnlyDictionary<int, (int Our, int Opp)?> sheetScores)
+    {
+        if (sheetScores.Count == 0) return null;
+        var maxIndex = sheetScores.Keys.Max();
+        int wins = 0, losses = 0;
+        var any = false;
+        foreach (var (idx, score) in sheetScores)
+        {
+            if (score is not { } s) continue;
+            if (!IsSetFinished(idx, s.Our, s.Opp, idx < maxIndex)) continue;
+            any = true;
+            if (s.Our > s.Opp) wins++;
+            else if (s.Opp > s.Our) losses++;
+        }
+        return any ? (wins, losses) : null;
+    }
+
+    /// <summary>
+    /// 不管有沒有打完，把每局領先的一方都算贏（比賽紀錄編輯頁存檔時就是這樣算的）；沒有任何局分回 null。
+    /// 用來辨識「編輯頁在某局還沒打完時存檔」留下的局勝數，避免被誤當成手填值。
+    /// </summary>
+    public static (int Wins, int Losses)? TallyAllSets(IReadOnlyDictionary<int, (int Our, int Opp)?> sheetScores)
+    {
+        int wins = 0, losses = 0;
+        var any = false;
+        foreach (var score in sheetScores.Values)
+        {
+            if (score is not { } s) continue;
+            any = true;
+            if (s.Our > s.Opp) wins++;
+            else if (s.Opp > s.Our) losses++;
+        }
+        return any ? (wins, losses) : null;
+    }
+
+    /// <summary>依局勝數判定勝負：多者勝、少者負、相同（且非 0:0）為平；無資料回 null。</summary>
+    public static string? ResultFromTally((int Wins, int Losses)? tally)
+    {
+        if (tally is not { } t) return null;
+        if (t.Wins > t.Losses) return "W";
+        if (t.Losses > t.Wins) return "L";
+        return t.Wins > 0 ? "D" : null;
+    }
+
+    /// <summary>
+    /// 依記錄單更新局勝數（OurScore/OpponentScore）與 Result，但只動「空白」或「先前自動算出」的值：
+    /// 若目前值等於本次存檔前任一種自動算法的結果（oldTallies：記錄單算法、編輯頁算法），視為自動值可更新；
+    /// 否則視為手動填寫，保留不動。
+    /// </summary>
+    public static void ApplyMatchTotals(
+        MatchLog log, IReadOnlyCollection<(int Wins, int Losses)?> oldTallies, (int Wins, int Losses)? newTally)
+    {
+        var scoreIsAuto =
+            (log.OurScore == null && log.OpponentScore == null)
+            || oldTallies.Any(t => t is { } o && log.OurScore == o.Wins && log.OpponentScore == o.Losses);
+        if (scoreIsAuto)
+        {
+            log.OurScore = newTally?.Wins;
+            log.OpponentScore = newTally?.Losses;
+        }
+
+        var resultIsAuto = log.Result == null
+            || oldTallies.Any(t => ResultFromTally(t) is { } r && log.Result == r);
+        if (resultIsAuto)
+        {
+            log.Result = ResultFromTally(newTally);
         }
     }
 }

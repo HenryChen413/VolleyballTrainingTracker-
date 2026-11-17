@@ -90,6 +90,11 @@ interface GameRow {
   set3Opp: string;
   matchScore: string;
   result: string;
+  /**
+   * Friendly：勝負是否跟著局數自動算（true 時忽略 result）。
+   * 載入時若既有勝負等於既有局數算出的結果（或空白）即視為自動；手動按勝／敗／平即改為手動。
+   */
+  resultAuto: boolean;
   matchDate: string;
   sets: FriendlySet[];
   /** Friendly：sets 為空時可手動輸入「局數 W:L」 */
@@ -110,6 +115,7 @@ function emptyRow(): GameRow {
     set3Our: "", set3Opp: "",
     matchScore: "",
     result: "",
+    resultAuto: true,
     matchDate: "",
     sets: [],
     manualWins: "",
@@ -134,6 +140,7 @@ function itemToRow(m: MatchLogItem): GameRow {
     set3Our: intStr(m.set3Our), set3Opp: intStr(m.set3Opp),
     matchScore: ms,
     result: m.result ?? "",
+    resultAuto: m.result == null || m.result === resultFromTally(m.ourScore, m.opponentScore),
     matchDate: m.matchDate ? m.matchDate.slice(0, 10) : "",
     sets: m.sets.map((s) => ({ ourScore: intStr(s.ourScore), oppScore: intStr(s.opponentScore) })),
     manualWins: hasSets ? "" : intStr(m.ourScore),
@@ -152,6 +159,28 @@ function tallySets(sets: FriendlySet[]): { wins: number; losses: number } {
     else if (b > a) losses++;
   }
   return { wins, losses };
+}
+
+/** 依局勝數判定勝負：多者勝、少者負、相同（且非 0:0）為平；缺值回 null（與後端 ScoreSheetRules 一致） */
+function resultFromTally(wins: number | null, losses: number | null): string | null {
+  if (wins == null || losses == null) return null;
+  if (wins > losses) return "W";
+  if (losses > wins) return "L";
+  return wins > 0 ? "D" : null;
+}
+
+/** Friendly：依各局（有局分時）或手填局數算出的勝負 */
+function friendlyAutoResult(row: GameRow): string | null {
+  if (row.sets.length > 0) {
+    const t = tallySets(row.sets);
+    return resultFromTally(t.wins, t.losses);
+  }
+  return resultFromTally(toInt(row.manualWins), toInt(row.manualLosses));
+}
+
+/** Friendly 要存的勝負：自動模式用局數算的結果，手動模式用所選的值 */
+function friendlyResult(row: GameRow): string | null {
+  return row.resultAuto ? friendlyAutoResult(row) : row.result || null;
 }
 
 // ── 局分輸入（含 +/- stepper）────────────────────────────────────────
@@ -433,15 +462,30 @@ function MatchRowCard({
       {/* 結果（Official 比分 Select 已上移；Friendly 局數 chip 在局分區內顯示） */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-1 ml-auto">
+          {friendlyMode && row.resultAuto && friendlyResult(row) && (
+            <span className="text-[10px] text-muted-foreground/70 mr-0.5" title="依局數自動判定；按任一結果可改為手動">
+              自動判定
+            </span>
+          )}
           {RESULTS.map((r) => {
-            const active = row.result === r.value;
+            // Friendly 自動模式：亮起的是依局數算出的結果
+            const shown = friendlyMode ? friendlyResult(row) : row.result;
+            const active = shown === r.value;
             return (
               <button
                 key={r.value}
                 type="button"
-                onClick={() =>
-                  onChange({ result: row.result === r.value ? "" : r.value })
-                }
+                aria-pressed={active}
+                onClick={() => {
+                  if (!friendlyMode) {
+                    onChange({ result: row.result === r.value ? "" : r.value });
+                  } else if (!row.resultAuto && row.result === r.value) {
+                    // 手動模式再按一次已選的結果 → 改回自動
+                    onChange({ result: "", resultAuto: true });
+                  } else {
+                    onChange({ result: r.value, resultAuto: false });
+                  }
+                }}
                 className={cn(
                   "px-2.5 py-1 rounded-md border text-xs font-semibold transition-all",
                   active
@@ -825,10 +869,6 @@ function MatchEventForm({
         wins = toInt(row.manualWins);
         losses = toInt(row.manualLosses);
       }
-      const autoResult =
-        wins != null && losses != null
-          ? (wins > losses ? "W" : losses > wins ? "L" : wins > 0 ? "D" : null)
-          : null;
       return {
         id: row.id,
         opponent: row.opponent.trim(),
@@ -837,7 +877,7 @@ function MatchEventForm({
         set2Our: null, set2Opp: null,
         set3Our: null, set3Opp: null,
         ourScore: wins, opponentScore: losses,
-        result: row.result || autoResult,
+        result: friendlyResult(row),
         matchDate: null,
         sets,
       };

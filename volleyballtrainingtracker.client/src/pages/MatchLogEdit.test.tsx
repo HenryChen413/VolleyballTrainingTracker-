@@ -134,6 +134,62 @@ describe("MatchLogEdit 出賽名單：畢業／離隊球員", () => {
   });
 });
 
+describe("MatchLogEdit 友誼賽勝負依局數自動判定", () => {
+  // 鳳中女排：第 3 局後存成 1:2 負，之後記錄單回填到第 8 局（5:3）
+  const SCORES: [number, number][] = [
+    [15, 25], [20, 25], [26, 24], [25, 21], [26, 24], [24, 26], [25, 21], [25, 22],
+  ];
+  const withMatch = (result: string, ourScore: number, opponentScore: number): MatchEventDetail => ({
+    ...EVENT,
+    matches: [{
+      id: 61, opponent: "鳳中女排", ourSquad: null,
+      set1Our: null, set1Opp: null, set2Our: null, set2Opp: null, set3Our: null, set3Opp: null,
+      ourScore, opponentScore, result, matchDate: null, sheetCount: 8,
+      sets: SCORES.map(([a, b], i) => ({ id: i + 1, setIndex: i + 1, ourScore: a, opponentScore: b })),
+    }],
+  });
+  const resultButton = (label: string) => screen.getByRole("button", { name: label });
+  const save = async () => {
+    fireEvent.click(screen.getByRole("button", { name: /儲存/ }));
+    await waitFor(() => expect(matchEventsApi.update).toHaveBeenCalled());
+    return lastUpdatePayload().matches[0];
+  };
+
+  it("既有勝負等於舊局數算出的結果 → 視為自動，依目前各局改判為勝", async () => {
+    vi.mocked(matchEventsApi.get).mockResolvedValue(withMatch("L", 1, 2));
+    renderAt("/match-logs/5");
+    await screen.findByDisplayValue("鳳中女排");
+    expect(resultButton("勝")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("自動判定")).toBeInTheDocument();
+    const m = await save();
+    expect(m.ourScore).toBe(5);
+    expect(m.opponentScore).toBe(3);
+    expect(m.result).toBe("W");
+  });
+
+  it("既有勝負與局數不符 → 視為手動選的，保留不變", async () => {
+    vi.mocked(matchEventsApi.get).mockResolvedValue(withMatch("L", 5, 3));
+    renderAt("/match-logs/5");
+    await screen.findByDisplayValue("鳳中女排");
+    expect(resultButton("敗")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("自動判定")).not.toBeInTheDocument();
+    expect((await save()).result).toBe("L");
+  });
+
+  it("自動模式按「平」改為手動；再按一次「平」改回自動", async () => {
+    vi.mocked(matchEventsApi.get).mockResolvedValue(withMatch("W", 5, 3));
+    renderAt("/match-logs/5");
+    await screen.findByDisplayValue("鳳中女排");
+    fireEvent.click(resultButton("平"));
+    expect(resultButton("平")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("自動判定")).not.toBeInTheDocument();
+    fireEvent.click(resultButton("平"));
+    expect(resultButton("勝")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("自動判定")).toBeInTheDocument();
+    expect((await save()).result).toBe("W");
+  });
+});
+
 describe("MatchLogEdit 編輯頁不以過期快取初始化表單", () => {
   it("快取中有舊資料時，先重新取得再顯示表單（避免蓋掉記錄單回填的局分）", async () => {
     const queryClient = new QueryClient({

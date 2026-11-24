@@ -263,7 +263,7 @@ export interface EventSummary {
   teamReception: Ratio;
   /** 全隊攻擊得分率 */
   teamAttack: Ratio;
-  highlights: string[];
+  highlights: Highlight[];
 }
 
 export function summarizeMatchResult(input: MatchInput): MatchResult {
@@ -361,8 +361,18 @@ const RUN_HIGHLIGHT = 4;
 /** 落後（或領先）達此分數後逆轉才列入亮點 */
 const COMEBACK_GAP = 3;
 
-export function buildHighlights(m: EventSummary): string[] {
-  const out: string[] = [];
+/**
+ * 一條重點：label 為小標題，text 為內容，note 為補充（比分區間、比例等，畫面上整段不換行）。
+ * 拆開存放是為了手機上換行好看：比分不會被從中間切斷。
+ */
+export interface Highlight {
+  label: string;
+  text: string;
+  note?: string;
+}
+
+export function buildHighlights(m: EventSummary): Highlight[] {
+  const out: Highlight[] = [];
   // 只有一個對手時不必標對手名
   const multi = m.matches.length > 1;
   const where = (match: MatchResult, s: SetSummary) =>
@@ -371,7 +381,7 @@ export function buildHighlights(m: EventSummary): string[] {
 
   const topScorer = [...m.players].sort((a, b) => b.points - a.points)[0];
   if (topScorer && topScorer.points > 0) {
-    out.push(`得分王：${playerLabel(topScorer)}，共 ${topScorer.points} 分`);
+    out.push({ label: '得分王', text: `${playerLabel(topScorer)}，共 ${topScorer.points} 分` });
   }
 
   const bestBy = (side: 'our' | 'opp') =>
@@ -381,36 +391,56 @@ export function buildHighlights(m: EventSummary): string[] {
       .sort((a, b) => b.run.length - a.run.length)[0];
   const bestRun = bestBy('our');
   if (bestRun) {
-    out.push(`最長連續得分：${where(bestRun.match, bestRun.s)}連得 ${bestRun.run.length} 分（${fmt(bestRun.run.from)} → ${fmt(bestRun.run.to)}）`);
+    out.push({
+      label: '最長連續得分',
+      text: `${where(bestRun.match, bestRun.s)}連得 ${bestRun.run.length} 分`,
+      note: `${fmt(bestRun.run.from)} → ${fmt(bestRun.run.to)}`,
+    });
   }
   const worstRun = bestBy('opp');
   if (worstRun) {
-    out.push(`最長連續失分：${where(worstRun.match, worstRun.s)}被連得 ${worstRun.run.length} 分（${fmt(worstRun.run.from)} → ${fmt(worstRun.run.to)}）`);
+    out.push({
+      label: '最長連續失分',
+      text: `${where(worstRun.match, worstRun.s)}被連得 ${worstRun.run.length} 分`,
+      note: `${fmt(worstRun.run.from)} → ${fmt(worstRun.run.to)}`,
+    });
   }
 
   for (const { match, s } of all) {
     if (s.winner === 'U' && s.maxDeficit >= COMEBACK_GAP) {
-      out.push(`${where(match, s)}最多落後 ${s.maxDeficit} 分，逆轉以 ${fmt(s.score)} 拿下`);
+      out.push({ label: '逆轉勝', text: `${where(match, s)}最多落後 ${s.maxDeficit} 分`, note: `${fmt(s.score)} 拿下` });
     } else if (s.winner === 'O' && s.maxLead >= COMEBACK_GAP) {
-      out.push(`${where(match, s)}曾領先 ${s.maxLead} 分，被逆轉以 ${fmt(s.score)} 輸掉`);
+      out.push({ label: '被逆轉', text: `${where(match, s)}曾領先 ${s.maxLead} 分`, note: `${fmt(s.score)} 輸掉` });
     }
   }
 
   const topError = m.errors[0];
   if (topError && m.oppPoints.total > 0) {
-    out.push(`最大失分項目：${topError.label} ${topError.count} 次（占對方得分 ${pct(topError.count / m.oppPoints.total)}）`);
+    out.push({
+      label: '最大失分項目',
+      text: `${topError.label} ${topError.count} 次`,
+      note: `占對方得分 ${pct(topError.count / m.oppPoints.total)}`,
+    });
   }
 
   if (m.points.total > 0 && m.points.oppErrors / m.points.total >= 0.4) {
-    out.push(`我方得分有 ${pct(m.points.oppErrors / m.points.total)} 來自對方失誤`);
+    out.push({ label: '對方失誤送分', text: `我方得分有 ${pct(m.points.oppErrors / m.points.total)} 來自對方失誤` });
   }
 
   if (m.teamReception.rate != null) {
-    out.push(`全隊接發到位率 ${pct(m.teamReception.rate)}（${m.teamReception.made}/${m.teamReception.total}）`);
+    out.push({
+      label: '接發到位率',
+      text: `全隊 ${pct(m.teamReception.rate)}`,
+      note: `${m.teamReception.made}/${m.teamReception.total}`,
+    });
   }
 
   if (m.points.total > 0 && m.points.unclassified / m.points.total >= 0.3) {
-    out.push(`有 ${m.points.unclassified} 分（${pct(m.points.unclassified / m.points.total)}）沒在表格記到得分來源，統計僅供參考`);
+    out.push({
+      label: '記錄提醒',
+      text: `有 ${m.points.unclassified} 分沒在表格記到得分來源，統計僅供參考`,
+      note: `占 ${pct(m.points.unclassified / m.points.total)}`,
+    });
   }
 
   return out;

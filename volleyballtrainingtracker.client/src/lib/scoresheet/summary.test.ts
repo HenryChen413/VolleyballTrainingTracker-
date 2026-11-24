@@ -15,6 +15,10 @@ const one = (sets: { setIndex: number; content: SheetContent }[], opponent = '�
   sets,
 });
 
+/** 重點攤平成一行字串，方便比對：label｜text｜note */
+const flat = (hs: { label: string; text: string; note?: string }[]) =>
+  hs.map((h) => [h.label, h.text, h.note].filter(Boolean).join('｜'));
+
 const row = (playerId: number, counts: SheetRow['counts'], jerseyNo: number | null = playerId): SheetRow => ({
   playerId,
   name: `P${playerId}`,
@@ -151,23 +155,23 @@ describe('summarizeEvent (single opponent)', () => {
 
   it('highlights: top scorer, runs, top error, opp-error share', () => {
     const m = summarizeEvent([one([{ setIndex: 1, content: s1 }, { setIndex: 2, content: s2 }])]);
-    expect(m.highlights).toContain('得分王：#1 P1，共 12 分');
-    expect(m.highlights).toContain('最長連續得分：第 1 局連得 25 分（0-0 → 25-0）');
-    expect(m.highlights).toContain('最長連續失分：第 1 局被連得 20 分（25-0 → 25-20）');
-    expect(m.highlights.some((h) => h.startsWith('最大失分項目：攻擊出界 4 次'))).toBe(true);
+    expect(flat(m.highlights)).toContain('得分王｜#1 P1，共 12 分');
+    expect(flat(m.highlights)).toContain('最長連續得分｜第 1 局連得 25 分｜0-0 → 25-0');
+    expect(flat(m.highlights)).toContain('最長連續失分｜第 1 局被連得 20 分｜25-0 → 25-20');
+    expect(flat(m.highlights).some((h) => h.startsWith('最大失分項目｜攻擊出界 4 次'))).toBe(true);
   });
 
   it('highlights comeback and blown lead', () => {
     const comeback = sheet(rally('O O O O U U U U U'));
     const blown = sheet(rally('U U U U O O O O O'));
     const m = summarizeEvent([one([{ setIndex: 1, content: comeback }, { setIndex: 2, content: blown }, { setIndex: 3, content: sheet([]) }])]);
-    expect(m.highlights).toContain('第 1 局最多落後 4 分，逆轉以 5-4 拿下');
-    expect(m.highlights).toContain('第 2 局曾領先 4 分，被逆轉以 4-5 輸掉');
+    expect(flat(m.highlights)).toContain('逆轉勝｜第 1 局最多落後 4 分｜5-4 拿下');
+    expect(flat(m.highlights)).toContain('被逆轉｜第 2 局曾領先 4 分｜4-5 輸掉');
   });
 
   it('highlights warn when many points are unclassified', () => {
     const m = summarizeEvent([one([{ setIndex: 1, content: sheet(rally('U U U O')) }])]);
-    expect(m.highlights).toContain('有 3 分（100%）沒在表格記到得分來源，統計僅供參考');
+    expect(flat(m.highlights)).toContain('記錄提醒｜有 3 分沒在表格記到得分來源，統計僅供參考｜占 100%');
   });
 
   it('empty input', () => {
@@ -205,8 +209,8 @@ describe('summarizeEvent (multiple opponents)', () => {
       one([{ setIndex: 1, content: win }], '甲隊', 1),
       one([{ setIndex: 1, content: comeback }, { setIndex: 2, content: sheet([]) }], '乙隊', 2),
     ]);
-    expect(m.highlights).toContain('最長連續得分：對 甲隊 第 1 局連得 25 分（0-0 → 25-0）');
-    expect(m.highlights).toContain('對 乙隊 第 1 局最多落後 4 分，逆轉以 5-4 拿下');
+    expect(flat(m.highlights)).toContain('最長連續得分｜對 甲隊 第 1 局連得 25 分｜0-0 → 25-0');
+    expect(flat(m.highlights)).toContain('逆轉勝｜對 乙隊 第 1 局最多落後 4 分｜5-4 拿下');
   });
 
   it('match with no finished set has no outcome', () => {

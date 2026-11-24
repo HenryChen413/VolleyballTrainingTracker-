@@ -84,9 +84,9 @@ describe('EventSummaryPage', () => {
     expect(eventSheets).toHaveBeenCalledWith(3);
     const record = screen.getByRole('region', { name: '賽事戰績' });
     // 嘉藥A 2:0 勝、高醫B 0:2 負 → 1 勝 1 負、局數 2:2、總得分 88:92
-    expect(record).toHaveTextContent('1 勝 1 負');
-    expect(within(record).getByText('2 : 2')).toBeInTheDocument();
-    expect(within(record).getByText('88 : 92')).toBeInTheDocument();
+    expect(record).toHaveTextContent('1勝1負');
+    expect(within(record).getByText('2:2')).toBeInTheDocument();
+    expect(within(record).getByText('88:92')).toBeInTheDocument();
   });
 
   it('lists each opponent with result and links to its sheets', async () => {
@@ -107,8 +107,10 @@ describe('EventSummaryPage', () => {
     eventSheets.mockResolvedValue(TWO_OPPONENTS);
     renderPage();
     const players = await screen.findByRole('region', { name: '個人表現' });
-    expect(screen.getByText('得分王：#7 小美，共 10 分')).toBeInTheDocument();
-    expect(screen.getByText(/最長連續得分：對 嘉藥A 第 1 局/)).toBeInTheDocument();
+    const highlights = screen.getByRole('region', { name: '本賽事重點' });
+    expect(within(highlights).getByText('得分王')).toBeInTheDocument();
+    expect(within(highlights).getByText('#7 小美，共 10 分')).toBeInTheDocument();
+    expect(within(highlights).getByText(/對 嘉藥A 第 1 局連得/)).toBeInTheDocument();
     // 預設依淨值：小美 +10 在前、小華 −8 在後；改依背號則小華（#3）在前
     const names = () => within(players).getAllByText(/^#\d+ /).map((e) => e.textContent);
     expect(names()).toEqual(['#7 小美', '#3 小華']);
@@ -131,7 +133,7 @@ describe('EventSummaryPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'B 隊' }));
     expect(screen.getByRole('button', { name: 'B 隊' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('region', { name: '各場對戰（1 場）' })).toHaveTextContent('VS 高醫B');
-    expect(screen.getByRole('region', { name: '賽事戰績' })).toHaveTextContent('0 勝 1 負');
+    expect(screen.getByRole('region', { name: '賽事戰績' })).toHaveTextContent('0勝1負');
     fireEvent.click(screen.getByRole('button', { name: '全部' }));
     expect(screen.getByRole('region', { name: '各場對戰（2 場）' })).toBeInTheDocument();
   });

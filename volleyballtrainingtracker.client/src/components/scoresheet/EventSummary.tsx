@@ -63,31 +63,31 @@ const squadLabel = (q: string | null) => (q ? `${q} 隊` : null);
 
 function ResultHeader({ m }: { m: Summary }) {
   const stat = (label: string, value: React.ReactNode, className?: string) => (
-    <div className="text-center">
-      <div className={cn('text-3xl font-bold tabular-nums', className)}>{value}</div>
+    <div className="min-w-0 text-center">
+      {/* 手機三欄很窄：字級縮小且不換行，避免「200:122」折成兩行 */}
+      <div className={cn('whitespace-nowrap text-xl font-bold tabular-nums sm:text-3xl', className)}>{value}</div>
       <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   );
   return (
-    <section aria-label="賽事戰績" className="grid grid-cols-3 gap-2 rounded-xl border bg-card p-4">
+    <section aria-label="賽事戰績" className="grid grid-cols-3 gap-1 rounded-xl border bg-card px-2 py-4 sm:gap-2 sm:p-4">
       {stat(
         '對戰戰績',
         <>
           <span className="text-primary">{m.record.won}</span>
-          <span className="text-base text-muted-foreground"> 勝 </span>
+          <span className="text-sm text-muted-foreground sm:text-base">勝</span>
           <span className="text-navy">{m.record.lost}</span>
-          <span className="text-base text-muted-foreground"> 負</span>
+          <span className="text-sm text-muted-foreground sm:text-base">負</span>
           {m.record.drawn > 0 && (
             <>
-              {' '}
               {m.record.drawn}
-              <span className="text-base text-muted-foreground"> 平</span>
+              <span className="text-sm text-muted-foreground sm:text-base">平</span>
             </>
           )}
         </>,
       )}
-      {stat('局數', `${m.setsWon} : ${m.setsLost}`)}
-      {stat('總得分', `${m.total.our} : ${m.total.opp}`)}
+      {stat('局數', `${m.setsWon}:${m.setsLost}`)}
+      {stat('總得分', `${m.total.our}:${m.total.opp}`)}
     </section>
   );
 }
@@ -237,7 +237,8 @@ function SetTrend({ s, idPrefix }: { s: SetSummary; idPrefix: string }) {
       ) : (
         <svg
           viewBox={`0 0 ${CHART_W} ${CHART_H}`}
-          className="h-24 w-full touch-none select-none"
+          // touch-pan-y：手指從圖上滑動仍可上下捲動頁面，左右拖曳才看比分
+          className="h-24 w-full touch-pan-y select-none"
           role="img"
           aria-label={`${title}，最大領先 ${s.maxLead} 分，最大落後 ${s.maxDeficit} 分`}
           onPointerDown={onPointer}
@@ -430,11 +431,22 @@ export function EventSummary({ matches, eventId }: { matches: MatchInput[]; even
         <MatchesCard m={m} eventId={eventId} />
         {m.highlights.length > 0 && (
           <Card title="本賽事重點">
-            <ul className="space-y-1.5 text-sm">
+            <ul className="space-y-2.5">
               {m.highlights.map((h) => (
-                <li key={h} className="flex gap-2">
+                <li key={`${h.label}|${h.text}`} className="flex gap-2">
                   <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-                  <span>{h}</span>
+                  {/* 小標題一行、內容一行；補充（比分、比例）整段不換行，避免比分被從中間切斷 */}
+                  <div className="min-w-0">
+                    <div className="text-xs text-muted-foreground">{h.label}</div>
+                    <div className="text-sm [text-wrap:pretty]">
+                      {h.text}
+                      {h.note && (
+                        <span className="ml-1.5 inline-block whitespace-nowrap tabular-nums text-muted-foreground">
+                          （{h.note}）
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>

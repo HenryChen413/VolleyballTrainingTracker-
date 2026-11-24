@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronRight, ChevronDown, Video, Pencil, Trophy,
-  MapPin, Users, Search, StickyNote, X, Download, CalendarDays, ClipboardList,
+  MapPin, Users, Search, StickyNote, X, Download, CalendarDays, ClipboardList, BarChart3,
 } from "lucide-react";
 import {
   matchEventsApi,
@@ -355,8 +355,19 @@ export default function MatchLogsPage() {
                   </div>
                 </div>
 
-                {/* 賽事底部：直接開始記錄單（選隊別、對手後進入該局） */}
-                <div className="border-t border-border px-4 py-2 flex justify-end">
+                {/* 賽事底部：賽事總結（有任何記錄單才顯示）、直接開始記錄單（選隊別、對手後進入該局） */}
+                <div className="border-t border-border px-4 py-2 flex justify-end gap-2">
+                  {g.matches.some((m) => m.sheetCount > 0) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="min-h-11 gap-1.5"
+                      onClick={() => navigate(`/match-logs/${g.id}/summary`)}
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                      總結
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"

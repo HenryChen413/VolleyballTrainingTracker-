@@ -14,6 +14,7 @@ import MatchLogsPage from '@/pages/MatchLogs';
 import MatchLogEditPage from '@/pages/MatchLogEdit';
 import MatchScoreSheetPage from '@/pages/MatchScoreSheet';
 import MatchScoreSheetsPage from '@/pages/MatchScoreSheets';
+import EventSummaryPage from '@/pages/EventSummary';
 import TacticsBoardPage from '@/pages/TacticsBoard';
 import DefenseFormationPage from '@/pages/DefenseFormation';
 import ReceiveFormationPage from '@/pages/ReceiveFormation';
@@ -62,6 +63,7 @@ export default function App() {
               <Route element={<ProtectedRoute requirePage={PAGE.MatchLogs} />}>
                 <Route path="/match-logs" element={<MatchLogsPage />} />
                 <Route path="/match-logs/:id" element={<MatchLogEditPage />} />
+                <Route path="/match-logs/:eventId/summary" element={<EventSummaryPage />} />
                 <Route
                   path="/match-logs/:eventId/games/:matchLogId/sheets"
                   element={<MatchScoreSheetsPage />}

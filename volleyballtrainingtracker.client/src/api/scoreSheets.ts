@@ -58,7 +58,27 @@ export interface SheetStartResult {
   created: boolean;
 }
 
+/** 賽事總結：整個賽事所有對戰的記錄單 */
+export interface EventSheetsResponse {
+  matchEventId: number;
+  matchName: string | null;
+  matchDate: string;
+  matchType: string | null;
+  squadCount: number;
+  /** 有記錄單的對戰 */
+  matches: {
+    matchLogId: number;
+    opponent: string;
+    ourSquad: string | null;
+    /** content 為原始 JSON，使用前須經 normalizeContent */
+    sheets: { setIndex: number; content: unknown }[];
+  }[];
+}
+
 export const scoreSheetsApi = {
+  /** 賽事總結用：整個賽事所有對戰的記錄單 */
+  eventSheets: (eventId: number) =>
+    api.get<EventSheetsResponse>(`/matchevents/${eventId}/sheets`).then((r) => r.data),
   /** 從賽事直接開始記錄：依隊別＋對手找到或新建對戰 */
   start: (eventId: number, body: SheetStartBody) =>
     api.post<SheetStartResult>(`/matchevents/${eventId}/sheet-start`, body).then((r) => r.data),

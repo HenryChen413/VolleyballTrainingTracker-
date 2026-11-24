@@ -63,3 +63,32 @@ public class SheetStartResponse
     /// <summary>是否新建了對戰（新對手）。</summary>
     public bool Created { get; set; }
 }
+
+/// <summary>賽事總結用：整個賽事所有對戰的記錄單內容（不含名單與版本等編輯用欄位）。</summary>
+public class EventSheetsResponse
+{
+    public int MatchEventId { get; set; }
+    public string? MatchName { get; set; }
+    public DateTime MatchDate { get; set; }
+    public string? MatchType { get; set; }
+    public int SquadCount { get; set; }
+
+    /// <summary>有記錄單的對戰，依 MatchLog.Id 升冪（大致為建立順序）。</summary>
+    public List<EventSheetsMatchDto> Matches { get; set; } = new();
+}
+
+public class EventSheetsMatchDto
+{
+    public int MatchLogId { get; set; }
+    public string Opponent { get; set; } = string.Empty;
+    public string? OurSquad { get; set; }
+
+    /// <summary>依 SetIndex 升冪。</summary>
+    public List<EventSheetDto> Sheets { get; set; } = new();
+}
+
+public class EventSheetDto
+{
+    public int SetIndex { get; set; }
+    public JsonElement Content { get; set; }
+}

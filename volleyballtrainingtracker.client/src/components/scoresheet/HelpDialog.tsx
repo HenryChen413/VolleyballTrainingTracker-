@@ -69,6 +69,9 @@ export function HelpDialog({ open, onClose }: HelpDialogProps) {
 
           <Section step={3} title="記分與暫停（底部）">
             <li>
+              開局前在頁首 <K>先發球</K> 切到 <K>我方</K> 或 <K>對方</K>，比分發展該列會標上「發」。
+            </li>
+            <li>
               每球結束按 <K>我方 +1</K> 或 <K>對方 +1</K>，上方會自動畫出比分發展。
             </li>
             <li>

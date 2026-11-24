@@ -29,6 +29,14 @@ describe('RallyStrip', () => {
     expect(screen.getByTitle('換人：7 下、12 上')).toBeInTheDocument();
   });
 
+  it('firstServe 在先發球那一列列名旁標「發」', () => {
+    const { rerender } = render(<RallyStrip rally={[]} firstServe="O" />);
+    expect(screen.getByRole('rowheader', { name: /對方/ })).toHaveTextContent('對方發');
+    expect(screen.getByRole('rowheader', { name: /我方/ })).not.toHaveTextContent('發');
+    rerender(<RallyStrip rally={[]} firstServe={null} />);
+    expect(screen.queryByTitle('開局先發球')).not.toBeInTheDocument();
+  });
+
   it('empty rally shows a placeholder', () => {
     render(<RallyStrip rally={[]} />);
     expect(screen.getByText('尚未記分')).toBeInTheDocument();

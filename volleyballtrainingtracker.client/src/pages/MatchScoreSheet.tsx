@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { HelpDialog } from '@/components/scoresheet/HelpDialog';
 import { LineupGrid } from '@/components/scoresheet/LineupGrid';
 import { RallyStrip } from '@/components/scoresheet/RallyStrip';
+import { FirstServeSwitch } from '@/components/scoresheet/FirstServeSwitch';
 import { RotateHint } from '@/components/scoresheet/RotateHint';
 import { StatGrid } from '@/components/scoresheet/StatGrid';
 import { SubDialog } from '@/components/scoresheet/SubDialog';
@@ -26,6 +27,7 @@ import {
   bumpStat,
   popRally,
   pushRally,
+  setFirstServe,
   removeRow,
   addSub,
   removeSub,
@@ -33,6 +35,7 @@ import {
   subMarks,
   setLineup,
   type RallyItem,
+  type ServeSide,
   type SheetContent,
 } from '@/lib/scoresheet/sheet';
 import { readSheetDraft, useSheetSync, type SyncStatus } from '@/lib/scoresheet/useSheetSync';
@@ -223,6 +226,16 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
     if (content.rally.length > 0) edit(popRally);
   };
 
+  /** 切換先發球方；已開始記分後改動要確認，避免誤觸 */
+  const onFirstServe = async (side: ServeSide) => {
+    if (content.firstServe === side) return;
+    if (content.firstServe != null && content.rally.length > 0) {
+      const res = await confirmAction('修改先發球', '已開始記分，確定要修改開局先發球？', '修改');
+      if (!res.isConfirmed) return;
+    }
+    edit((c) => setFirstServe(c, side));
+  };
+
   const onLineup = (slot: number, playerId: number | null) => edit((c) => setLineup(c, slot, playerId));
   const onLibero = (slot: number, playerId: number | null) => edit((c) => setLibero(c, slot, playerId));
 
@@ -286,6 +299,7 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
         <output aria-label="目前比分" className="shrink-0 px-1 text-2xl font-bold tabular-nums lg:text-4xl">
           {score.our} : {score.opp}
         </output>
+        <FirstServeSwitch value={content.firstServe} onChange={(side) => void onFirstServe(side)} />
         <label className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
           紀錄
           <Input
@@ -347,7 +361,7 @@ function SheetEditor({ data, setIndex, server, listPath }: EditorProps) {
 
       {/* 比分發展：固定在底部 */}
       <footer className="shrink-0 space-y-2 border-t bg-card px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 lg:px-4">
-        <RallyStrip rally={content.rally} subs={content.subs} labelOf={labelOf} />
+        <RallyStrip rally={content.rally} subs={content.subs} labelOf={labelOf} firstServe={content.firstServe} />
         <div className="flex flex-wrap items-center gap-2">
           <Button className={cn(TOUCH, 'h-12 px-6 text-base')} onClick={() => rally('U')}>
             我方 +1

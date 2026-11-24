@@ -82,6 +82,12 @@ public static class ScoreSheetRules
                 return "rally 只允許 U、O、TU、TO";
         }
 
+        // firstServe 為後加欄位（開局先發球方），舊資料可沒有；有的話只能是 "U"、"O" 或 null
+        if (content.TryGetProperty("firstServe", out var firstServe)
+            && firstServe.ValueKind != JsonValueKind.Null
+            && !(firstServe.ValueKind == JsonValueKind.String && firstServe.GetString() is "U" or "O"))
+            return "firstServe 只允許 U、O 或 null";
+
         return null;
     }
 

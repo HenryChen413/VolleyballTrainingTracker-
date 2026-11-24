@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { layoutRally } from '@/lib/scoresheet/rally';
-import type { RallyItem, Sub } from '@/lib/scoresheet/sheet';
+import type { RallyItem, ServeSide, Sub } from '@/lib/scoresheet/sheet';
 import { cn } from '@/lib/utils';
 
 interface RallyStripProps {
@@ -8,14 +8,16 @@ interface RallyStripProps {
   subs?: readonly Sub[];
   /** 換人欄顯示用：playerId → 背號（或名字） */
   labelOf?: (playerId: number) => string;
+  /** 開局先發球方，在該列列名旁標「發」 */
+  firstServe?: ServeSide | null;
 }
 
 /**
  * 比分發展：兩列錯開寫法，每個項目佔一欄，得分方寫累計分；
- * 暫停以 Ⓣ 標在喊暫停那一方的列上（我方藍、對方紅）；換人以「下→上」標在我方列。
+ * 開局先發球方在列名旁標「發」；暫停以 Ⓣ 標在喊暫停那一方的列上（我方藍、對方紅）；換人以「下→上」標在我方列。
  * 新增項目時自動捲到最右。
  */
-export function RallyStrip({ rally, subs = [], labelOf = String }: RallyStripProps) {
+export function RallyStrip({ rally, subs = [], labelOf = String, firstServe = null }: RallyStripProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevLen = useRef(0);
   const cells = layoutRally(rally, subs);
@@ -30,9 +32,17 @@ export function RallyStrip({ rally, subs = [], labelOf = String }: RallyStripPro
     <tr>
       <th
         scope="row"
-        className="sticky left-0 z-10 bg-card pr-2 text-left text-xs font-medium text-muted-foreground"
+        className="sticky left-0 z-10 whitespace-nowrap bg-card pr-2 text-left text-xs font-medium text-muted-foreground"
       >
         {label}
+        {firstServe === side && (
+          <span
+            title="開局先發球"
+            className="ml-1 rounded bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
+          >
+            發
+          </span>
+        )}
       </th>
       {cells.map((c, i) => {
         if (c.sub) {

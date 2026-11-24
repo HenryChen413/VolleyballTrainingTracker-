@@ -59,6 +59,26 @@ public class ScoreSheetRulesTests
     }
 
     [Theory]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[]}")]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[],\"firstServe\":null}")]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[],\"firstServe\":\"U\"}")]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[],\"firstServe\":\"O\"}")]
+    public void ValidateContent_FirstServe_Valid(string json)
+    {
+        Assert.Null(ScoreSheetRules.ValidateContent(Json(json)));
+    }
+
+    [Theory]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[],\"firstServe\":\"TU\"}")]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[],\"firstServe\":\"\"}")]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[],\"firstServe\":1}")]
+    [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[],\"firstServe\":true}")]
+    public void ValidateContent_InvalidFirstServe_ReturnsMessage(string json)
+    {
+        Assert.NotNull(ScoreSheetRules.ValidateContent(Json(json)));
+    }
+
+    [Theory]
     [InlineData("[]")]
     [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0}")]
     [InlineData("{\"lineup\":[null,null,null,null,null,null],\"rows\":[],\"oppErrors\":0,\"ourErrors\":0,\"rally\":[\"X\"]}")]

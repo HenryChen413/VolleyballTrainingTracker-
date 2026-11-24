@@ -27,12 +27,16 @@ export interface SheetContent {
   oppErrors: number;
   ourErrors: number;
   rally: RallyItem[];
+  /** 開局先發球方：U 我方、O 對方；null 未指定（舊資料沒有此欄） */
+  firstServe: ServeSide | null;
 }
+
+export type ServeSide = 'U' | 'O';
 
 const RALLY_ITEMS: readonly string[] = ['U', 'O', 'TU', 'TO'];
 
 export function emptyContent(): SheetContent {
-  return { lineup: [null, null, null, null, null, null], liberos: [null, null], rows: [], subs: [], oppErrors: 0, ourErrors: 0, rally: [] };
+  return { lineup: [null, null, null, null, null, null], liberos: [null, null], rows: [], subs: [], oppErrors: 0, ourErrors: 0, rally: [], firstServe: null };
 }
 
 export function addRow(c: SheetContent, p: { playerId: number; name: string; jerseyNo: number | null }): SheetContent {
@@ -121,6 +125,10 @@ export function sortRowsByJersey(rows: SheetRow[]): SheetRow[] {
   return [...rows].sort((a, b) => key(a) - key(b));
 }
 
+export function setFirstServe(c: SheetContent, side: ServeSide | null): SheetContent {
+  return { ...c, firstServe: side };
+}
+
 export function pushRally(c: SheetContent, item: RallyItem): SheetContent {
   return { ...c, rally: [...c.rally, item] };
 }
@@ -183,5 +191,7 @@ export function normalizeContent(raw: unknown): SheetContent {
     ? o.rally.filter((v): v is RallyItem => typeof v === 'string' && RALLY_ITEMS.includes(v))
     : [];
 
-  return { lineup, liberos, rows, subs, oppErrors: nonNeg(o.oppErrors), ourErrors: nonNeg(o.ourErrors), rally };
+  const firstServe: ServeSide | null = o.firstServe === 'U' || o.firstServe === 'O' ? o.firstServe : null;
+
+  return { lineup, liberos, rows, subs, oppErrors: nonNeg(o.oppErrors), ourErrors: nonNeg(o.ourErrors), rally, firstServe };
 }

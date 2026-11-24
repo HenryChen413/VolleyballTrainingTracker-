@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addRow, bumpErrors, bumpStat, emptyContent, normalizeContent,
-  addSub, onCourt, popRally, pushRally, removeRow, removeSub, setLibero, setLineup, sortRowsByJersey, subMarks,
+  addSub, onCourt, setFirstServe, popRally, pushRally, removeRow, removeSub, setLibero, setLineup, sortRowsByJersey, subMarks,
 } from './sheet';
 
 const p7 = { playerId: 7, name: '小美', jerseyNo: 7 };
@@ -130,6 +130,18 @@ describe('sheet 文件模型', () => {
     const c = pushRally(pushRally(e, 'U'), 'TO');
     expect(c.rally).toEqual(['U', 'TO']);
     expect(popRally(c).rally).toEqual(['U']);
+  });
+
+  it('firstServe：預設 null、可設定與清除，normalizeContent 只接受 U/O', () => {
+    expect(emptyContent().firstServe).toBeNull();
+    const c = setFirstServe(emptyContent(), 'O');
+    expect(c.firstServe).toBe('O');
+    expect(setFirstServe(c, null).firstServe).toBeNull();
+    expect(normalizeContent({ firstServe: 'U' }).firstServe).toBe('U');
+    expect(normalizeContent({ firstServe: 'O' }).firstServe).toBe('O');
+    expect(normalizeContent({ firstServe: 'TU' }).firstServe).toBeNull();
+    expect(normalizeContent({ firstServe: 1 }).firstServe).toBeNull();
+    expect(normalizeContent({}).firstServe).toBeNull();
   });
 
   it('normalizeContent fills defaults', () => {

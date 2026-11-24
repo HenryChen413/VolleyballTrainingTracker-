@@ -44,6 +44,8 @@ export interface SheetCard {
   setIndex: number;
   content: SheetContent;
   recorderName: string | null;
+  /** 最後修改的帳號名稱（本機草稿未知時為 null） */
+  updatedByName: string | null;
   /** ISO 時間字串 */
   updatedAt: string;
   /** 本機有尚未上傳的修改 */
@@ -65,6 +67,7 @@ export function mergeOfflineCards(cache: MatchScoreSheetsResponse | null, matchL
       setIndex: s.setIndex,
       content: useDraft ? d.content : normalizeContent(s.content),
       recorderName: useDraft ? d.recorderName : s.recorderName,
+      updatedByName: useDraft ? null : s.updatedByName ?? null,
       updatedAt: useDraft ? new Date(d.savedAt).toISOString() : s.updatedAt,
       unsynced: !!d?.dirty,
       onServer: true,
@@ -76,6 +79,7 @@ export function mergeOfflineCards(cache: MatchScoreSheetsResponse | null, matchL
       setIndex,
       content: draft.content,
       recorderName: draft.recorderName,
+      updatedByName: null,
       updatedAt: new Date(draft.savedAt).toISOString(),
       unsynced: draft.dirty,
       onServer: false,

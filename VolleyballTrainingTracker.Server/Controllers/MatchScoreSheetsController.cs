@@ -75,21 +75,9 @@ public class MatchScoreSheetsController : ControllerBase
                 .ToListAsync();
         }
 
-        var rows = await _db.MatchScoreSheets.AsNoTracking()
-            .Where(s => s.MatchLogId == matchLogId)
-            .OrderBy(s => s.SetIndex)
-            .Select(s => new SheetRow
-            {
-                SetIndex = s.SetIndex,
-                RecorderName = s.RecorderName,
-                Content = s.Content,
-                Version = s.Version,
-                CreatedAt = s.CreatedAt,
-                UpdatedAt = s.UpdatedAt,
-                UpdatedByName = s.UpdatedByUser != null
-                    ? (s.UpdatedByUser.DisplayName ?? s.UpdatedByUser.UserName)
-                    : null,
-            })
+        var rows = await ProjectRows(_db.MatchScoreSheets.AsNoTracking()
+                .Where(s => s.MatchLogId == matchLogId)
+                .OrderBy(s => s.SetIndex))
             .ToListAsync();
 
         return Ok(new MatchScoreSheetsResponse
@@ -236,21 +224,30 @@ public class MatchScoreSheetsController : ControllerBase
     }
 
     private async Task<SheetRow?> LoadRowAsync(int matchLogId, int setIndex) =>
-        await _db.MatchScoreSheets.AsNoTracking()
-            .Where(s => s.MatchLogId == matchLogId && s.SetIndex == setIndex)
-            .Select(s => new SheetRow
-            {
-                SetIndex = s.SetIndex,
-                RecorderName = s.RecorderName,
-                Content = s.Content,
-                Version = s.Version,
-                CreatedAt = s.CreatedAt,
-                UpdatedAt = s.UpdatedAt,
-                UpdatedByName = s.UpdatedByUser != null
-                    ? (s.UpdatedByUser.DisplayName ?? s.UpdatedByUser.UserName)
-                    : null,
-            })
+        await ProjectRows(_db.MatchScoreSheets.AsNoTracking()
+                .Where(s => s.MatchLogId == matchLogId && s.SetIndex == setIndex))
             .FirstOrDefaultAsync();
+
+    /// <summary>
+    /// 投影成 SheetRow。最後修改者：有 UpdatedByUser 用之；只建立未修改過的局則以建立者代替
+    /// （與 UpdatedAt ?? CreatedAt 的時間一致）。
+    /// </summary>
+    private IQueryable<SheetRow> ProjectRows(IQueryable<MatchScoreSheet> query) =>
+        query.Select(s => new SheetRow
+        {
+            SetIndex = s.SetIndex,
+            RecorderName = s.RecorderName,
+            Content = s.Content,
+            Version = s.Version,
+            CreatedAt = s.CreatedAt,
+            UpdatedAt = s.UpdatedAt,
+            UpdatedByName = s.UpdatedByUser != null
+                ? (s.UpdatedByUser.DisplayName ?? s.UpdatedByUser.UserName)
+                : _db.Users
+                    .Where(u => u.Id == s.CreatedByUserId)
+                    .Select(u => u.DisplayName ?? u.UserName)
+                    .FirstOrDefault(),
+        });
 
     /// <summary>由資料庫存的 Content 字串算該局比分；內容壞掉視同空白局。</summary>
     private static (int Our, int Opp)? ScoreFromStoredContent(string content)

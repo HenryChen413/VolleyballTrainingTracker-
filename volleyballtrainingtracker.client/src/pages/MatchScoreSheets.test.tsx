@@ -100,6 +100,14 @@ describe('MatchScoreSheetsPage', () => {
     expect(screen.getAllByText(/王小明/).length).toBeGreaterThan(0);
   });
 
+  it('shows last editor only when different from recorder', async () => {
+    list.mockResolvedValue(response([sheet(1, content(25, 20, 1)), { ...sheet(2, content(21, 25, 2)), updatedByName: '陳教練' }]));
+    renderPage();
+    await screen.findByText('第 2 局');
+    expect(screen.getAllByText(/最後修改 陳教練/)).toHaveLength(1);
+    expect(screen.queryByText(/最後修改 王小明/)).not.toBeInTheDocument();
+  });
+
   it('only last set offers delete', async () => {
     list.mockResolvedValue(response(TWO));
     renderPage();

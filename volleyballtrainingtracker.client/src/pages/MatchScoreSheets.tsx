@@ -104,6 +104,7 @@ export default function MatchScoreSheetsPage() {
         setIndex: s.setIndex,
         content: normalizeContent(s.content),
         recorderName: s.recorderName,
+        updatedByName: s.updatedByName ?? null,
         updatedAt: s.updatedAt,
         unsynced: false,
         onServer: true,
@@ -185,7 +186,10 @@ export default function MatchScoreSheetsPage() {
                         )}
                       </div>
                       <div className="truncate text-xs text-muted-foreground">
-                        {s.recorderName ? `記錄人 ${s.recorderName}` : '未填記錄人'} · {formatTime(s.updatedAt)}
+                        {s.recorderName ? `記錄人 ${s.recorderName}` : '未填記錄人'}
+                        {s.updatedByName && s.updatedByName !== s.recorderName && ` · 最後修改 ${s.updatedByName}`}
+                        {' · '}
+                        {formatTime(s.updatedAt)}
                       </div>
                     </div>
                     <div className="shrink-0 text-2xl font-bold tabular-nums">

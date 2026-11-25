@@ -89,8 +89,10 @@ describe('summarizePlayer', () => {
     expect(p.errors).toBe(4 + 3 + 1 + 2 + 1);
     expect(p.net).toBe(10 - 11);
     expect(p.attack).toEqual({ made: 6, total: 13, rate: 6 / 13 });
+    expect(p.attackResults).toEqual({ made: 6, no: 4, out: 3 });
     expect(p.reception).toEqual({ made: 8, total: 10, rate: 0.8 });
     expect(p.dig.rate).toBeNull();
+    expect(p.digResults).toEqual({ made: 0, miss: 0, shank: 0 });
     expect(p.setsPlayed).toBe(3);
     expect(p.setsStarted).toBe(2);
   });
@@ -124,10 +126,10 @@ describe('summarizeEvent (single opponent)', () => {
     expect(m.points).toEqual({ total: 30, attack: 12, tip: 0, serve: 2, block: 1, oppErrors: 9, unclassified: 6, overRecorded: 0 });
   });
 
-  it('opponent points split into our errors (auto + manual) and earned', () => {
+  it('opponent points: our errors (auto + manual)', () => {
     const m = summarizeEvent([one([{ setIndex: 1, content: s1 }, { setIndex: 2, content: s2 }])]);
     // 自動：serveX 3 + recvX 1 + atkOut 4 = 8；手動 1
-    expect(m.oppPoints).toEqual({ total: 30, ourErrors: 9, earned: 21, overRecorded: 0 });
+    expect(m.oppPoints).toEqual({ total: 30, ourErrors: 9, overRecorded: 0 });
   });
 
   it('over-recorded when table exceeds score', () => {

@@ -170,8 +170,8 @@ function ErrorsCard({ m }: { m: Summary }) {
   return (
     <Card title={`對方得分來源（共 ${o.total} 分）`}>
       <div className="space-y-1.5">
-        <HBar label="我方失誤" value={o.ourErrors} max={Math.max(o.ourErrors, o.earned)} total={o.total} tone="navy" />
-        <HBar label="對方打下來" value={o.earned} max={Math.max(o.ourErrors, o.earned)} total={o.total} tone="navy" />
+        {/* 不拆「對方打下來」：接扣未接、接發失誤等也算我方失誤，用減法推出來的數字沒有意義 */}
+        <HBar label="我方失誤" value={o.ourErrors} max={Math.max(o.ourErrors, o.total)} total={o.total} tone="navy" />
       </div>
       {o.overRecorded > 0 && (
         <p className="text-xs text-warning">我方失誤比對方得分多 {o.overRecorded} 次，可能有多記或記錯格子</p>
@@ -325,17 +325,24 @@ function sortPlayers(list: PlayerSummary[], key: SortKey): PlayerSummary[] {
   return [...list].sort((a, b) => by[key](a, b) || jersey(a) - jersey(b));
 }
 
-function RatioLine({ label, r }: { label: string; r: Ratio }) {
-  if (r.total === 0) return null;
+/**
+ * 記錄單不是每一球都劃記（被接起來的攻擊、接起來但沒到位的球都不記），
+ * 沒有真正的總次數可當分母，因此只列各結果次數、不算成功率；全為 0 時不顯示。
+ */
+function CountLine({ label, items }: { label: string; items: [string, number][] }) {
+  if (items.every(([, n]) => n === 0)) return null;
   return (
     <div className="flex justify-between gap-2">
       <span className="text-muted-foreground">{label}</span>
-      <span className="tabular-nums">
-        {r.made}/{r.total}（{pct(r.made, r.total)}）
-      </span>
+      <span className="tabular-nums">{items.map(([k, n]) => `${k} ${n}`).join('・')}</span>
     </div>
   );
 }
+
+const madeMiss = (r: Ratio, made: string, miss: string): [string, number][] => [
+  [made, r.made],
+  [miss, r.total - r.made],
+];
 
 function PlayerCard({ p }: { p: PlayerSummary }) {
   const parts = [
@@ -374,11 +381,25 @@ function PlayerCard({ p }: { p: PlayerSummary }) {
         </div>
       )}
       <div className="space-y-0.5 text-xs">
-        <RatioLine label="攻擊得分率" r={p.attack} />
-        <RatioLine label="接發到位" r={p.reception} />
-        <RatioLine label="接扣成功" r={p.dig} />
-        <RatioLine label="接小到位" r={p.free} />
-        <RatioLine label="修正到位" r={p.set} />
+        <CountLine
+          label="攻擊"
+          items={[
+            ['得分', p.attackResults.made],
+            ['沒進', p.attackResults.no],
+            ['出界', p.attackResults.out],
+          ]}
+        />
+        <CountLine label="接發" items={madeMiss(p.reception, '到位', '失誤')} />
+        <CountLine
+          label="接扣"
+          items={[
+            ['成功', p.digResults.made],
+            ['未接', p.digResults.miss],
+            ['噴球', p.digResults.shank],
+          ]}
+        />
+        <CountLine label="接小" items={madeMiss(p.free, '到位', '失誤')} />
+        <CountLine label="修正" items={madeMiss(p.set, '到位', '失誤')} />
       </div>
     </div>
   );

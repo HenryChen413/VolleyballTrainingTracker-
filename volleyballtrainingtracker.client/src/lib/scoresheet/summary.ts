@@ -137,8 +137,6 @@ export interface OppPointSources {
   total: number;
   /** 我方失誤（格子自動加總＋手動補記） */
   ourErrors: number;
-  /** 對方自己打下來的分（總分 − 我方失誤，≥0） */
-  earned: number;
   /** 我方失誤多於對方總分的部分（≥0） */
   overRecorded: number;
 }
@@ -168,7 +166,10 @@ export interface ErrorItem {
 
 // ── 個人表現 ─────────────────────────────────────────────
 
-/** 成功數／總數；總數為 0 時 rate 為 null */
+/**
+ * 成功數／總數；總數為 0 時 rate 為 null。
+ * 記錄單不是每一球都劃記（如接起來但沒到位的球），個人表現畫面只列次數、不顯示比例。
+ */
 export interface Ratio {
   made: number;
   total: number;
@@ -185,12 +186,16 @@ export interface PlayerSummary {
   pointsBy: { attack: number; tip: number; serve: number; block: number };
   errors: number;
   net: number;
-  /** 攻擊得分／(得分＋沒進＋出界) */
+  /** 攻擊得分／(得分＋沒進＋出界)。記錄單沒記攻擊總次數（被接起來的攻擊不劃記），此比例不是攻擊成功率，畫面不顯示 */
   attack: Ratio;
+  /** 攻擊各結果次數（畫面只列次數，不算比例） */
+  attackResults: { made: number; no: number; out: number };
   /** 接發到位／(到位＋失誤) */
   reception: Ratio;
   /** 接扣成功／(成功＋未接＋噴球) */
   dig: Ratio;
+  /** 接扣各結果次數（畫面只列次數，不算比例） */
+  digResults: { made: number; miss: number; shank: number };
   /** 接小到位／(到位＋失誤) */
   free: Ratio;
   /** 修正到位／(到位＋失誤) */
@@ -215,8 +220,10 @@ export function summarizePlayer(row: SheetRow, setsPlayed: number, setsStarted: 
     errors,
     net: points - errors,
     attack: ratio(c(row, 'atkO'), c(row, 'atkO') + c(row, 'atkNo') + c(row, 'atkOut')),
+    attackResults: { made: c(row, 'atkO'), no: c(row, 'atkNo'), out: c(row, 'atkOut') },
     reception: ratio(c(row, 'recvO'), c(row, 'recvO') + c(row, 'recvX')),
     dig: ratio(c(row, 'digO'), c(row, 'digO') + c(row, 'digMiss') + c(row, 'digShank')),
+    digResults: { made: c(row, 'digO'), miss: c(row, 'digMiss'), shank: c(row, 'digShank') },
     free: ratio(c(row, 'freeO'), c(row, 'freeO') + c(row, 'freeX')),
     set: ratio(c(row, 'setO'), c(row, 'setO') + c(row, 'setX')),
   };
@@ -259,10 +266,6 @@ export interface EventSummary {
   /** 我方失誤依類別由多到少（只列 >0 者；手動補記另列「其他」） */
   errors: ErrorItem[];
   players: PlayerSummary[];
-  /** 全隊接發到位率 */
-  teamReception: Ratio;
-  /** 全隊攻擊得分率 */
-  teamAttack: Ratio;
   highlights: Highlight[];
 }
 
@@ -310,7 +313,6 @@ export function summarizeEvent(input: MatchInput[]): EventSummary {
   const oppPoints: OppPointSources = {
     total: total.opp,
     ourErrors,
-    earned: Math.max(0, total.opp - ourErrors),
     overRecorded: Math.max(0, ourErrors - total.opp),
   };
 
@@ -341,8 +343,6 @@ export function summarizeEvent(input: MatchInput[]): EventSummary {
     oppPoints,
     errors: errorList,
     players,
-    teamReception: ratio(sum('recvO'), sum('recvO') + sum('recvX')),
-    teamAttack: ratio(sum('atkO'), sum('atkO') + sum('atkNo') + sum('atkOut')),
     highlights: [],
   };
   summary.highlights = buildHighlights(summary);
@@ -425,14 +425,6 @@ export function buildHighlights(m: EventSummary): Highlight[] {
 
   if (m.points.total > 0 && m.points.oppErrors / m.points.total >= 0.4) {
     out.push({ label: '對方失誤送分', text: `我方得分有 ${pct(m.points.oppErrors / m.points.total)} 來自對方失誤` });
-  }
-
-  if (m.teamReception.rate != null) {
-    out.push({
-      label: '接發到位率',
-      text: `全隊 ${pct(m.teamReception.rate)}`,
-      note: `${m.teamReception.made}/${m.teamReception.total}`,
-    });
   }
 
   if (m.points.total > 0 && m.points.unclassified / m.points.total >= 0.3) {
